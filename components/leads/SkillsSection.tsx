@@ -149,10 +149,10 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium">{skill.name}</p>
                         {skill.category && (
-                          <Badge variant="outline">{skill.category}</Badge>
+                          <Badge className="border border-gray-200 bg-gray-50 text-gray-700">{skill.category}</Badge>
                         )}
                         {skill.level && (
-                          <Badge variant="outline" className="capitalize">
+                          <Badge className="capitalize border border-gray-200 bg-gray-50 text-gray-700">
                             {skill.level}
                           </Badge>
                         )}
