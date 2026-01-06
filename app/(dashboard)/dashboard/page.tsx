@@ -1,0 +1,68 @@
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { caosApi } from '@/lib/api/caos';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, UserPlus, CheckCircle } from 'lucide-react';
+
+export default function DashboardPage() {
+  const { data: leadsData, isLoading } = useQuery({
+    queryKey: ['leads', 'dashboard'],
+    queryFn: () => caosApi.searchLeads({ limit: 100 }),
+  });
+
+  const stats = {
+    total: leadsData?.pagination.total || 0,
+    approved: leadsData?.data.filter(l => l.status === 'approved').length || 0,
+    activated: leadsData?.data.filter(l => l.status === 'activated').length || 0,
+  };
+
+  const statCards = [
+    { title: 'Total Taskers', value: stats.total, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { title: 'Ready to Activate', value: stats.approved, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+    { title: 'Accounts Created', value: stats.activated, icon: UserPlus, color: 'text-blue-600', bg: 'bg-blue-50' },
+  ];
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-1.5 text-sm text-gray-500">
+          Overview of your taskers and onboarding progress
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse border-gray-200">
+              <CardHeader>
+                <div className="h-4 w-32 bg-gray-200 rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-20 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-3">
+          {statCards.map((stat) => (
+            <Card key={stat.title} className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-semibold text-gray-700">{stat.title}</CardTitle>
+                <div className={`p-2 rounded-lg ${stat.bg}`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">{stat.value.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

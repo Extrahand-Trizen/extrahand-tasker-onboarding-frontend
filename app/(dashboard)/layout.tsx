@@ -1,0 +1,105 @@
+'use client';
+
+import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Sidebar } from '@/components/layout/sidebar';
+import { Header } from '@/components/layout/header';
+import { useInactivityTimeout } from '@/lib/hooks/useInactivityTimeout';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isAuthenticated, loading, logout } = useAdminAuth();
+  const router = useRouter();
+  const [showWarn, setShowWarn] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, loading, router]);
+
+  useInactivityTimeout({
+    inactivityMs: 60 * 60 * 1000, // 1 hour for marketing use-case
+    hardCapMs: 24 * 60 * 60 * 1000, // 24 hours hard cap
+    warningBeforeMs: 10 * 60 * 1000, // warn 10 minutes before timeout
+    onWarn: () => setShowWarn(true),
+    onTimeout: () => {
+      setShowWarn(false);
+      logout();
+      router.push('/login');
+    },
+  });
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return (
+    <>
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-y-auto bg-gray-50/50 p-8">
+            {children}
+          </main>
+        </div>
+      </div>
+      <Dialog open={showWarn} onOpenChange={setShowWarn}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Session ending soon</DialogTitle>
+            <DialogDescription>
+              You’ve been inactive. You’ll be logged out in about 10 minutes unless you stay signed in.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowWarn(false);
+              }}
+            >
+              Stay signed in
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowWarn(false);
+                logout();
+                router.push('/login');
+              }}
+            >
+              Logout now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+

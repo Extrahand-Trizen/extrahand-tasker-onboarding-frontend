@@ -1,0 +1,851 @@
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:5000';
+const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL || 'http://localhost:4006';
+
+/**
+ * Get fresh admin token (refreshes if expired)
+ */
+async function getAdminToken(): Promise<string> {
+  if (typeof window === 'undefined') {
+    throw new Error('Admin token can only be retrieved on client side');
+  }
+
+  const { auth } = await import('@/lib/config/firebase');
+  const { onAuthStateChanged } = await import('firebase/auth');
+  
+  const currentUser = auth.currentUser;
+  
+  if (currentUser) {
+    try {
+      const token = await currentUser.getIdToken(true);
+      localStorage.setItem('adminToken', token);
+      return token;
+    } catch (error: any) {
+      throw new Error('Failed to get admin token: ' + error.message);
+    }
+  }
+  
+  return new Promise((resolve, reject) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      unsubscribe();
+      if (user) {
+        try {
+          const token = await user.getIdToken(true);
+          localStorage.setItem('adminToken', token);
+          resolve(token);
+        } catch (error: any) {
+          reject(new Error('Failed to get admin token: ' + error.message));
+        }
+      } else {
+        reject(new Error('Admin not authenticated. Please login.'));
+      }
+    });
+  });
+}
+
+export type LeadStatus = 
+  | 'lead_added'
+  | 'contacted'
+  | 'interested'
+  | 'documents_submitted'
+  | 'under_verification'
+  | 'approved'
+  | 'rejected'
+  | 'account_created'
+  | 'activated'
+  | 'inactive';
+
+export type CreationMethod = 'manual_onboarding' | 'bulk_upload' | 'direct_activation';
+
+export type LeadSource = 'referral' | 'campaign' | 'walk-in' | 'agent' | 'other';
+
+export interface Lead {
+  leadId: string;
+  name: string;
+  phone: string;
+  email?: string;
+  city: string;
+  state?: string;
+  address?: string;
+  primaryCategory: string;
+  source: LeadSource;
+  sourceDetails?: string;
+  addedBy: string;
+  addedByName?: string;
+  status: LeadStatus;
+  statusHistory: Array<{
+    status: LeadStatus;
+    changedBy: string;
+    changedByName?: string;
+    changedAt: string;
+    notes?: string;
+  }>;
+  skills: Array<{
+    name: string;
+    category?: string;
+    level?: 'beginner' | 'experienced';
+    toolsAvailable?: boolean;
+    assignedBy?: string;
+    assignedAt?: string;
+  }>;
+  documents: Array<{
+    type: 'aadhaar' | 'pan' | 'address_proof' | 'skill_certificate' | 'photo' | 'other';
+    url?: string;
+    uploadedAt?: string;
+    status: 'pending' | 'verified' | 'rejected';
+    rejectionReason?: string;
+    verifiedBy?: string;
+    verifiedAt?: string;
+    aadhaarNumber?: string; // Masked format: XXXX XXXX 1234
+    panNumber?: string; // Masked format: ABXXXX1234
+    addressDetails?: string; // Manual address entry
+  }>;
+  verificationStatus: {
+    aadhaar?: {
+      status: 'pending' | 'verified' | 'failed';
+      verifiedAt?: string;
+      refId?: string;
+    };
+    pan?: {
+      status: 'pending' | 'verified' | 'failed';
+      verifiedAt?: string;
+    };
+    bank?: {
+      status: 'pending' | 'verified' | 'failed';
+      verifiedAt?: string;
+    };
+  };
+  internalNotes: Array<{
+    note: string;
+    addedBy: string;
+    addedByName?: string;
+    addedAt: string;
+    isPrivate?: boolean;
+  }>;
+  isDuplicate: boolean;
+  blacklisted: boolean;
+  activationData?: {
+    activatedAt: string;
+    firebaseUid: string;
+    profileCreated: boolean;
+  };
+  creationMethod?: CreationMethod;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLeadData {
+  name: string;
+  phone: string;
+  email?: string;
+  city: string;
+  state?: string;
+  address?: string; // Local Area
+  pincode?: string;
+  primaryCategory: string;
+  secondaryCategory: string;
+  experienceLevel: 'beginner' | 'intermediate' | 'experienced';
+  workingDays?: string;
+  preferredTimeSlot?: string;
+  source: LeadSource;
+  sourceDetails?: string;
+}
+
+export interface SearchLeadsParams {
+  status?: LeadStatus;
+  city?: string;
+  primarySkill?: string;
+  source?: LeadSource;
+  addedBy?: string;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface SearchLeadsResponse {
+  success: boolean;
+  data: Lead[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface DuplicateCheckResponse {
+  success: boolean;
+  data: {
+    isDuplicate: boolean;
+    existingLead?: Lead;
+    matchType?: 'phone' | 'name_city';
+  };
+}
+
+export interface AnalyticsResponse {
+  success: boolean;
+  data: {
+    statusCounts: Array<{ status: LeadStatus; count: number }>;
+    sourceCounts: Array<{ source: LeadSource; count: number }>;
+    cityCounts: Array<{ city: string; count: number }>;
+    skillCounts: Array<{ primarySkill: string; count: number }>;
+  };
+}
+
+export const caosApi = {
+  /**
+   * Create a new lead
+   */
+  async createLead(data: CreateLeadData): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to create lead' }));
+      throw new Error(error.error || error.message || 'Failed to create lead');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Search and filter leads
+   */
+  async searchLeads(params: SearchLeadsParams = {}): Promise<SearchLeadsResponse> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch leads' }));
+      throw new Error(error.error || error.message || 'Failed to fetch leads');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get tasker onboarding analytics overview
+   */
+  async getAnalytics(): Promise<AnalyticsResponse> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/analytics/overview`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch analytics' }));
+      throw new Error(error.error || error.message || 'Failed to fetch analytics');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get lead by ID
+   */
+  async getLead(leadId: string): Promise<{ success: boolean; data: Lead }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Lead not found' }));
+      throw new Error(error.error || error.message || 'Lead not found');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Update lead
+   */
+  async updateLead(leadId: string, data: Partial<CreateLeadData>): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to update lead' }));
+      throw new Error(error.error || error.message || 'Failed to update lead');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Update lead status
+   */
+  async updateStatus(leadId: string, status: LeadStatus, notes?: string): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status, notes }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to update status' }));
+      throw new Error(error.error || error.message || 'Failed to update status');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Add internal note
+   */
+  async addNote(leadId: string, note: string, isPrivate?: boolean): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/notes`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ note, isPrivate }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to add note' }));
+      throw new Error(error.error || error.message || 'Failed to add note');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Check for duplicates
+   */
+  async checkDuplicate(phone: string, name?: string, city?: string): Promise<DuplicateCheckResponse> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/duplicate-check`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ phone, name, city }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to check duplicate' }));
+      throw new Error(error.error || error.message || 'Failed to check duplicate');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get status history
+   */
+  async getStatusHistory(leadId: string): Promise<{ success: boolean; data: { statusHistory: Lead['statusHistory']; currentStatus: LeadStatus } }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/history`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch history' }));
+      throw new Error(error.error || error.message || 'Failed to fetch history');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Upload document
+   */
+  async uploadDocument(
+    leadId: string, 
+    type: Lead['documents'][0]['type'], 
+    url?: string,
+    manualData?: { aadhaarNumber?: string; panNumber?: string; addressDetails?: string }
+  ): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const body: any = { type };
+    if (url) body.url = url;
+    if (manualData?.aadhaarNumber) body.aadhaarNumber = manualData.aadhaarNumber;
+    if (manualData?.panNumber) body.panNumber = manualData.panNumber;
+    if (manualData?.addressDetails) body.addressDetails = manualData.addressDetails;
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/documents`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to upload document' }));
+      throw new Error(error.error || error.message || 'Failed to upload document');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Verify or reject document
+   */
+  async verifyDocument(
+    leadId: string,
+    documentIndex: number,
+    status: 'verified' | 'rejected',
+    rejectionReason?: string,
+    exactDetails?: {
+      exactAadhaarNumber?: string;
+      exactPANNumber?: string;
+      exactAddressDetails?: string;
+    }
+  ): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const body: any = {
+      status,
+    };
+    
+    if (rejectionReason) {
+      body.rejectionReason = rejectionReason;
+    }
+    
+    // ✅ Include exact details when verifying
+    if (status === 'verified' && exactDetails) {
+      if (exactDetails.exactAadhaarNumber) {
+        body.exactAadhaarNumber = exactDetails.exactAadhaarNumber;
+      }
+      if (exactDetails.exactPANNumber) {
+        body.exactPANNumber = exactDetails.exactPANNumber;
+      }
+      if (exactDetails.exactAddressDetails) {
+        body.exactAddressDetails = exactDetails.exactAddressDetails;
+      }
+    }
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/documents/${documentIndex}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to verify document' }));
+      throw new Error(error.error || error.message || 'Failed to verify document');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Delete document
+   */
+  async deleteDocument(leadId: string, documentIndex: number): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/documents/${documentIndex}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to delete document' }));
+      throw new Error(error.error || error.message || 'Failed to delete document');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Add skill
+   */
+  async addSkill(
+    leadId: string,
+    skill: { name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }
+  ): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/skills`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(skill),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to add skill' }));
+      throw new Error(error.error || error.message || 'Failed to add skill');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Update skill
+   */
+  async updateSkill(
+    leadId: string,
+    skillIndex: number,
+    skill: Partial<{ name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }>
+  ): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/skills/${skillIndex}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(skill),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to update skill' }));
+      throw new Error(error.error || error.message || 'Failed to update skill');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Remove skill
+   */
+  async removeSkill(leadId: string, skillIndex: number): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/skills/${skillIndex}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to remove skill' }));
+      throw new Error(error.error || error.message || 'Failed to remove skill');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get approval queue
+   */
+  async getApprovalQueue(params?: { city?: string; primarySkill?: string; page?: number; limit?: number }): Promise<{
+    success: boolean;
+    data: {
+      leads: Array<Lead & { approvalCriteria?: any }>;
+      total: number;
+      page: number;
+      limit: number;
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/approval-queue?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch approval queue' }));
+      throw new Error(error.error || error.message || 'Failed to fetch approval queue');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Check approval criteria
+   */
+  async checkApprovalCriteria(leadId: string): Promise<{ success: boolean; data: any }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/approval-criteria`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to check approval criteria' }));
+      throw new Error(error.error || error.message || 'Failed to check approval criteria');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Approve lead
+   */
+  async approveLead(leadId: string, notes?: string): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ notes }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to approve lead' }));
+      throw new Error(error.error || error.message || 'Failed to approve lead');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Bulk approve leads
+   */
+  async bulkApproveLeads(leadIds: string[], notes?: string): Promise<{
+    success: boolean;
+    data: {
+      success: number;
+      failed: number;
+      total: number;
+      successIds: string[];
+      failedDetails: Array<{ leadId: string; error: string }>;
+    };
+    message: string;
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-approve`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ leadIds, notes }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to bulk approve leads' }));
+      throw new Error(error.error || error.message || 'Failed to bulk approve leads');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get activation queue
+   */
+  async getActivationQueue(params?: { city?: string; primarySkill?: string; page?: number; limit?: number }): Promise<{
+    success: boolean;
+    data: {
+      leads: Lead[];
+      total: number;
+      page: number;
+      limit: number;
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/activation-queue?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch activation queue' }));
+      throw new Error(error.error || error.message || 'Failed to fetch activation queue');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Activate lead
+   */
+  async activateLead(leadId: string): Promise<{
+    success: boolean;
+    data: { firebaseUid: string; profileCreated: boolean };
+    message: string;
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/activate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to activate lead' }));
+      throw new Error(error.error || error.message || 'Failed to activate lead');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Bulk activate leads
+   */
+  async bulkActivateLeads(leadIds: string[]): Promise<{
+    success: boolean;
+    data: {
+      success: Array<{ leadId: string; firebaseUid: string; profileCreated: boolean }>;
+      failed: Array<{ leadId: string; error: string }>;
+    };
+    message: string;
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-activate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ leadIds }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to bulk activate leads' }));
+      throw new Error(error.error || error.message || 'Failed to bulk activate leads');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get verification queue - leads with pending documents
+   */
+  async getVerificationQueue(params: {
+    documentType?: Lead['documents'][0]['type'];
+    status?: LeadStatus;
+    city?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    success: boolean;
+    data: {
+      leads: Array<Lead & {
+        pendingDocuments: Array<{
+          index: number;
+          type: Lead['documents'][0]['type'];
+          url?: string;
+          uploadedAt?: string;
+        }>;
+      }>;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/verification-queue?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch verification queue' }));
+      throw new Error(error.error || error.message || 'Failed to fetch verification queue');
+    }
+
+    return response.json();
+  },
+};
+
