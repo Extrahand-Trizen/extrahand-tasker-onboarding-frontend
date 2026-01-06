@@ -316,7 +316,7 @@ export default function ActivationQueuePage() {
                             <span className="text-gray-600">City:</span> {lead.city}
                           </div>
                           <div>
-                            <span className="text-gray-600">Skill:</span> {lead.primarySkill}
+                            <span className="text-gray-600">Category:</span> {lead.primaryCategory}
                           </div>
                           <div>
                             <span className="text-gray-600">Tasker ID:</span> {lead.leadId}

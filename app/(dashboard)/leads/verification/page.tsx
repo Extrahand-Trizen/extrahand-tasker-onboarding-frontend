@@ -239,7 +239,7 @@ export default function VerificationQueuePage() {
                           <span className="font-medium">City:</span> {lead.city}
                         </div>
                         <div>
-                          <span className="font-medium">Skill:</span> {lead.primarySkill}
+                          <span className="font-medium">Skill:</span> {lead.primaryCategory}
                         </div>
                         <div>
                           <span className="font-medium">ID:</span> {lead.leadId.slice(0, 8)}...

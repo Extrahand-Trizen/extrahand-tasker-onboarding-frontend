@@ -301,8 +301,8 @@ export default function LeadDetailPage() {
               </Badge>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-2">Primary Skill</p>
-              <p className="font-medium">{lead.primarySkill}</p>
+              <p className="text-sm text-gray-600 mb-2">Primary Category</p>
+              <p className="font-medium">{lead.primaryCategory}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-2">Source</p>
@@ -340,14 +340,14 @@ export default function LeadDetailPage() {
 
         const hasRequiredDocs = hasAadhaar && hasPan && hasAddress;
         const hasVerifiedDocs = verifiedAadhaar && verifiedPan && verifiedAddress;
-        const hasSkills = (lead.skills?.length || 0) > 0 || !!lead.primarySkill;
-        const hasRequiredFields = !!(lead.name && lead.phone && lead.city && lead.primarySkill);
+        const hasSkills = (lead.skills?.length || 0) > 0 || !!lead.primaryCategory;
+        const hasRequiredFields = !!(lead.name && lead.phone && lead.city && lead.primaryCategory);
         const isOkFlags = !lead.isDuplicate && !lead.blacklisted;
         const isApproved = lead.status === 'approved' || lead.status === 'activated';
         const isActivated = lead.status === 'activated' || !!lead.activationData?.firebaseUid;
 
         const items: Array<{ label: string; ok: boolean; hint?: string }> = [
-          { label: 'Required fields present (name, phone, city, primary skill)', ok: hasRequiredFields },
+          { label: 'Required fields present (name, phone, city, primary category)', ok: hasRequiredFields },
           { label: 'Documents uploaded (optional)', ok: hasRequiredDocs || lead.documents?.length === 0, hint: 'Documents are optional - Aadhaar, PAN, or Address proof can be uploaded' },
           { label: 'Uploaded documents verified', ok: hasVerifiedDocs || !hasRequiredDocs, hint: 'Documents are auto-verified on upload' },
           { label: 'Skills assigned', ok: hasSkills },
