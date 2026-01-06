@@ -38,7 +38,6 @@ const leadSchema = z.object({
     'events',
     'other'
   ], {
-    required_error: 'Please select a primary category',
     message: 'Please select a primary category',
   }),
   secondaryCategory: z.string()
@@ -52,8 +51,7 @@ const leadSchema = z.object({
       { message: 'Please specify the secondary category' }
     ),
   experienceLevel: z.enum(['beginner', 'intermediate', 'experienced'], {
-    required_error: 'Please select an experience level',
-    message: 'Experience level is required',
+    message: 'Please select an experience level',
   }),
   workingDays: z.string().optional(),
   preferredTimeSlot: z.string().optional(),
