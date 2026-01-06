@@ -153,12 +153,12 @@ export default function LeadsPage() {
                               {leadStatusLabel(lead.status)}
                             </Badge>
                             {lead.creationMethod === 'bulk_upload' && (
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200">
                                 Bulk Upload
                               </Badge>
                             )}
                             {lead.creationMethod === 'manual_onboarding' && (
-                              <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-200">
+                              <Badge className="text-xs bg-gray-50 text-gray-700 border border-gray-200">
                                 Manual
                               </Badge>
                             )}
