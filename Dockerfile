@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS Alpine image for smaller size
-FROM node:18-alpine AS base
+# Use Node.js 20 LTS Alpine image (required for Next.js 16)
+FROM node:20-alpine AS base
 
 # Install security updates and necessary packages
 RUN apk update && apk upgrade && \
