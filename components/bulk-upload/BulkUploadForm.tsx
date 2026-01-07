@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { adminApi } from '@/lib/api/admin';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 import { toast } from 'sonner';
-import Papa from 'papaparse';
+// import Papa from 'papaparse';
 
 export function BulkUploadForm() {
   const { role, loading: authLoading } = useAdminAuth();
