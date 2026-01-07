@@ -127,7 +127,7 @@ export const caosBulkApi = {
 
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-import`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -157,7 +157,7 @@ export const caosBulkApi = {
       params.append('secondaryCategory', secondaryCategory);
     }
 
-    const url = `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-import/template${params.toString() ? `?${params.toString()}` : ''}`;
+    const url = `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/template${params.toString() ? `?${params.toString()}` : ''}`;
 
     const response = await fetch(url, {
       headers: {
@@ -187,7 +187,7 @@ export const caosBulkApi = {
     }
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-import/history?${params.toString()}`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/history?${params.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -209,7 +209,7 @@ export const caosBulkApi = {
     const token = await getAdminToken();
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-import/${importId}`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/${importId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -231,7 +231,7 @@ export const caosBulkApi = {
     const token = await getAdminToken();
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-import/${importId}/export-uids`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/${importId}/export-uids`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

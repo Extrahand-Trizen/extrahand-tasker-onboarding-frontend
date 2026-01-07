@@ -54,7 +54,7 @@ export interface AdminUser {
 export const adminUsersApi = {
   async list(): Promise<{ success: boolean; data: AdminUser[] }> {
     const token = await getAdminToken();
-    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/admin-users`, {
+    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/team`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
@@ -66,7 +66,7 @@ export const adminUsersApi = {
 
   async create(payload: { uid: string; email: string; role: AdminRole }) {
     const token = await getAdminToken();
-    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/admin-users`, {
+    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/team`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -83,7 +83,7 @@ export const adminUsersApi = {
 
   async updateRole(uid: string, role: AdminRole) {
     const token = await getAdminToken();
-    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/admin-users/${uid}/role`, {
+    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/team/${uid}/role`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -100,7 +100,7 @@ export const adminUsersApi = {
 
   async resetPassword(uid: string) {
     const token = await getAdminToken();
-    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/admin-users/${uid}/reset-password`, {
+    const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/team/${uid}/reset-password`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

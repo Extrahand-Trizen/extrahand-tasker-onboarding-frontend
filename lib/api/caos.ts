@@ -204,7 +204,7 @@ export const caosApi = {
   async createLead(data: CreateLeadData): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -235,7 +235,7 @@ export const caosApi = {
     });
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads?${queryParams.toString()}`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads?${queryParams.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -257,7 +257,7 @@ export const caosApi = {
   async getAnalytics(): Promise<AnalyticsResponse> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/analytics/overview`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/analytics/overview`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -277,7 +277,7 @@ export const caosApi = {
   async getLead(leadId: string): Promise<{ success: boolean; data: Lead }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -297,7 +297,7 @@ export const caosApi = {
   async updateLead(leadId: string, data: Partial<CreateLeadData>): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -320,7 +320,7 @@ export const caosApi = {
   async updateStatus(leadId: string, status: LeadStatus, notes?: string): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/status`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/status`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -343,7 +343,7 @@ export const caosApi = {
   async addNote(leadId: string, note: string, isPrivate?: boolean): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/notes`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/notes`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -366,7 +366,7 @@ export const caosApi = {
   async checkDuplicate(phone: string, name?: string, city?: string): Promise<DuplicateCheckResponse> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/duplicate-check`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/duplicate-check`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -389,7 +389,7 @@ export const caosApi = {
   async getStatusHistory(leadId: string): Promise<{ success: boolean; data: { statusHistory: Lead['statusHistory']; currentStatus: LeadStatus } }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/history`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/history`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -420,7 +420,7 @@ export const caosApi = {
     if (manualData?.panNumber) body.panNumber = manualData.panNumber;
     if (manualData?.addressDetails) body.addressDetails = manualData.addressDetails;
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/documents`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/documents`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -474,7 +474,7 @@ export const caosApi = {
       }
     }
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/documents/${documentIndex}`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/documents/${documentIndex}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -497,7 +497,7 @@ export const caosApi = {
   async deleteDocument(leadId: string, documentIndex: number): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/documents/${documentIndex}`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/documents/${documentIndex}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -521,7 +521,7 @@ export const caosApi = {
   ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/skills`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/skills`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -548,7 +548,7 @@ export const caosApi = {
   ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/skills/${skillIndex}`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/skills/${skillIndex}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -571,7 +571,7 @@ export const caosApi = {
   async removeSkill(leadId: string, skillIndex: number): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/skills/${skillIndex}`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/skills/${skillIndex}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -610,7 +610,7 @@ export const caosApi = {
     }
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/approval-queue?${queryParams.toString()}`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/approval-queue?${queryParams.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -632,7 +632,7 @@ export const caosApi = {
   async checkApprovalCriteria(leadId: string): Promise<{ success: boolean; data: any }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/approval-criteria`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/approval-criteria`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -652,7 +652,7 @@ export const caosApi = {
   async approveLead(leadId: string, notes?: string): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/approve`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/approve`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -685,7 +685,7 @@ export const caosApi = {
   }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-approve`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-approve`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -726,7 +726,7 @@ export const caosApi = {
     }
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/activation-queue?${queryParams.toString()}`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/activation-queue?${queryParams.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -752,7 +752,7 @@ export const caosApi = {
   }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/${leadId}/activate`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/activate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -781,7 +781,7 @@ export const caosApi = {
   }> {
     const token = await getAdminToken();
 
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/bulk-activate`, {
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-activate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -836,7 +836,7 @@ export const caosApi = {
     });
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/admin/caos/leads/verification-queue?${queryParams.toString()}`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/verification-queue?${queryParams.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

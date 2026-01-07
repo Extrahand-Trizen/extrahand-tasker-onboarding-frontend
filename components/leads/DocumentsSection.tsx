@@ -95,7 +95,7 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
 
         const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
 
-        const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/admin/uploads/document`, {
+        const res = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/uploads/document`, {
           method: 'POST',
           headers: {
             ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
