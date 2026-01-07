@@ -61,17 +61,17 @@ export default function AdminManagementPage() {
   const admins: AdminUser[] = data?.data || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div>
-        <h1 className="text-3xl font-bold">Admin Management</h1>
-        <p className="text-sm text-gray-600 mt-1">Create admins, assign roles, reset passwords</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Admin Management</h1>
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">Create admins, assign roles, reset passwords</p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Add Admin</CardTitle>
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="text-lg sm:text-xl">Add Admin</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 px-4 sm:px-6">
           <div className="space-y-2">
             <Label>Firebase UID</Label>
             <Input value={uid} onChange={(e) => setUid(e.target.value)} placeholder="uid..." />
@@ -93,8 +93,12 @@ export default function AdminManagementPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="md:col-span-3">
-            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !uid || !email}>
+          <div className="sm:col-span-2 md:col-span-3">
+            <Button 
+              onClick={() => createMutation.mutate()} 
+              disabled={createMutation.isPending || !uid || !email}
+              className="w-full sm:w-auto"
+            >
               {createMutation.isPending ? 'Saving...' : 'Add Admin'}
             </Button>
           </div>
@@ -102,18 +106,18 @@ export default function AdminManagementPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Admin Users</CardTitle>
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="text-lg sm:text-xl">Admin Users</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           {isLoading ? (
-            <p className="text-sm text-gray-600">Loading...</p>
+            <p className="text-xs sm:text-sm text-gray-600">Loading...</p>
           ) : admins.length === 0 ? (
-            <p className="text-sm text-gray-600">No admin users yet.</p>
+            <p className="text-xs sm:text-sm text-gray-600">No admin users yet.</p>
           ) : (
             <div className="space-y-3">
               {admins.map((a) => (
-                <div key={a.uid} className="border rounded-lg p-3 flex flex-col md:flex-row md:items-center gap-3">
+                <div key={a.uid} className="border rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1">
                     <div className="font-medium">{a.email}</div>
                     <div className="text-xs text-gray-500">UID: {a.uid}</div>
@@ -127,7 +131,7 @@ export default function AdminManagementPage() {
                     value={a.role}
                     onValueChange={(v) => updateRoleMutation.mutate({ uid: a.uid, role: v as AdminRole })}
                   >
-                    <SelectTrigger className="w-full md:w-48">
+                    <SelectTrigger className="w-full sm:w-48">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -137,7 +141,11 @@ export default function AdminManagementPage() {
                     </SelectContent>
                   </Select>
 
-                  <Button variant="outline" onClick={() => resetMutation.mutate(a.uid)}>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => resetMutation.mutate(a.uid)}
+                    className="w-full sm:w-auto text-xs sm:text-sm"
+                  >
                     Reset password (copy link)
                   </Button>
                 </div>

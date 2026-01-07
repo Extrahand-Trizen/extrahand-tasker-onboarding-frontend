@@ -174,11 +174,11 @@ export default function ActivationQueuePage() {
   const total = data?.data.total || 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ready for Activation</h1>
-          <p className="text-sm text-gray-500 mt-1.5">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Ready for Activation</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-1.5">
             {total} approved taskers ready to create accounts
           </p>
         </div>
@@ -186,6 +186,7 @@ export default function ActivationQueuePage() {
           <Button
             onClick={() => setShowBulkActivateModal(true)}
             disabled={bulkActivateMutation.isPending}
+            className="w-full sm:w-auto"
           >
             <Zap className="h-4 w-4 mr-2" />
             Create Accounts ({selectedLeads.size})
@@ -195,8 +196,8 @@ export default function ActivationQueuePage() {
 
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
@@ -223,7 +224,7 @@ export default function ActivationQueuePage() {
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end sm:col-span-2 md:col-span-1">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -269,19 +270,20 @@ export default function ActivationQueuePage() {
                 return (
                   <div
                     key={lead.leadId}
-                    className={`border rounded-lg p-4 transition-colors ${isSelected ? 'bg-amber-50 border-amber-300 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`border rounded-lg p-3 sm:p-4 transition-colors ${isSelected ? 'bg-amber-50 border-amber-300 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleSelect(lead.leadId)}
+                        className="mt-1"
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
+                      <div className="flex-1 w-full">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-2">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             <Link
                               href={`/leads/${lead.leadId}`}
-                              className="font-semibold text-lg hover:underline"
+                              className="font-semibold text-base sm:text-lg hover:underline"
                             >
                               {lead.name}
                             </Link>
@@ -309,7 +311,7 @@ export default function ActivationQueuePage() {
                           </Button>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
                           <div>
                             <span className="text-gray-600">Phone:</span> {lead.phone}
                           </div>
@@ -333,21 +335,23 @@ export default function ActivationQueuePage() {
 
           {/* Pagination */}
           {total > 20 && (
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-6">
               <Button
                 variant="outline"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
+                className="w-full sm:w-auto order-2 sm:order-1"
               >
                 Previous
               </Button>
-              <span className="text-sm text-gray-600">
+              <span className="text-xs sm:text-sm text-gray-600 order-1 sm:order-2">
                 Page {page} of {Math.ceil(total / 20)}
               </span>
               <Button
                 variant="outline"
                 onClick={() => setPage(p => p + 1)}
                 disabled={page >= Math.ceil(total / 20)}
+                className="w-full sm:w-auto order-3"
               >
                 Next
               </Button>

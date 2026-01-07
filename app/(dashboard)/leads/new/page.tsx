@@ -257,24 +257,24 @@ export default function AddLeadPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Add Tasker</h1>
-        <p className="mt-1.5 text-sm text-gray-500">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Add Tasker</h1>
+        <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
           Create a new tasker entry
         </p>
       </div>
 
       <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Add New Tasker</CardTitle>
-          <CardDescription>
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="text-lg sm:text-xl">Add New Tasker</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Enter the basic information to create a new tasker in the pipeline
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+        <CardContent className="px-4 sm:px-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name *</Label>
                 <Input
@@ -311,7 +311,7 @@ export default function AddLeadPage() {
               </Alert>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="email">Email (Optional)</Label>
                 <Input
@@ -340,7 +340,7 @@ export default function AddLeadPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="address">Local Area *</Label>
                 <Input
@@ -369,7 +369,7 @@ export default function AddLeadPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2 bg-white">
                 <Label htmlFor="primaryCategory">Primary Category *</Label>
                 <Select
@@ -490,7 +490,7 @@ export default function AddLeadPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="experienceLevel">Experience Level *</Label>
                 <Select
@@ -527,7 +527,7 @@ export default function AddLeadPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="preferredTimeSlot">Preferred Time Slot</Label>
                 <Select
@@ -571,11 +571,11 @@ export default function AddLeadPage() {
               </div>
             </div>
 
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <Button
                 type="submit"
                 disabled={createLeadMutation.isPending}
-                className="flex-1"
+                className="flex-1 w-full sm:w-auto"
               >
                 {createLeadMutation.isPending ? 'Creating...' : 'Create Tasker'}
               </Button>
@@ -583,6 +583,7 @@ export default function AddLeadPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>

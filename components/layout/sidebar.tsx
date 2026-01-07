@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, ShieldCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 
@@ -23,13 +23,38 @@ const navigation: Array<{
   { name: 'Admin Management', href: '/admin-management', icon: Settings, roles: ['admin'] },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { role } = useAdminAuth();
 
+  const handleLinkClick = () => {
+    // Close mobile menu when a link is clicked
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="flex h-full w-64 flex-col border-r border-gray-200 bg-white shadow-sm">
-      <div className="flex h-16 items-center border-b border-gray-200 px-6 bg-gradient-to-r from-amber-50 to-yellow-50">
+    <>
+      {/* Mobile Overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-gray-900/50 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-gray-200 bg-white shadow-lg transition-transform duration-300 lg:relative lg:translate-x-0 lg:shadow-sm",
+        isMobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+      <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6 bg-gradient-to-r from-amber-50 to-yellow-50">
         <div className="flex items-center gap-3">
           <Image
             src="/logo.png"
@@ -42,6 +67,16 @@ export function Sidebar() {
             <p className="text-xs font-medium text-gray-700 leading-tight">Tasker Onboarding System</p>
           </div>
         </div>
+        {/* Close button for mobile */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
       <nav className="flex-1 space-y-1 px-3 py-6">
         {navigation
@@ -68,6 +103,7 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={handleLinkClick}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                 isActive
@@ -81,7 +117,8 @@ export function Sidebar() {
           );
         })}
       </nav>
-    </div>
+      </div>
+    </>
   );
 }
 

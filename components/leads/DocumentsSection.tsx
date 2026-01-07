@@ -121,14 +121,8 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
       });
     },
     onSuccess: () => {
-      // ✅ Show different messages based on role
-      // Marketing: Document is pending verification
-      // Operations/Admin: Document is auto-verified
-      if (role === 'marketing') {
-        toast.success('Document uploaded successfully. It will be reviewed by the verification team.');
-      } else {
-        toast.success('Document uploaded and verified successfully');
-      }
+      // ✅ All document uploads require manual verification
+      toast.success('Document uploaded successfully. It will be reviewed by the verification team.');
       setShowUploadModal(false);
       setDocumentUrl('');
       setFile(null);

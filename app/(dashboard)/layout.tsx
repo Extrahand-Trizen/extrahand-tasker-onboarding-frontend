@@ -24,6 +24,7 @@ export default function DashboardLayout({
   const { isAuthenticated, loading, logout } = useAdminAuth();
   const router = useRouter();
   const [showWarn, setShowWarn] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -61,10 +62,13 @@ export default function DashboardLayout({
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar />
+        <Sidebar 
+          isMobileOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+        />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <Header />
-          <main className="flex-1 overflow-y-auto bg-gray-50/50 p-8">
+          <Header onMenuClick={() => setIsMobileSidebarOpen(true)} />
+          <main className="flex-1 overflow-y-auto bg-gray-50/50 p-4 sm:p-6 lg:p-8">
             {children}
           </main>
         </div>

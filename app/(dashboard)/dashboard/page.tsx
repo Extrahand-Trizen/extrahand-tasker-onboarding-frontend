@@ -24,16 +24,16 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 px-4 sm:px-0">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1.5 text-sm text-gray-500">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
           Overview of your taskers and onboarding progress
         </p>
       </div>
 
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse border-gray-200">
               <CardHeader>
@@ -46,7 +46,7 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
           {statCards.map((stat) => (
             <Card key={stat.title} className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -56,7 +56,7 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-gray-900">{stat.value.toLocaleString()}</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value.toLocaleString()}</div>
               </CardContent>
             </Card>
           ))}

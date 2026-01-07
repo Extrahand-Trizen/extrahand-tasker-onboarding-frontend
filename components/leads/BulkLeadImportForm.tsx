@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { caosBulkApi } from '@/lib/api/caos-bulk';
@@ -15,7 +15,48 @@ export function BulkLeadImportForm() {
   const [file, setFile] = useState<File | null>(null);
   const [primaryCategory, setPrimaryCategory] = useState<string>('');
   const [secondaryCategory, setSecondaryCategory] = useState<string>('');
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Load backend preview with validation and duplicate checking
+  const loadBackendPreview = async (
+    selectedFile: File,
+    primary?: string,
+    secondary?: string
+  ) => {
+    setPreviewLoading(true);
+    setPreviewError(null);
+    
+    try {
+      const preview = await caosBulkApi.previewBulkImportLeads(
+        selectedFile,
+        primary || primaryCategory,
+        secondary || secondaryCategory
+      );
+      
+      setPreviewData(preview.data);
+      
+      // Show warnings for duplicates or errors
+      const { summary } = preview.data;
+      if (summary.invalid > 0 || summary.duplicatesInFile > 0 || summary.duplicatesInDb > 0) {
+        const warnings = [];
+        if (summary.invalid > 0) warnings.push(`${summary.invalid} invalid rows`);
+        if (summary.duplicatesInFile > 0) warnings.push(`${summary.duplicatesInFile} duplicates in file`);
+        if (summary.duplicatesInDb > 0) warnings.push(`${summary.duplicatesInDb} already exist in database`);
+        
+        toast.warning(`Preview completed: ${warnings.join(', ')}`);
+      } else {
+        toast.success(`Preview loaded: ${summary.valid} valid rows`);
+      }
+    } catch (error: any) {
+      setPreviewError(error.message || 'Failed to load preview');
+      toast.error('Failed to load preview: ' + (error.message || 'Unknown error'));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -24,12 +65,27 @@ export function BulkLeadImportForm() {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
     },
     maxFiles: 1,
-    onDrop: (acceptedFiles) => {
+    onDrop: async (acceptedFiles) => {
       if (acceptedFiles.length > 0) {
-        setFile(acceptedFiles[0]);
+        const selected = acceptedFiles[0];
+        setFile(selected);
+        setPreviewData(null);
+        setPreviewError(null);
+
+        // Load preview if categories are selected
+        if (primaryCategory && secondaryCategory) {
+          await loadBackendPreview(selected, primaryCategory, secondaryCategory);
+        }
       }
     },
   });
+
+  // Reload preview when categories change
+  useEffect(() => {
+    if (file && primaryCategory && secondaryCategory) {
+      loadBackendPreview(file, primaryCategory, secondaryCategory);
+    }
+  }, [primaryCategory, secondaryCategory]);
 
   const downloadTemplateMutation = useMutation({
     mutationFn: () => {
@@ -367,6 +423,8 @@ export function BulkLeadImportForm() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setFile(null);
+                      setPreviewData(null);
+                      setPreviewError(null);
                     }}
                   >
                     Remove
@@ -384,6 +442,96 @@ export function BulkLeadImportForm() {
               )}
             </div>
 
+            {/* Backend Preview with Validation */}
+            {previewLoading && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">Loading preview with validation and duplicate checking...</p>
+              </div>
+            )}
+
+            {previewError && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{previewError}</p>
+              </div>
+            )}
+
+            {previewData && (
+              <div className="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 text-sm">Preview with Validation</h3>
+                  <div className="flex gap-4 text-xs">
+                    <span className="text-green-600">✓ Valid: {previewData.summary.valid}</span>
+                    <span className="text-red-600">✗ Invalid: {previewData.summary.invalid}</span>
+                    {previewData.summary.duplicatesInFile > 0 && (
+                      <span className="text-orange-600">⚠ Duplicates in file: {previewData.summary.duplicatesInFile}</span>
+                    )}
+                    {previewData.summary.duplicatesInDb > 0 && (
+                      <span className="text-purple-600">⚠ Already in system: {previewData.summary.duplicatesInDb}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="overflow-auto max-h-96 border border-gray-200 rounded">
+                  <table className="min-w-full text-xs">
+                    <thead className="bg-gray-100 text-gray-700 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-2 text-left font-semibold border-b">Row</th>
+                        <th className="px-2 py-2 text-left font-semibold border-b">Status</th>
+                        <th className="px-2 py-2 text-left font-semibold border-b">Name</th>
+                        <th className="px-2 py-2 text-left font-semibold border-b">Phone</th>
+                        <th className="px-2 py-2 text-left font-semibold border-b">City</th>
+                        <th className="px-2 py-2 text-left font-semibold border-b">Category</th>
+                        <th className="px-2 py-2 text-left font-semibold border-b">Issues</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.rows.map((row: any, idx: number) => (
+                        <tr key={idx} className={`
+                          ${row.status === 'valid' ? 'bg-green-50' : 'bg-red-50'}
+                          ${row.isDuplicateInFile || row.isDuplicateInDb ? 'bg-orange-50' : ''}
+                        `}>
+                          <td className="px-2 py-2 border-b">{row.rowNumber}</td>
+                          <td className="px-2 py-2 border-b">
+                            {row.status === 'valid' ? (
+                              <span className="text-green-600 font-semibold">✓</span>
+                            ) : (
+                              <span className="text-red-600 font-semibold">✗</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2 border-b whitespace-nowrap">{row.name}</td>
+                          <td className="px-2 py-2 border-b whitespace-nowrap">{row.phone || '-'}</td>
+                          <td className="px-2 py-2 border-b whitespace-nowrap">{row.city}</td>
+                          <td className="px-2 py-2 border-b whitespace-nowrap text-xs">
+                            {row.primaryCategory} - {row.secondaryCategory}
+                          </td>
+                          <td className="px-2 py-2 border-b">
+                            {row.errors.length > 0 ? (
+                              <div className="space-y-1">
+                                {row.errors.map((error: string, i: number) => (
+                                  <div key={i} className="text-xs text-red-600">• {error}</div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-green-600">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {previewData.summary.invalid > 0 && (
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Warning:</strong> {previewData.summary.invalid} rows have errors and will be skipped during import.
+                      Only {previewData.summary.valid} valid rows will be imported.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Upload Button */}
             <Button
               onClick={handleUpload}
@@ -394,6 +542,11 @@ export function BulkLeadImportForm() {
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Importing...
+                </>
+              ) : previewData ? (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import {previewData.summary.valid} Valid Leads
                 </>
               ) : (
                 <>

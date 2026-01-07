@@ -109,18 +109,18 @@ export default function VerificationQueuePage() {
   const pagination = data?.data.pagination;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Document Verification Queue</h1>
-        <p className="mt-1.5 text-sm text-gray-500">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Document Verification Queue</h1>
+        <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
           Review and verify documents uploaded by the marketing team
         </p>
       </div>
 
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
-        <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-4">
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
@@ -181,6 +181,7 @@ export default function VerificationQueuePage() {
                 setStatusFilter('all');
                 setPage(1);
               }}
+              className="w-full sm:w-auto"
             >
               <Filter className="h-4 w-4 mr-2" />
               Clear Filters
@@ -207,31 +208,33 @@ export default function VerificationQueuePage() {
               {leads.map((lead) => (
                 <div
                   key={lead.leadId}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  className="border rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 w-full">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
                         <Link
                           href={`/leads/${lead.leadId}?from=verification`}
-                          className="font-semibold text-lg hover:underline text-gray-900"
+                          className="font-semibold text-base sm:text-lg hover:underline text-gray-900"
                         >
                           {lead.name}
                         </Link>
-                        <Badge className={statusColors[lead.status]}>
-                          {leadStatusLabel(lead.status)}
-                        </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/leads/${lead.leadId}?from=verification`)}
-                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Badge className={statusColors[lead.status]}>
+                            {leadStatusLabel(lead.status)}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/leads/${lead.leadId}?from=verification`)}
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1 sm:gap-2 text-xs sm:text-sm text-gray-600">
                         <div>
                           <span className="font-medium">Phone:</span> {lead.phone}
                         </div>
@@ -257,9 +260,9 @@ export default function VerificationQueuePage() {
                       {lead.pendingDocuments?.map((doc) => (
                         <div
                           key={doc.index}
-                          className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg"
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg"
                         >
-                          <div className="flex items-center gap-3 flex-1">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 w-full">
                             <FileText className="h-5 w-5 text-yellow-600" />
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
@@ -278,13 +281,14 @@ export default function VerificationQueuePage() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                             {doc.url && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => window.open(doc.url, '_blank')}
                                 title="View document"
+                                className="flex-1 sm:flex-none"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -294,7 +298,7 @@ export default function VerificationQueuePage() {
                               size="sm"
                               onClick={() => handleQuickVerify(lead.leadId, doc.index)}
                               disabled={verifyMutation.isPending}
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 flex-1 sm:flex-none"
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Verify
@@ -304,7 +308,7 @@ export default function VerificationQueuePage() {
                               size="sm"
                               onClick={() => handleQuickReject(lead.leadId, doc.index)}
                               disabled={verifyMutation.isPending}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-1 sm:flex-none"
                             >
                               <XCircle className="h-4 w-4 mr-1" />
                               Reject
@@ -313,7 +317,7 @@ export default function VerificationQueuePage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => router.push(`/leads/${lead.leadId}?from=verification`)}
-                              className="text-amber-600 hover:text-amber-700"
+                              className="text-amber-600 hover:text-amber-700 w-full sm:w-auto"
                             >
                               View Details
                             </Button>
@@ -329,18 +333,19 @@ export default function VerificationQueuePage() {
 
           {/* Pagination */}
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-              <div className="text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-6 pt-4 border-t border-gray-200">
+              <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                 Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
                 {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
                 {pagination.total} leads
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={pagination.page === 1}
                   onClick={() => setPage(pagination.page - 1)}
+                  className="flex-1 sm:flex-none"
                 >
                   Previous
                 </Button>
@@ -349,6 +354,7 @@ export default function VerificationQueuePage() {
                   size="sm"
                   disabled={pagination.page === pagination.totalPages}
                   onClick={() => setPage(pagination.page + 1)}
+                  className="flex-1 sm:flex-none"
                 >
                   Next
                 </Button>

@@ -103,7 +103,71 @@ export interface ImportDetailsResponse {
   };
 }
 
+export interface BulkLeadPreviewResponse {
+  success: boolean;
+  data: {
+    rows: Array<{
+      rowNumber: number;
+      name: string;
+      phone: string;
+      email?: string;
+      city: string;
+      state: string;
+      primaryCategory: string;
+      secondaryCategory: string;
+      experienceLevel?: string;
+      status: "valid" | "invalid";
+      errors: string[];
+      isDuplicateInFile: boolean;
+      isDuplicateInDb: boolean;
+      duplicateLeadId?: string;
+    }>;
+    summary: {
+      total: number;
+      valid: number;
+      invalid: number;
+      duplicatesInFile: number;
+      duplicatesInDb: number;
+    };
+  };
+}
+
 export const caosBulkApi = {
+  /**
+   * Preview bulk import (validation + duplicate check, no records created)
+   */
+  async previewBulkImportLeads(
+    file: File,
+    primaryCategory?: string,
+    secondaryCategory?: string
+  ): Promise<BulkLeadPreviewResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (primaryCategory) {
+      formData.append('primaryCategory', primaryCategory);
+    }
+    if (secondaryCategory) {
+      formData.append('secondaryCategory', secondaryCategory);
+    }
+
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/preview`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Preview failed' }));
+      throw new Error(error.error || error.message || 'Preview failed');
+    }
+
+    return response.json();
+  },
+
   /**
    * Bulk import leads from CSV
    */

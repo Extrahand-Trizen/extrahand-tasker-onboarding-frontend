@@ -49,16 +49,16 @@ export default function LeadsPage() {
   const pagination = data?.pagination;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tasker List</h1>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tasker List</h1>
+          <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
             Search and manage all taskers
           </p>
         </div>
-        <Link href="/leads/new">
-          <Button>
+        <Link href="/leads/new" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Add Tasker
           </Button>
@@ -67,12 +67,12 @@ export default function LeadsPage() {
 
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
-        <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="relative">
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+            <div className="relative sm:col-span-2 md:col-span-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Search by name or phone..."
+                placeholder="Search by name, phone, or city..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -106,9 +106,9 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
 
-      {/* Taskers Table */}
+      {/* Taskers Table/Cards */}
       <Card className="border-gray-200 shadow-sm">
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 sm:pt-6">
           {isLoading ? (
             <div className="text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent"></div>
@@ -126,7 +126,53 @@ export default function LeadsPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Mobile Card View */}
+              <div className="block sm:hidden space-y-3">
+                {leads.map((lead) => (
+                  <div
+                    key={lead.leadId}
+                    className="border border-gray-200 rounded-lg p-4 hover:bg-amber-50/50 cursor-pointer transition-colors"
+                    onClick={() => router.push(`/leads/${lead.leadId}`)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 text-sm">{lead.name}</h3>
+                        <p className="text-xs text-gray-600 mt-1">{lead.phone}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{lead.city}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/leads/${lead.leadId}`);
+                        }}
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 ml-2"
+                      >
+                        View
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <Badge className={cn(statusColors[lead.status], "text-xs font-medium")}>
+                        {leadStatusLabel(lead.status)}
+                      </Badge>
+                      {lead.creationMethod === 'bulk_upload' && (
+                        <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                          Bulk Upload
+                        </Badge>
+                      )}
+                      {lead.creationMethod === 'manual_onboarding' && (
+                        <Badge className="text-xs bg-gray-50 text-gray-700 border border-gray-200">
+                          Manual
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
@@ -185,18 +231,19 @@ export default function LeadsPage() {
 
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-6 pt-4 border-t border-gray-200">
+                  <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                     Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
                     {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
                     {pagination.total} leads
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
                       disabled={pagination.page === 1}
                       onClick={() => setPage(pagination.page - 1)}
+                      className="flex-1 sm:flex-none"
                     >
                       Previous
                     </Button>
@@ -205,6 +252,7 @@ export default function LeadsPage() {
                       size="sm"
                       disabled={pagination.page === pagination.totalPages}
                       onClick={() => setPage(pagination.page + 1)}
+                      className="flex-1 sm:flex-none"
                     >
                       Next
                     </Button>
