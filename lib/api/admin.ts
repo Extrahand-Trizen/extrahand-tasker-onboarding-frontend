@@ -3,6 +3,12 @@ if (!API_BASE_URL) {
   throw new Error('NEXT_PUBLIC_API_GATEWAY_URL environment variable is required');
 }
 
+// For tasker onboarding bulk operations, call admin-service directly
+const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+if (!ADMIN_SERVICE_URL) {
+  throw new Error('NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+}
+
 /**
  * Get fresh admin token (refreshes if expired)
  */
@@ -124,7 +130,8 @@ export const adminApi = {
     // Get fresh token (will refresh if expired)
     const token = await getAdminToken();
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/bulk-upload`, {
+    // Bulk upload goes directly to tasker-onboarding backend (admin-service)
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/internal/bulk-upload/upload`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -159,7 +166,7 @@ export const adminApi = {
     }
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/admin/bulk-upload/template?${params.toString()}`,
+      `${ADMIN_SERVICE_URL}/api/v1/internal/bulk-upload/template?${params.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -181,7 +188,7 @@ export const adminApi = {
     const token = await getAdminToken();
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/admin/bulk-upload/history?page=${page}&limit=${limit}`,
+      `${ADMIN_SERVICE_URL}/api/v1/internal/bulk-upload/history?page=${page}&limit=${limit}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -203,7 +210,7 @@ export const adminApi = {
     const token = await getAdminToken();
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/admin/bulk-upload/${importId}`,
+      `${ADMIN_SERVICE_URL}/api/v1/internal/bulk-upload/${importId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -231,7 +238,7 @@ export const adminApi = {
     const token = await getAdminToken();
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/admin/bulk-upload/${importId}/users?page=${page}&limit=${limit}`,
+      `${ADMIN_SERVICE_URL}/api/v1/internal/bulk-upload/${importId}/users?page=${page}&limit=${limit}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -253,7 +260,7 @@ export const adminApi = {
     const token = await getAdminToken();
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/admin/bulk-upload/${importId}/export-uids`,
+      `${ADMIN_SERVICE_URL}/api/v1/internal/bulk-upload/${importId}/export-uids`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
