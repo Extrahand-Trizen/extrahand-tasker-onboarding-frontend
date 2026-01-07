@@ -14,8 +14,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Upload, CheckCircle, XCircle, Clock, Trash2, Eye, FileText, Loader2 } from 'lucide-react';
 
-const ADMIN_SERVICE_URL =
-  process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL || 'http://localhost:4006';
+const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+if (!ADMIN_SERVICE_URL) {
+  throw new Error('NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+}
 
 const documentTypeLabels: Record<Lead['documents'][0]['type'], string> = {
   aadhaar: 'Aadhaar',

@@ -1,5 +1,8 @@
 // Import shared constants and utilities from caos.ts
-const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL || 'http://localhost:4006';
+const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+if (!ADMIN_SERVICE_URL) {
+  throw new Error('NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+}
 
 async function getAdminToken(): Promise<string> {
   if (typeof window === 'undefined') {

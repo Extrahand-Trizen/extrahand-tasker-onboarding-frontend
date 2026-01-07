@@ -1,4 +1,7 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
+if (!API_BASE_URL) {
+  throw new Error('NEXT_PUBLIC_API_GATEWAY_URL environment variable is required');
+}
 
 /**
  * Get fresh admin token (refreshes if expired)

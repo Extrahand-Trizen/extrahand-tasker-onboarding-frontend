@@ -12,7 +12,7 @@
     "NEXT_PUBLIC_FIREBASE_APP_ID": "1:961487777082:web:dd95fe5a7658b0e3b1f403",
     "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-GXB3LSMR5B",
     "NEXT_PUBLIC_API_GATEWAY_URL": "http://srv-captain--extrahand-api-gateway:5000",
-    "NEXT_PUBLIC_ADMIN_SERVICE_URL": "http://srv-captain--extrahand-tasker-onboarding-backend:4008"
+    "NEXT_PUBLIC_ADMIN_SERVICE_URL": "https://extrahand-tasker-onboarding-backend.apps.extrahand.in"
   },
 
   "expose": {
@@ -37,7 +37,7 @@
     "PORT": "3000",
     "NEXT_TELEMETRY_DISABLED": "1",
     "NEXT_PUBLIC_API_GATEWAY_URL": "http://srv-captain--extrahand-api-gateway:5000",
-    "NEXT_PUBLIC_ADMIN_SERVICE_URL": "http://srv-captain--extrahand-tasker-onboarding-backend:4008"
+    "NEXT_PUBLIC_ADMIN_SERVICE_URL": "https://extrahand-tasker-onboarding-backend.apps.extrahand.in"
   },
 
   "instanceCount": 1,

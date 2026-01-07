@@ -31,7 +31,10 @@ async function getAdminToken(): Promise<string> {
   });
 }
 
-const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL || 'http://localhost:4006';
+const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+if (!ADMIN_SERVICE_URL) {
+  throw new Error('NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+}
 
 export type AdminRole = 'admin' | 'operations' | 'marketing' | 'support' | 'trust';
 
