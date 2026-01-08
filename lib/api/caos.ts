@@ -851,5 +851,129 @@ export const caosApi = {
 
     return response.json();
   },
+
+  /**
+   * Initiate Aadhaar verification (sends OTP)
+   */
+  async initiateAadhaarVerification(
+    leadId: string,
+    documentIndex: number,
+    aadhaarNumber: string
+  ): Promise<{
+    success: boolean;
+    data: {
+      refId: string;
+      transactionId?: string;
+      maskedAadhaar?: string;
+      testOtp?: string;
+      message: string;
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/documents/${documentIndex}/verify-aadhaar/initiate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ aadhaarNumber }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to initiate Aadhaar verification' }));
+      throw new Error(error.error || error.message || 'Failed to initiate Aadhaar verification');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Verify Aadhaar OTP
+   */
+  async verifyAadhaarOTP(
+    leadId: string,
+    documentIndex: number,
+    refId: string,
+    otp: string,
+    aadhaarNumber: string
+  ): Promise<{
+    success: boolean;
+    data: {
+      lead: Lead;
+      verification: {
+        verified: boolean;
+        maskedAadhaar?: string;
+        verifiedData?: any;
+      };
+      addressExtracted: boolean;
+    };
+    message: string;
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/documents/${documentIndex}/verify-aadhaar/verify`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refId, otp, aadhaarNumber }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to verify Aadhaar OTP' }));
+      throw new Error(error.error || error.message || 'Failed to verify Aadhaar OTP');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Verify PAN via Cashfree API
+   */
+  async verifyPAN(
+    leadId: string,
+    documentIndex: number,
+    panNumber: string
+  ): Promise<{
+    success: boolean;
+    data: {
+      lead: Lead;
+      verification: {
+        verified: boolean;
+        maskedPAN?: string;
+        verifiedData?: any;
+      };
+    };
+    message: string;
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/documents/${documentIndex}/verify-pan`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ panNumber }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to verify PAN' }));
+      throw new Error(error.error || error.message || 'Failed to verify PAN');
+    }
+
+    return response.json();
+  },
 };
 

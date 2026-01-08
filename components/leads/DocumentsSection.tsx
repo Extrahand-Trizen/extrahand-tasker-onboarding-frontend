@@ -65,6 +65,18 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
   const [exactAadhaarNumber, setExactAadhaarNumber] = useState('');
   const [exactPANNumber, setExactPANNumber] = useState('');
   const [exactAddressDetails, setExactAddressDetails] = useState('');
+  
+  // ✅ Aadhaar verification flow state
+  const [showAadhaarVerificationModal, setShowAadhaarVerificationModal] = useState(false);
+  const [aadhaarVerificationStep, setAadhaarVerificationStep] = useState<'initiate' | 'verify'>('initiate');
+  const [aadhaarRefId, setAadhaarRefId] = useState('');
+  const [aadhaarOTP, setAadhaarOTP] = useState('');
+  const [aadhaarTestOtp, setAadhaarTestOtp] = useState('');
+  const [aadhaarForVerification, setAadhaarForVerification] = useState('');
+  
+  // ✅ PAN verification flow state
+  const [showPANVerificationModal, setShowPANVerificationModal] = useState(false);
+  const [panForVerification, setPanForVerification] = useState('');
 
   // ✅ Role-based permissions
   // Marketing: Can upload documents (cannot verify)
@@ -184,15 +196,82 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
     },
   });
 
+  // ✅ Aadhaar verification mutations
+  const initiateAadhaarMutation = useMutation({
+    mutationFn: ({ documentIndex, aadhaarNumber }: { documentIndex: number; aadhaarNumber: string }) =>
+      caosApi.initiateAadhaarVerification(leadId, documentIndex, aadhaarNumber),
+    onSuccess: (data) => {
+      setAadhaarRefId(data.data.refId);
+      setAadhaarTestOtp(data.data.testOtp || '');
+      setAadhaarVerificationStep('verify');
+      toast.success(data.data.message || 'OTP sent successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to initiate Aadhaar verification');
+    },
+  });
+
+  const verifyAadhaarOTPMutation = useMutation({
+    mutationFn: ({ documentIndex, refId, otp, aadhaarNumber }: { documentIndex: number; refId: string; otp: string; aadhaarNumber: string }) =>
+      caosApi.verifyAadhaarOTP(leadId, documentIndex, refId, otp, aadhaarNumber),
+    onSuccess: (data) => {
+      toast.success(data.message || 'Aadhaar verified successfully');
+      setShowAadhaarVerificationModal(false);
+      setAadhaarForVerification('');
+      setAadhaarRefId('');
+      setAadhaarOTP('');
+      setAadhaarTestOtp('');
+      setAadhaarVerificationStep('initiate');
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['verification-queue'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to verify Aadhaar OTP');
+    },
+  });
+
+  // ✅ PAN verification mutation
+  const verifyPANMutation = useMutation({
+    mutationFn: ({ documentIndex, panNumber }: { documentIndex: number; panNumber: string }) =>
+      caosApi.verifyPAN(leadId, documentIndex, panNumber),
+    onSuccess: (data) => {
+      toast.success(data.message || 'PAN verified successfully');
+      setShowPANVerificationModal(false);
+      setPanForVerification('');
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['verification-queue'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to verify PAN');
+    },
+  });
+
   const handleVerify = (index: number) => {
-    setSelectedDocIndex(index);
-    setVerifyStatus('verified');
-    setRejectionReason('');
-    // ✅ Reset exact details when opening verify modal
-    setExactAadhaarNumber('');
-    setExactPANNumber('');
-    setExactAddressDetails('');
-    setShowVerifyModal(true);
+    const doc = lead.documents[index];
+    
+    // ✅ For Aadhaar and PAN, use API verification flow
+    if (doc.type === 'aadhaar') {
+      setSelectedDocIndex(index);
+      setAadhaarForVerification('');
+      setAadhaarRefId('');
+      setAadhaarOTP('');
+      setAadhaarTestOtp('');
+      setAadhaarVerificationStep('initiate');
+      setShowAadhaarVerificationModal(true);
+    } else if (doc.type === 'pan') {
+      setSelectedDocIndex(index);
+      setPanForVerification('');
+      setShowPANVerificationModal(true);
+    } else {
+      // ✅ For other documents (address_proof, etc.), use manual verification
+      setSelectedDocIndex(index);
+      setVerifyStatus('verified');
+      setRejectionReason('');
+      setExactAadhaarNumber('');
+      setExactPANNumber('');
+      setExactAddressDetails('');
+      setShowVerifyModal(true);
+    }
   };
 
   const handleDelete = (index: number) => {
@@ -785,6 +864,243 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
                     setExactAddressDetails('');
                   }}
                   disabled={verifyMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ✅ Aadhaar Verification Modal */}
+      {showAadhaarVerificationModal && selectedDocIndex !== null && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAadhaarVerificationModal(false);
+              setAadhaarForVerification('');
+              setAadhaarRefId('');
+              setAadhaarOTP('');
+              setAadhaarTestOtp('');
+              setAadhaarVerificationStep('initiate');
+            }
+          }}
+        >
+          <Card className="w-full max-w-md bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle>Verify Aadhaar via Cashfree</CardTitle>
+              <CardDescription>
+                Enter the Aadhaar number from the document and verify via OTP
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {aadhaarVerificationStep === 'initiate' ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="aadhaar-verify-input">Aadhaar Number *</Label>
+                    <Input
+                      id="aadhaar-verify-input"
+                      type="text"
+                      value={aadhaarForVerification}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 12);
+                        setAadhaarForVerification(value);
+                      }}
+                      placeholder="1234 5678 9012"
+                      maxLength={12}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Enter the 12-digit Aadhaar number from the document
+                    </p>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={() => {
+                        if (!aadhaarForVerification || aadhaarForVerification.length !== 12) {
+                          toast.error('Please enter a valid 12-digit Aadhaar number');
+                          return;
+                        }
+                        initiateAadhaarMutation.mutate({
+                          documentIndex: selectedDocIndex,
+                          aadhaarNumber: aadhaarForVerification
+                        });
+                      }}
+                      disabled={initiateAadhaarMutation.isPending || !aadhaarForVerification || aadhaarForVerification.length !== 12}
+                      className="flex-1"
+                    >
+                      {initiateAadhaarMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending OTP...
+                        </>
+                      ) : (
+                        'Send OTP'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowAadhaarVerificationModal(false);
+                        setAadhaarForVerification('');
+                        setAadhaarRefId('');
+                        setAadhaarOTP('');
+                        setAadhaarTestOtp('');
+                        setAadhaarVerificationStep('initiate');
+                      }}
+                      disabled={initiateAadhaarMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {aadhaarTestOtp && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800 font-medium">
+                        🧪 Sandbox Mode
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Test OTP: <span className="font-mono font-bold">{aadhaarTestOtp}</span>
+                      </p>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="aadhaar-otp-input">OTP *</Label>
+                    <Input
+                      id="aadhaar-otp-input"
+                      type="text"
+                      value={aadhaarOTP}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setAadhaarOTP(value);
+                      }}
+                      placeholder="Enter 6-digit OTP"
+                      maxLength={6}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Enter the OTP sent to the user's mobile number
+                    </p>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={() => {
+                        if (!aadhaarOTP || aadhaarOTP.length !== 6) {
+                          toast.error('Please enter a valid 6-digit OTP');
+                          return;
+                        }
+                        verifyAadhaarOTPMutation.mutate({
+                          documentIndex: selectedDocIndex,
+                          refId: aadhaarRefId,
+                          otp: aadhaarOTP,
+                          aadhaarNumber: aadhaarForVerification
+                        });
+                      }}
+                      disabled={verifyAadhaarOTPMutation.isPending || !aadhaarOTP || aadhaarOTP.length !== 6}
+                      className="flex-1"
+                    >
+                      {verifyAadhaarOTPMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        'Verify OTP'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setAadhaarVerificationStep('initiate');
+                        setAadhaarOTP('');
+                        setAadhaarRefId('');
+                        setAadhaarTestOtp('');
+                      }}
+                      disabled={verifyAadhaarOTPMutation.isPending}
+                    >
+                      Back
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ✅ PAN Verification Modal */}
+      {showPANVerificationModal && selectedDocIndex !== null && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPANVerificationModal(false);
+              setPanForVerification('');
+            }
+          }}
+        >
+          <Card className="w-full max-w-md bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle>Verify PAN via Cashfree</CardTitle>
+              <CardDescription>
+                Enter the PAN number from the document to verify
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="pan-verify-input">PAN Number *</Label>
+                <Input
+                  id="pan-verify-input"
+                  type="text"
+                  value={panForVerification}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 10);
+                    setPanForVerification(value);
+                  }}
+                  placeholder="ABCDE1234F"
+                  maxLength={10}
+                />
+                <p className="text-xs text-gray-500">
+                  Format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)
+                </p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={() => {
+                    if (!panForVerification || panForVerification.length !== 10) {
+                      toast.error('Please enter a valid 10-character PAN number');
+                      return;
+                    }
+                    if (!/^[A-Z]{5}\d{4}[A-Z]{1}$/.test(panForVerification)) {
+                      toast.error('Invalid PAN format. Must be ABCDE1234F');
+                      return;
+                    }
+                    verifyPANMutation.mutate({
+                      documentIndex: selectedDocIndex,
+                      panNumber: panForVerification
+                    });
+                  }}
+                  disabled={verifyPANMutation.isPending || !panForVerification || panForVerification.length !== 10}
+                  className="flex-1"
+                >
+                  {verifyPANMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify PAN'
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPANVerificationModal(false);
+                    setPanForVerification('');
+                  }}
+                  disabled={verifyPANMutation.isPending}
                 >
                   Cancel
                 </Button>
