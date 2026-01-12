@@ -37,7 +37,7 @@ export default function LandingPage() {
             className="rounded-lg"
           />
           <div>
-            <p className="text-sm font-semibold text-gray-900">Tasker Onboarding System</p>
+            <p className="text-sm font-semibold text-gray-900">Partner Onboarding Platform</p>
           </div>
         </div>
         <div className="flex items-center gap-3">

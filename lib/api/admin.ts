@@ -3,7 +3,7 @@ if (!API_BASE_URL) {
   throw new Error('NEXT_PUBLIC_API_GATEWAY_URL environment variable is required');
 }
 
-// For tasker onboarding bulk operations, call admin-service directly
+// For partner onboarding bulk operations, call admin-service directly
 const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
 if (!ADMIN_SERVICE_URL) {
   throw new Error('NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
@@ -180,7 +180,8 @@ export const adminApi = {
   async bulkUploadUsers(
     file: File, 
     primaryCategory?: string, 
-    secondaryCategory?: string
+    secondaryCategory?: string,
+    sendEmails: boolean = true
   ): Promise<BulkUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
@@ -190,6 +191,7 @@ export const adminApi = {
     if (secondaryCategory) {
       formData.append('secondaryCategory', secondaryCategory);
     }
+    formData.append('sendEmails', sendEmails.toString());
 
     // Get fresh token (will refresh if expired)
     const token = await getAdminToken();

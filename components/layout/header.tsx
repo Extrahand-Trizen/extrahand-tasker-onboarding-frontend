@@ -24,7 +24,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <h2 className="text-sm sm:text-base font-semibold text-gray-800">Tasker Onboarding</h2>
+        <h2 className="text-sm sm:text-base font-semibold text-gray-800">Partner Onboarding</h2>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         {user && (

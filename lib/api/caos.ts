@@ -6,44 +6,95 @@ if (!ADMIN_SERVICE_URL) {
 }
 
 /**
- * Get fresh admin token (refreshes if expired)
+ * Get fresh admin token (JWT-based, refreshes if expired)
  */
 async function getAdminToken(): Promise<string> {
   if (typeof window === 'undefined') {
     throw new Error('Admin token can only be retrieved on client side');
   }
 
-  const { auth } = await import('@/lib/config/firebase');
-  const { onAuthStateChanged } = await import('firebase/auth');
-  
-  const currentUser = auth.currentUser;
-  
-  if (currentUser) {
+  // Try to get JWT access token first (new auth system)
+  const accessToken = localStorage.getItem('accessToken');
+  if (accessToken) {
+    // Verify token is not expired (basic check)
     try {
-      const token = await currentUser.getIdToken(true);
-      localStorage.setItem('adminToken', token);
-      return token;
-    } catch (error: any) {
-      throw new Error('Failed to get admin token: ' + error.message);
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      const now = Math.floor(Date.now() / 1000);
+      
+      // If token expires in less than 5 minutes, try to refresh
+      if (payload.exp && payload.exp - now < 300) {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          try {
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+            if (!API_BASE_URL) {
+              throw new Error('NEXT_PUBLIC_API_URL or NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+            }
+            const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.data?.accessToken) {
+                localStorage.setItem('accessToken', data.data.accessToken);
+                if (data.data.refreshToken) {
+                  localStorage.setItem('refreshToken', data.data.refreshToken);
+                }
+                return data.data.accessToken;
+              }
+            }
+          } catch (error) {
+            // Refresh failed, continue with existing token
+          }
+        }
+      }
+      
+      // Token is still valid
+      return accessToken;
+    } catch (error) {
+      // Invalid token format, try Firebase fallback
     }
   }
-  
-  return new Promise((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      unsubscribe();
-      if (user) {
-        try {
-          const token = await user.getIdToken(true);
-          localStorage.setItem('adminToken', token);
-          resolve(token);
-        } catch (error: any) {
-          reject(new Error('Failed to get admin token: ' + error.message));
-        }
-      } else {
-        reject(new Error('Admin not authenticated. Please login.'));
+
+  // Fallback to Firebase auth (for legacy users)
+  try {
+    const { auth } = await import('@/lib/config/firebase');
+    const { onAuthStateChanged } = await import('firebase/auth');
+    
+    const currentUser = auth.currentUser;
+    
+    if (currentUser) {
+      try {
+        const token = await currentUser.getIdToken(true);
+        localStorage.setItem('adminToken', token);
+        return token;
+      } catch (error: any) {
+        throw new Error('Failed to get admin token: ' + error.message);
       }
+    }
+    
+    return new Promise((resolve, reject) => {
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        unsubscribe();
+        if (user) {
+          try {
+            const token = await user.getIdToken(true);
+            localStorage.setItem('adminToken', token);
+            resolve(token);
+          } catch (error: any) {
+            reject(new Error('Failed to get admin token: ' + error.message));
+          }
+        } else {
+          reject(new Error('Admin not authenticated. Please login.'));
+        }
+      });
     });
-  });
+  } catch (error) {
+    throw new Error('Admin not authenticated. Please login.');
+  }
 }
 
 export type LeadStatus = 
@@ -252,7 +303,7 @@ export const caosApi = {
   },
 
   /**
-   * Get tasker onboarding analytics overview
+   * Get partner onboarding analytics overview
    */
   async getAnalytics(): Promise<AnalyticsResponse> {
     const token = await getAdminToken();

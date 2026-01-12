@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ExtraHand - Tasker Onboarding System",
-  description: "Tasker Onboarding System for ExtraHand",
+  title: "ExtraHand - Partner Onboarding Platform",
+  description: "Partner Onboarding Platform for ExtraHand",
 };
 
 export default function RootLayout({

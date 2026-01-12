@@ -1,6 +1,6 @@
 'use client';
 
-import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -21,7 +21,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, loading, logout } = useAdminAuth();
+  const { isAuthenticated, loading, logout } = useJWTAuth();
   const router = useRouter();
   const [showWarn, setShowWarn] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);

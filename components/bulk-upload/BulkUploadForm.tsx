@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, File, X, Download, UserPlus, Edit, Trash2 } from 'lucide-react';
+import { Upload, File, X, Download, UserPlus, Edit, Trash2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { adminApi } from '@/lib/api/admin';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 import { toast } from 'sonner';
@@ -39,6 +40,7 @@ export function BulkUploadForm() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [sendEmails, setSendEmails] = useState<boolean>(true);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -299,7 +301,8 @@ export function BulkUploadForm() {
       const response = await adminApi.bulkUploadUsers(
         file,
         operationType === 'create' ? primaryCategory : undefined,
-        operationType === 'create' ? secondaryCategory : undefined
+        operationType === 'create' ? secondaryCategory : undefined,
+        sendEmails
       );
       
       clearInterval(progressInterval);
@@ -507,6 +510,23 @@ export function BulkUploadForm() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Email Toggle - Only for create operation */}
+          {operationType === 'create' && (
+            <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <Checkbox
+                id="send-emails-toggle"
+                checked={sendEmails}
+                onCheckedChange={(checked) => setSendEmails(checked === true)}
+              />
+              <Label 
+                htmlFor="send-emails-toggle" 
+                className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                Send confirmation emails to taskers
+              </Label>
+            </div>
+          )}
           {operationType === 'create' && (
             <p className="text-sm font-semibold text-gray-900 mb-2">Step 3: Upload CSV File</p>
           )}
@@ -663,6 +683,24 @@ export function BulkUploadForm() {
                 <span>{progress}%</span>
               </div>
               <Progress value={progress} />
+            </div>
+          )}
+
+          {/* Email Toggle - After file upload (only for create operation) */}
+          {file && operationType === 'create' && (
+            <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <Checkbox
+                id="send-emails-upload-toggle"
+                checked={sendEmails}
+                onCheckedChange={(checked) => setSendEmails(checked === true)}
+              />
+              <Label 
+                htmlFor="send-emails-upload-toggle" 
+                className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                Send confirmation emails to taskers after upload
+              </Label>
             </div>
           )}
 
