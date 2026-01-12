@@ -157,19 +157,34 @@ export const userManagementApi = {
   /**
    * Reset user password (admin-initiated)
    */
-  async resetPassword(userId: string): Promise<{ success: boolean; message: string; data?: { emailSent: boolean; resetLink?: string } }> {
+  async resetPassword(userId: string): Promise<{ 
+    success: boolean; 
+    message: string; 
+    data?: { 
+      emailSent: boolean; 
+      resetLink?: string;
+      email?: string;
+      expiresAt?: string;
+    };
+    error?: string;
+  }> {
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${userId}/reset-password`, {
       method: 'POST',
       headers,
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to reset password');
+      // Include error details in the thrown error
+      const errorMessage = data.error || data.message || 'Failed to reset password';
+      const error = new Error(errorMessage) as any;
+      error.data = data.data; // Include reset link and email if available
+      throw error;
     }
 
-    return response.json();
+    return data;
   },
 
   /**

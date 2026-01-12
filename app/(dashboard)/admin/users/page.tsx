@@ -84,14 +84,38 @@ export default function UserManagementPage() {
     mutationFn: (userId: string) => userManagementApi.resetPassword(userId),
     onSuccess: (data) => {
       if (data.data?.emailSent) {
-        toast.success('Password reset email sent successfully');
+        toast.success(`Password reset email sent to ${data.data.email || 'user'}`, {
+          description: `The reset link expires on ${data.data.expiresAt ? new Date(data.data.expiresAt).toLocaleString() : '24 hours'}`,
+        });
+      } else if (data.data?.resetLink) {
+        // Email failed but we have the reset link - show it prominently
+        toast.warning('Email sending failed, but reset link generated', {
+          description: `Email: ${data.data.email || 'N/A'}. Link: ${data.data.resetLink}`,
+          duration: 10000, // Show for 10 seconds
+        });
+        // Also log to console for easy copying
+        console.warn('Password reset link (email failed):', data.data.resetLink);
       } else {
-        toast.info('Password reset link generated', {
-          description: data.data?.resetLink ? `Link: ${data.data.resetLink}` : undefined,
+        toast.info('Password reset initiated', {
+          description: data.message || 'Check server logs for details',
         });
       }
     },
-    onError: (e: any) => toast.error(e.message || 'Failed to reset password'),
+    onError: (e: any) => {
+      const errorMessage = e.message || 'Failed to reset password';
+      // If we have a reset link in the error data, show it
+      if (e.data?.resetLink) {
+        toast.error(errorMessage, {
+          description: `Email: ${e.data.email || 'N/A'}. Reset link: ${e.data.resetLink}`,
+          duration: 15000, // Show for 15 seconds
+        });
+        console.error('Password reset link (error occurred):', e.data.resetLink);
+      } else {
+        toast.error(errorMessage, {
+          description: e.data?.email ? `User email: ${e.data.email}` : undefined,
+        });
+      }
+    },
   });
 
   const revokeSessionMutation = useMutation({

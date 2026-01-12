@@ -10,12 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { adminApi } from '@/lib/api/admin';
-import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { toast } from 'sonner';
 // import Papa from 'papaparse';
 
 export function BulkUploadForm() {
-  const { role, loading: authLoading } = useAdminAuth();
+  const { role, loading: authLoading } = useJWTAuth();
   const [operationType, setOperationType] = useState<'create' | 'update' | 'delete'>('create');
   
   // ✅ Role-based permissions

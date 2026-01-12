@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { DocumentsSection } from '@/components/leads/DocumentsSection';
 import { SkillsSection } from '@/components/leads/SkillsSection';
 import { leadStatusLabel } from '@/lib/leadLabels';
@@ -41,7 +41,7 @@ export default function LeadDetailPage() {
   const searchParams = useSearchParams();
   const leadId = params.leadId as string;
   const queryClient = useQueryClient();
-  const { role, loading: authLoading } = useAdminAuth();
+  const { role, loading: authLoading } = useJWTAuth();
   const fromVerification = searchParams?.get('from') === 'verification';
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted');

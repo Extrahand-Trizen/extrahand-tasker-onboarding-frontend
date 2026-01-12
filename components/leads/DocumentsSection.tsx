@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { caosApi, type Lead } from '@/lib/api/caos';
-import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,7 @@ interface DocumentsSectionProps {
 
 export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
   const queryClient = useQueryClient();
-  const { role } = useAdminAuth();
+  const { role } = useJWTAuth();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedDocIndex, setSelectedDocIndex] = useState<number | null>(null);
