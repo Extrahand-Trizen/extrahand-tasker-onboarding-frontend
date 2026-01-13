@@ -201,7 +201,7 @@ export default function InviteAcceptPage() {
             You're Invited!
           </CardTitle>
           <CardDescription className="text-base text-gray-600 mt-2">
-            Join the ExtraHand Admin Team
+            Join the ExtraHand {roleDisplay} Team
           </CardDescription>
         </CardHeader>
         

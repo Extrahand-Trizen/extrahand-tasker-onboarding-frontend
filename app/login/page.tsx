@@ -82,7 +82,7 @@ export default function LoginPage() {
               className="rounded-lg"
             />
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">Admin Login</CardTitle>
+          <CardTitle className="text-2xl font-bold text-gray-900">Login</CardTitle>
           <CardDescription className="text-sm text-gray-500 mt-2">
             Sign in to access the Partner Onboarding Platform
           </CardDescription>

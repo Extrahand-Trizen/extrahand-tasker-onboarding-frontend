@@ -8,7 +8,7 @@ export default function BulkLeadImportPage() {
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Upload Taskers (CSV)</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Upload Partners (CSV)</h1>
         <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
           Bulk import unverified taskers from CSV file
         </p>

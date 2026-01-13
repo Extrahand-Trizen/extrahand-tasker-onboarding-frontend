@@ -15,11 +15,11 @@ const navigation: Array<{
   roles?: string[];
 }> = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Tasker List', href: '/leads', icon: Users },
-  { name: 'Add Tasker', href: '/leads/new', icon: FileText },
+  { name: 'Partner List', href: '/leads', icon: Users },
+  { name: 'Add Partner', href: '/leads/new', icon: FileText },
   { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['operations', 'admin'] },
   { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['operations', 'admin'] },
-  { name: 'Upload Taskers (CSV)', href: '/leads/bulk-import', icon: Upload },
+  { name: 'Upload Partners (CSV)', href: '/leads/bulk-import', icon: Upload },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
 
