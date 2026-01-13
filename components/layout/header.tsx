@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Menu } from 'lucide-react';
@@ -24,7 +25,16 @@ export function Header({ onMenuClick }: HeaderProps) {
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <h2 className="text-sm sm:text-base font-semibold text-gray-800">Partner Onboarding</h2>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Image
+            src="/logo.png"
+            alt="ExtraHand Logo"
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
+          <h2 className="text-sm sm:text-base font-semibold text-gray-800">Partner Onboarding</h2>
+        </div>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         {user && (
