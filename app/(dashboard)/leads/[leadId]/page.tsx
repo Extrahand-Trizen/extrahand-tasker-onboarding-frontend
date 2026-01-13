@@ -31,8 +31,6 @@ const statusColors: Record<LeadStatus, string> = {
   under_verification: 'bg-orange-100 text-orange-800',
   approved: 'bg-green-100 text-green-800',
   rejected: 'bg-red-100 text-red-800',
-  account_created: 'bg-teal-100 text-teal-800',
-  activated: 'bg-emerald-100 text-emerald-800',
   inactive: 'bg-gray-100 text-gray-500',
 };
 
@@ -77,9 +75,8 @@ export default function LeadDetailPage() {
     'under_verification',
     'approved',
     'rejected',
-    'account_created',
-    'activated',
     'inactive'
+    // ❌ REMOVED: 'account_created', 'activated' - these are account statuses, not lead statuses
   ];
   
   // Debug: Log role for troubleshooting
@@ -343,8 +340,9 @@ export default function LeadDetailPage() {
         const hasSkills = (lead.skills?.length || 0) > 0 || !!lead.primaryCategory;
         const hasRequiredFields = !!(lead.name && lead.phone && lead.city && lead.primaryCategory);
         const isOkFlags = !lead.isDuplicate && !lead.blacklisted;
-        const isApproved = lead.status === 'approved' || lead.status === 'activated';
-        const isActivated = lead.status === 'activated' || !!lead.activationData?.firebaseUid;
+        // ✅ UPDATED: Check lead status only (activation is tracked via accountStatus)
+        const isApproved = lead.status === 'approved';
+        const isActivated = lead.accountStatus === 'activated' || !!lead.activationData?.firebaseUid;
 
         const items: Array<{ label: string; ok: boolean; hint?: string }> = [
           { label: 'Required fields present (name, phone, city, primary category)', ok: hasRequiredFields },
@@ -515,9 +513,8 @@ export default function LeadDetailPage() {
                         <SelectItem value="under_verification">Under Verification</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
                         <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="account_created">Account Created</SelectItem>
-                        <SelectItem value="activated">Activated</SelectItem>
                         <SelectItem value="inactive">Inactive</SelectItem>
+                        {/* ❌ REMOVED: account_created, activated - these are account statuses, not lead statuses */}
                       </>
                     )}
                   </SelectContent>

@@ -97,6 +97,7 @@ async function getAdminToken(): Promise<string> {
   }
 }
 
+// ✅ LEAD STATUS - CRM/Onboarding concern (ends at approved)
 export type LeadStatus = 
   | 'lead_added'
   | 'contacted'
@@ -105,9 +106,14 @@ export type LeadStatus =
   | 'under_verification'
   | 'approved'
   | 'rejected'
-  | 'account_created'
-  | 'activated'
   | 'inactive';
+
+// ✅ ACCOUNT STATUS - Auth/Platform concern (starts after lead approval)
+export type AccountStatus = 
+  | 'not_created'  // No login exists yet
+  | 'invited'      // Invite sent, waiting for user
+  | 'activated'    // User accepted invite + can log in
+  | 'suspended';   // Access blocked
 
 export type CreationMethod = 'manual_onboarding' | 'bulk_upload' | 'direct_activation';
 
@@ -126,7 +132,8 @@ export interface Lead {
   sourceDetails?: string;
   addedBy: string;
   addedByName?: string;
-  status: LeadStatus;
+  status: LeadStatus;  // ✅ Lead status only (ends at approved)
+  accountStatus: AccountStatus;  // ✅ NEW: Separate account status (starts after approval)
   statusHistory: Array<{
     status: LeadStatus;
     changedBy: string;

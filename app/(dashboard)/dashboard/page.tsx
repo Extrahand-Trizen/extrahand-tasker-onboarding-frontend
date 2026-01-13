@@ -14,7 +14,8 @@ export default function DashboardPage() {
   const stats = {
     total: leadsData?.pagination.total || 0,
     approved: leadsData?.data.filter(l => l.status === 'approved').length || 0,
-    activated: leadsData?.data.filter(l => l.status === 'activated').length || 0,
+    // ✅ UPDATED: Check accountStatus instead of lead status
+    activated: leadsData?.data.filter(l => l.accountStatus === 'activated' || l.activationData?.firebaseUid).length || 0,
   };
 
   const statCards = [
