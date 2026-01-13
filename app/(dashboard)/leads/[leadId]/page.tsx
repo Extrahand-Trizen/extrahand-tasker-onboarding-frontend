@@ -57,13 +57,12 @@ export default function LeadDetailPage() {
   const isOperations = !authLoading && role === 'operations';
   const canMoveStage = !authLoading && (isAdmin || isMarketing || isOperations);
   
-  // ✅ Marketing team can only move stages up to "documents_submitted"
+  // ✅ Marketing team can only move stages up to "interested"
   // Admin and Operations can move to ANY stage
   const marketingAllowedStatuses: LeadStatus[] = [
     'lead_added',
     'contacted',
-    'interested',
-    'documents_submitted'
+    'interested'
   ];
   
   // ✅ All available statuses (for admin and operations)
@@ -110,26 +109,18 @@ export default function LeadDetailPage() {
         throw new Error('Unauthorized: Only marketing team can move stages');
       }
       
-      // ✅ Marketing can only set status up to documents_submitted
+      // ✅ Marketing can only set status up to interested
       // ✅ FIX: Only restrict marketing team, not admin/operations
       if (isMarketing && !marketingAllowedStatuses.includes(status)) {
-        toast.error(`Marketing team can only move stages up to "Documents Received". After that, the verification team takes over.`);
+        toast.error(`Marketing team can only move stages up to "Interested". After that, the verification team takes over.`);
         throw new Error('Invalid status: Marketing team cannot set this status');
       }
       
-      // ✅ If setting to documents_submitted, automatically transition to under_verification
-      // The backend should handle this, but we'll make the API call with documents_submitted
-      // and the backend should auto-transition to under_verification
-      const finalStatus = status === 'documents_submitted' ? 'documents_submitted' : status;
-      
-      return caosApi.updateStatus(leadId, finalStatus, notes);
+      // No auto-transition needed since marketing cannot set documents_submitted
+      return caosApi.updateStatus(leadId, status, notes);
     },
     onSuccess: (data, variables) => {
-      if (variables.status === 'documents_submitted') {
-        toast.success('Status updated to "Documents Received". Lead will now move to Document Verification queue for verification team to review.');
-      } else {
-        toast.success('Status updated successfully');
-      }
+      toast.success('Status updated successfully');
       setShowStatusModal(false);
       setStatusNotes('');
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
@@ -462,7 +453,7 @@ export default function LeadDetailPage() {
               <CardTitle className="text-lg font-semibold text-gray-900">Move Stage</CardTitle>
               {isMarketing && (
                 <p className="text-sm text-gray-600 mt-1">
-                  You can move stages up to "Documents Received". After that, the verification team will review and approve.
+                  You can move stages up to "Interested". After that, the verification team will review and approve.
                 </p>
               )}
               {(isAdmin || isOperations) && (
@@ -490,18 +481,13 @@ export default function LeadDetailPage() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {/* ✅ Marketing team can only select up to "Documents Received" */}
+                    {/* ✅ Marketing team can only select up to "Interested" */}
                     {/* ✅ Admin and Operations can select ANY status */}
                     {isMarketing ? (
                       <>
                         <SelectItem value="lead_added">New Tasker</SelectItem>
                         <SelectItem value="contacted">Contacted</SelectItem>
                         <SelectItem value="interested">Interested</SelectItem>
-                        <SelectItem value="documents_submitted">Documents Received</SelectItem>
-                        <div className="px-2 py-1.5 text-xs text-gray-500 border-t border-gray-200 mt-1">
-                          <p className="font-medium text-amber-600">⚠️ After "Documents Received"</p>
-                          <p className="text-gray-600 mt-0.5">Verification team will review documents and approve</p>
-                        </div>
                       </>
                     ) : (
                       <>

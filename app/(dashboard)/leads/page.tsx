@@ -13,6 +13,7 @@ import { Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { leadStatusLabel } from '@/lib/leadLabels';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -136,6 +137,11 @@ export default function LeadsPage() {
                         <h3 className="font-medium text-gray-900 text-sm">{lead.name}</h3>
                         <p className="text-xs text-gray-600 mt-1">{lead.phone}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{lead.city}</p>
+                        {lead.createdAt && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Created: {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
+                          </p>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -177,6 +183,7 @@ export default function LeadsPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">City</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -206,6 +213,9 @@ export default function LeadsPage() {
                               </Badge>
                             )}
                           </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {lead.createdAt ? format(new Date(lead.createdAt), 'MMM dd, yyyy') : '-'}
                         </td>
                         <td className="px-4 py-3">
                           <Button
