@@ -79,13 +79,13 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
   const [panForVerification, setPanForVerification] = useState('');
 
   // ✅ Role-based permissions
-  // Marketing: Can upload documents (cannot verify)
+  // Marketing: Cannot upload documents (view only)
   // Operations/Admin: Can upload and verify documents
   // Support: View only
-  const canUpload = ['marketing', 'operations', 'admin'].includes(role || '');
+  const canUpload = ['operations', 'admin'].includes(role || '');
   const canVerify = ['operations', 'admin'].includes(role || '');
   // Allow same roles that can upload to also delete their documents
-  const canDelete = ['marketing', 'operations', 'admin'].includes(role || '');
+  const canDelete = ['operations', 'admin'].includes(role || '');
 
   const uploadMutation = useMutation({
     mutationFn: async (data: { 
