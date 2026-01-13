@@ -206,7 +206,7 @@ export default function InterestedCandidatesPage() {
                           {lead.state && <div className="text-xs text-gray-500">{lead.state}</div>}
                         </td>
                         <td className="px-4 py-3">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="secondary" className="text-xs">
                             {lead.primaryCategory}
                           </Badge>
                         </td>
@@ -216,7 +216,7 @@ export default function InterestedCandidatesPage() {
                               {lead.documents.length} uploaded
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-gray-500">
+                            <Badge variant="secondary" className="text-gray-500">
                               No documents
                             </Badge>
                           )}
@@ -280,7 +280,7 @@ export default function InterestedCandidatesPage() {
                         </div>
                         <div>
                           <span className="text-gray-500">Primary Skill:</span>{' '}
-                          <Badge variant="outline" className="text-xs ml-1">
+                          <Badge variant="secondary" className="text-xs ml-1">
                             {lead.primaryCategory}
                           </Badge>
                         </div>
@@ -291,7 +291,7 @@ export default function InterestedCandidatesPage() {
                               {lead.documents.length} uploaded
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-gray-500 ml-1">
+                            <Badge variant="secondary" className="text-gray-500 ml-1">
                               No documents
                             </Badge>
                           )}
