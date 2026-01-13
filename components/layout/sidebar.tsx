@@ -20,7 +20,7 @@ const navigation: Array<{
   { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['operations', 'admin'] },
   { name: 'Ready for Activation', href: '/leads/activation', icon: Zap, roles: ['operations', 'admin'] },
   { name: 'Upload Taskers (CSV)', href: '/leads/bulk-import', icon: Upload },
-  { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload },
+  // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
 
 // Admin section items (only for admin role)
