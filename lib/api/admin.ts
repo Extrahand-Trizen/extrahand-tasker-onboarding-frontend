@@ -3,7 +3,7 @@ if (!API_BASE_URL) {
   throw new Error('NEXT_PUBLIC_API_GATEWAY_URL environment variable is required');
 }
 
-// For partner onboarding bulk operations, call admin-service directly
+// For partner onboarding bulk onboarder, call admin-service directly
 const ADMIN_SERVICE_URL = process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
 if (!ADMIN_SERVICE_URL) {
   throw new Error('NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
@@ -175,7 +175,7 @@ export const adminApi = {
   },
 
   /**
-   * Upload CSV/Excel file for bulk operations
+   * Upload CSV/Excel file for bulk onboarder
    */
   async bulkUploadUsers(
     file: File, 

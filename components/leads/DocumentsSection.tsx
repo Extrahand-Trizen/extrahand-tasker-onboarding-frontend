@@ -61,7 +61,7 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [panNumber, setPanNumber] = useState('');
   const [addressDetails, setAddressDetails] = useState('');
-  // ✅ Exact details for verification (unmasked) - entered by operations/admin
+  // ✅ Exact details for verification (unmasked) - entered by onboarder/admin
   const [exactAadhaarNumber, setExactAadhaarNumber] = useState('');
   const [exactPANNumber, setExactPANNumber] = useState('');
   const [exactAddressDetails, setExactAddressDetails] = useState('');
@@ -79,13 +79,13 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
   const [panForVerification, setPanForVerification] = useState('');
 
   // ✅ Role-based permissions
-  // Marketing: Cannot upload documents (view only)
-  // Operations/Admin: Can upload and verify documents
+  // Qualifier: Cannot upload documents (view only)
+  // Onboarder/Admin: Can upload and verify documents
   // Support: View only
-  const canUpload = ['operations', 'admin'].includes(role || '');
-  const canVerify = ['operations', 'admin'].includes(role || '');
+  const canUpload = ['onboarder', 'admin'].includes(role || '');
+  const canVerify = ['onboarder', 'admin'].includes(role || '');
   // Allow same roles that can upload to also delete their documents
-  const canDelete = ['operations', 'admin'].includes(role || '');
+  const canDelete = ['onboarder', 'admin'].includes(role || '');
 
   const uploadMutation = useMutation({
     mutationFn: async (data: { 

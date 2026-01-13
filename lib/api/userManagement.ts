@@ -7,7 +7,7 @@ export interface AdminUser {
   userId: string;
   email: string;
   name?: string;
-  role: 'admin' | 'operations' | 'marketing' | 'support' | 'trust';
+  role: 'admin' | 'onboarder' | 'qualifier' | 'support' | 'trust' | 'lead_access_manager';
   team?: string;
   department?: string;
   status: 'active' | 'suspended' | 'inactive';

@@ -111,7 +111,7 @@ export default function VerificationQueuePage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Document Verification Queue</h1>
         <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
-          Review and verify documents uploaded by the marketing team
+          Review and verify documents uploaded by the qualifier team
         </p>
       </div>
 

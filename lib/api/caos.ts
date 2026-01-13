@@ -761,6 +761,57 @@ export const caosApi = {
   },
 
   /**
+   * Get interested candidates queue
+   */
+  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number }): Promise<{
+    success: boolean;
+    data: {
+      leads: Lead[];
+      total: number;
+      page: number;
+      limit: number;
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    queryParams.append('status', 'interested');
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch interested candidates' }));
+      throw new Error(error.error || error.message || 'Failed to fetch interested candidates');
+    }
+
+    const result = await response.json();
+    // Transform the response to match the queue format
+    return {
+      success: result.success,
+      data: {
+        leads: result.data || [],
+        total: result.pagination?.total || 0,
+        page: result.pagination?.page || 1,
+        limit: result.pagination?.limit || 20,
+      },
+    };
+  },
+
+  /**
    * Get activation queue
    */
   async getActivationQueue(params?: { city?: string; primarySkill?: string; page?: number; limit?: number }): Promise<{

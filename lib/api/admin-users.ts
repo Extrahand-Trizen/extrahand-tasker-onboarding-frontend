@@ -36,7 +36,7 @@ if (!ADMIN_SERVICE_URL) {
   throw new Error('NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
 }
 
-export type AdminRole = 'admin' | 'operations' | 'marketing' | 'support' | 'trust';
+export type AdminRole = 'admin' | 'onboarder' | 'qualifier' | 'support' | 'trust' | 'lead_access_manager';
 
 export interface AdminUser {
   _id: string;

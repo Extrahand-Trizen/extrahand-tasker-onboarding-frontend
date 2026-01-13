@@ -51,7 +51,7 @@ export default function LeadsPage() {
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tasker List</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Partner List</h1>
           <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
             Search and manage all taskers
           </p>

@@ -49,23 +49,23 @@ export default function LeadDetailPage() {
 
   // ✅ Role-based permissions
   // Admin can move to ANY stage (full access)
-  // Marketing can only move stages up to "documents_submitted"
+  // Qualifier can only move stages up to "interested" (Operations handles documents)
   // Operations can move to any stage (full access)
   // Wait for auth to load before showing/hiding button
   const isAdmin = !authLoading && role === 'admin';
-  const isMarketing = !authLoading && role === 'marketing';
-  const isOperations = !authLoading && role === 'operations';
-  const canMoveStage = !authLoading && (isAdmin || isMarketing || isOperations);
+  const isQualifier = !authLoading && role === 'qualifier';
+  const isOperations = !authLoading && role === 'onboarder';
+  const canMoveStage = !authLoading && (isAdmin || isQualifier || isOperations);
   
-  // ✅ Marketing team can only move stages up to "interested"
+  // ✅ Qualifier team can only move stages up to "interested"
   // Admin and Operations can move to ANY stage
-  const marketingAllowedStatuses: LeadStatus[] = [
+  const qualifierAllowedStatuses: LeadStatus[] = [
     'lead_added',
     'contacted',
     'interested'
   ];
   
-  // ✅ All available statuses (for admin and operations)
+  // ✅ All available statuses (for admin and onboarder)
   const allStatuses: LeadStatus[] = [
     'lead_added',
     'contacted',
@@ -105,18 +105,18 @@ export default function LeadDetailPage() {
     mutationFn: async ({ status, notes }: { status: LeadStatus; notes?: string }) => {
       // ✅ Double-check permission before making API call
       if (!canMoveStage) {
-        toast.error('You do not have permission to move stages. Only marketing team can update lead status.');
-        throw new Error('Unauthorized: Only marketing team can move stages');
+        toast.error('You do not have permission to move stages. Only qualifier team can update lead status.');
+        throw new Error('Unauthorized: Only qualifier team can move stages');
       }
       
-      // ✅ Marketing can only set status up to interested
-      // ✅ FIX: Only restrict marketing team, not admin/operations
-      if (isMarketing && !marketingAllowedStatuses.includes(status)) {
-        toast.error(`Marketing team can only move stages up to "Interested". After that, the verification team takes over.`);
-        throw new Error('Invalid status: Marketing team cannot set this status');
+      // ✅ Qualifier can only set status up to interested
+      // ✅ FIX: Only restrict qualifier team, not admin/onboarder
+      if (isQualifier && !qualifierAllowedStatuses.includes(status)) {
+        toast.error(`Qualifier team can only move stages up to "Interested". After that, the verification team takes over.`);
+        throw new Error('Invalid status: Qualifier team cannot set this status');
       }
       
-      // No auto-transition needed since marketing cannot set documents_submitted
+      // No auto-transition needed since qualifier cannot set documents_submitted
       return caosApi.updateStatus(leadId, status, notes);
     },
     onSuccess: (data, variables) => {
@@ -163,7 +163,7 @@ export default function LeadDetailPage() {
         <Link href="/leads">
           <Button variant="outline" className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Tasker List
+            Back to Partner List
           </Button>
         </Link>
       </div>
@@ -197,12 +197,12 @@ export default function LeadDetailPage() {
         </div>
         {!isBulkUpload && (
           <div className="flex gap-2">
-            {/* ✅ Only marketing team can move stages */}
+            {/* ✅ Only qualifier team can move stages */}
             {canMoveStage && (
               <Button
                 variant="outline"
                 onClick={() => {
-                  // ✅ Admin, Operations, and Marketing can all move stages
+                  // ✅ Admin, Operations, and Qualifier can all move stages
                   if (lead) {
                     setNewStatus(lead.status);
                   }
@@ -437,7 +437,7 @@ export default function LeadDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Status Update Modal - Only visible to marketing team */}
+      {/* Status Update Modal - Only visible to qualifier team */}
       {showStatusModal && canMoveStage && (
         <div 
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -451,7 +451,7 @@ export default function LeadDetailPage() {
           <Card className="w-full max-w-md bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">Move Stage</CardTitle>
-              {isMarketing && (
+              {isQualifier && (
                 <p className="text-sm text-gray-600 mt-1">
                   You can move stages up to "Interested". After that, the verification team will review and approve.
                 </p>
@@ -469,9 +469,9 @@ export default function LeadDetailPage() {
                   value={newStatus}
                   onValueChange={(value) => {
                     const selectedStatus = value as LeadStatus;
-                    // ✅ Only restrict marketing team - admin and operations can select any status
-                    if (isMarketing && !marketingAllowedStatuses.includes(selectedStatus)) {
-                      toast.error('Marketing team can only move stages up to "Documents Received"');
+                    // ✅ Only restrict qualifier team - admin and onboarder can select any status
+                    if (isQualifier && !qualifierAllowedStatuses.includes(selectedStatus)) {
+                      toast.error('Qualifier team can only move stages up to "Interested". Onboarder team will handle document collection.');
                       return;
                     }
                     setNewStatus(selectedStatus);
@@ -481,9 +481,9 @@ export default function LeadDetailPage() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {/* ✅ Marketing team can only select up to "Interested" */}
+                    {/* ✅ Qualifier team can only select up to "Interested" */}
                     {/* ✅ Admin and Operations can select ANY status */}
-                    {isMarketing ? (
+                    {isQualifier ? (
                       <>
                         <SelectItem value="lead_added">New Tasker</SelectItem>
                         <SelectItem value="contacted">Contacted</SelectItem>

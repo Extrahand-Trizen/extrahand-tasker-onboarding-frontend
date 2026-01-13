@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, ShieldCheck, X, ChevronDown, ChevronRight, UserPlus, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, ShieldCheck, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useState } from 'react';
@@ -17,8 +17,9 @@ const navigation: Array<{
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Partner List', href: '/leads', icon: Users },
   { name: 'Add Partner', href: '/leads/new', icon: FileText },
-  { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['operations', 'admin'] },
-  { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['operations', 'admin'] },
+  { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'admin'] },
+  { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['onboarder', 'admin'] },
+  { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'admin'] },
   { name: 'Upload Partners (CSV)', href: '/leads/bulk-import', icon: Upload },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
@@ -104,7 +105,7 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
           if (item.href === '/dashboard') {
             isActive = pathname === '/dashboard';
           } else if (item.href === '/leads') {
-            // Only highlight "Tasker List" if we're exactly on /leads, not on /leads/new or /leads/[id]
+            // Only highlight "Partner List" if we're exactly on /leads, not on /leads/new or /leads/[id]
             isActive = pathname === '/leads';
           } else {
             // For other routes, check if pathname starts with the href

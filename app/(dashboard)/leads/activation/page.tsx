@@ -46,8 +46,8 @@ export default function ActivationQueuePage() {
   const [showBulkActivateModal, setShowBulkActivateModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
 
-  // ✅ Role-based access: Only operations and admin can access activation queue
-  const canAccess = !authLoading && (role === 'operations' || role === 'admin');
+  // ✅ Role-based access: Only onboarder and admin can access activation queue
+  const canAccess = !authLoading && (role === 'onboarder' || role === 'admin');
 
   const [bulkResult, setBulkResult] = useState<{
     success: { leadId: string; firebaseUid?: string; profileCreated?: boolean }[];
@@ -59,7 +59,7 @@ export default function ActivationQueuePage() {
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
-      toast.error('You do not have permission to access the activation queue. Only operations and admin teams can activate leads.');
+      toast.error('You do not have permission to access the activation queue. Only onboarder and admin teams can activate leads.');
       router.push('/leads');
     }
   }, [authLoading, canAccess, router]);
@@ -152,9 +152,9 @@ export default function ActivationQueuePage() {
         <ShieldAlert className="h-16 w-16 text-red-500" />
         <h2 className="text-2xl font-bold text-gray-900">Access Denied</h2>
         <p className="text-gray-600">You do not have permission to access the activation queue.</p>
-        <p className="text-sm text-gray-500">Only operations and admin teams can activate leads.</p>
+        <p className="text-sm text-gray-500">Only onboarder and admin teams can activate leads.</p>
         <Link href="/leads">
-          <Button variant="outline">Go to Tasker List</Button>
+          <Button variant="outline">Go to Partner List</Button>
         </Link>
       </div>
     );

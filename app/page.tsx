@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, ShieldCheck, Zap, Users } from 'lucide-react';
 
 const features = [
-  { title: 'Capture taskers fast', desc: 'Add or upload CSVs, auto-check duplicates.', icon: Users },
+  { title: 'Capture partners fast', desc: 'Add or upload CSVs, auto-check duplicates.', icon: Users },
   { title: 'Verify & approve', desc: 'Docs, skills, checklist in one flow.', icon: ShieldCheck },
   { title: 'Create accounts', desc: 'Bulk-create users after approval.', icon: Zap },
   { title: 'Stay compliant', desc: 'Secure docs, role-gated actions.', icon: CheckCircle },
@@ -50,12 +50,12 @@ export default function LandingPage() {
       <main className="px-6 py-16 lg:px-16 max-w-7xl mx-auto">
         <section>
           <div className="max-w-3xl space-y-6">
-            <p className="text-sm font-semibold text-amber-600 uppercase tracking-wide">For Marketing Teams</p>
+            <p className="text-sm font-semibold text-amber-600 uppercase tracking-wide">For Qualifier Teams</p>
             <h1 className="text-4xl lg:text-5xl font-bold leading-tight text-gray-900">
               Track and upload bulk users in one place.
             </h1>
             <p className="text-lg text-gray-600 leading-relaxed">
-              Simple tool for managing taskers, verifying documents, and creating accounts.
+              Simple tool for managing partners, verifying documents, and creating accounts.
             </p>
             <div className="flex gap-3">
               <Button size="lg" onClick={() => router.push('/login')}>

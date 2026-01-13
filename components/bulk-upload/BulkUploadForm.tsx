@@ -19,16 +19,16 @@ export function BulkUploadForm() {
   const [operationType, setOperationType] = useState<'create' | 'update' | 'delete'>('create');
   
   // ✅ Role-based permissions
-  // Marketing team can only create taskers, not update or delete
+  // Qualifier team can only create taskers, not update or delete
   const canCreate = true; // All roles can create
-  const canUpdate = role === 'operations' || role === 'admin';
-  const canDelete = role === 'operations' || role === 'admin';
+  const canUpdate = role === 'onboarder' || role === 'admin';
+  const canDelete = role === 'onboarder' || role === 'admin';
   
-  // Reset to 'create' if marketing team tries to access update/delete
+  // Reset to 'create' if qualifier team tries to access update/delete
   useEffect(() => {
-    if (!authLoading && role === 'marketing' && operationType !== 'create') {
+    if (!authLoading && role === 'qualifier' && operationType !== 'create') {
       setOperationType('create');
-      toast.error('Marketing team can only create taskers. Update and delete operations are restricted to operations and admin teams.');
+      toast.error('Qualifier team can only create taskers. Update and delete onboarder are restricted to onboarder and admin teams.');
     }
   }, [role, authLoading, operationType]);
   const [file, setFile] = useState<File | null>(null);
@@ -274,12 +274,12 @@ export function BulkUploadForm() {
 
     // ✅ Validate permissions before upload
     if (operationType === 'update' && !canUpdate) {
-      toast.error('You do not have permission to update taskers. Only operations and admin teams can update.');
+      toast.error('You do not have permission to update taskers. Only onboarder and admin teams can update.');
       return;
     }
 
     if (operationType === 'delete' && !canDelete) {
-      toast.error('You do not have permission to delete taskers. Only operations and admin teams can delete.');
+      toast.error('You do not have permission to delete taskers. Only onboarder and admin teams can delete.');
       return;
     }
 
@@ -309,7 +309,7 @@ export function BulkUploadForm() {
       setProgress(100);
       setResult(response.data);
       
-      toast.success(`Upload completed! ${response.data.success} operations successful`);
+      toast.success(`Upload completed! ${response.data.success} onboarder successful`);
       
       setTimeout(() => {
         setFile(null);
@@ -351,12 +351,12 @@ export function BulkUploadForm() {
               <p className="text-sm text-gray-600">Add new taskers to the system</p>
             </button>
 
-            {/* ✅ Update operation - Only for operations and admin */}
+            {/* ✅ Update operation - Only for onboarder and admin */}
             {canUpdate && (
               <button
                 onClick={() => {
                   if (!canUpdate) {
-                    toast.error('You do not have permission to update taskers. Only operations and admin teams can update.');
+                    toast.error('You do not have permission to update taskers. Only onboarder and admin teams can update.');
                     return;
                   }
                   setOperationType('update');
@@ -374,12 +374,12 @@ export function BulkUploadForm() {
               </button>
             )}
 
-            {/* ✅ Delete operation - Only for operations and admin */}
+            {/* ✅ Delete operation - Only for onboarder and admin */}
             {canDelete && (
               <button
                 onClick={() => {
                   if (!canDelete) {
-                    toast.error('You do not have permission to delete taskers. Only operations and admin teams can delete.');
+                    toast.error('You do not have permission to delete taskers. Only onboarder and admin teams can delete.');
                     return;
                   }
                   setOperationType('delete');

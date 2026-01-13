@@ -25,7 +25,7 @@ export interface AdminInvite {
 
 export interface CreateInviteRequest {
   email: string;
-  role: 'admin' | 'operations' | 'marketing';
+  role: 'admin' | 'onboarder' | 'qualifier' | 'lead_access_manager';
   team?: string;
   department?: string;
   expiryDays?: number;
