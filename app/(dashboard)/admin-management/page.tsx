@@ -12,12 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const ROLES = ['admin', 'operations', 'marketing', 'support', 'trust'] as const;
+const ROLES = ['admin', 'operations', 'marketing'] as const;
 
 export default function AdminManagementPage() {
   const qc = useQueryClient();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'operations' | 'marketing' | 'support' | 'trust'>('operations');
+  const [role, setRole] = useState<'admin' | 'operations' | 'marketing'>('operations');
   const [team, setTeam] = useState('');
   const [department, setDepartment] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');

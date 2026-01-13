@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Clock, Key, Monitor, Trash2, RefreshCw, User, Mail, Calendar, Shield } from 'lucide-react';
 
-const ROLES = ['admin', 'operations', 'marketing', 'support', 'trust'] as const;
+const ROLES = ['admin', 'operations', 'marketing'] as const;
 const STATUSES = ['active', 'suspended', 'inactive'] as const;
 
 export default function UserManagementPage() {

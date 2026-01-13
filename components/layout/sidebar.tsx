@@ -18,7 +18,7 @@ const navigation: Array<{
   { name: 'Tasker List', href: '/leads', icon: Users },
   { name: 'Add Tasker', href: '/leads/new', icon: FileText },
   { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['operations', 'admin'] },
-  { name: 'Ready for Activation', href: '/leads/activation', icon: Zap, roles: ['operations', 'admin'] },
+  { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['operations', 'admin'] },
   { name: 'Upload Taskers (CSV)', href: '/leads/bulk-import', icon: Upload },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
