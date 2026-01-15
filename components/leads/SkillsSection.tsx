@@ -134,24 +134,24 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
           )}
         </CardHeader>
         <CardContent>
-          {lead.skills.length === 0 && !lead.primaryCategory && !lead.primarySkill ? (
+          {lead.skills.length === 0 && !lead.primaryCategory && !(lead as any).primarySkill ? (
             <p className="text-sm text-gray-600">No skills assigned yet</p>
           ) : (
             <div className="space-y-3">
               {/* Show primary category/skill if skills array is empty but primaryCategory exists */}
-              {lead.skills.length === 0 && (lead.primaryCategory || lead.primarySkill) && (
+              {lead.skills.length === 0 && (lead.primaryCategory || (lead as any).primarySkill) && (
                 <div className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
                   <Briefcase className="h-5 w-5 text-gray-400" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium">{lead.primaryCategory || lead.primarySkill}</p>
+                      <p className="font-medium">{lead.primaryCategory || (lead as any).primarySkill}</p>
                       <Badge className="border border-gray-200 bg-gray-50 text-gray-700">
                         Primary Category
                       </Badge>
                     </div>
-                    {lead.secondaryCategory && (
+                    {(lead as any).secondaryCategory && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Secondary: {lead.secondaryCategory}
+                        Secondary: {(lead as any).secondaryCategory}
                       </p>
                     )}
                   </div>

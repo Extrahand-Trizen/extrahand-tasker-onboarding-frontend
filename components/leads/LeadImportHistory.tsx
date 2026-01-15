@@ -30,7 +30,7 @@ export function LeadImportHistory() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['import-history', 'leads', page],
-    queryFn: () => caosBulkApi.getImportHistory(page, limit),
+    queryFn: () => caosBulkApi.getImportHistory({ page, limit }),
   });
 
   const imports = data?.data.imports || [];
