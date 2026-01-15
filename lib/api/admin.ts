@@ -73,6 +73,10 @@ export interface ImportHistoryResponse {
     imports: Array<{
       importId: string;
       fileName: string;
+      createdBy?: string;        // userId
+      createdByName?: string;    // Uploader name
+      createdByEmail?: string;   // Uploader email
+      createdByRole?: 'qualifier' | 'onboarder' | 'lead_access_manager'; // Uploader role
       totalRows: number;
       successCount: number;
       failedCount: number;

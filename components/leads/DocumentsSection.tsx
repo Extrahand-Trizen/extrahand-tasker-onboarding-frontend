@@ -287,7 +287,7 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Documents</CardTitle>
-          {!isBulkUpload && canUpload && (
+          {canUpload && (
             <Button
               variant="outline"
               size="sm"
@@ -365,7 +365,7 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
                         </Button>
                       )}
                       {/* ✅ Show verify button only for pending documents and if user can verify */}
-                      {!isBulkUpload && doc.status === 'pending' && canVerify && (
+                      {doc.status === 'pending' && canVerify && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -377,7 +377,7 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
                         </Button>
                       )}
                       {/* ✅ Show delete button only if user has permission */}
-                      {!isBulkUpload && canDelete && (
+                      {canDelete && (
                         <Button
                           variant="ghost"
                           size="sm"

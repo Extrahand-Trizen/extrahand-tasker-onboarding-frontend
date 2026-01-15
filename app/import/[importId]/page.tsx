@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { adminApi } from '@/lib/api/admin';
+import { caosBulkApi } from '@/lib/api/caos-bulk';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,21 +17,21 @@ export default function ImportDetailsPage({ params }: { params: Promise<{ import
   const [usersPage, setUsersPage] = useState(1);
   const usersLimit = 10;
   
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin', 'import-details', importId],
-    queryFn: () => adminApi.getImportDetails(importId),
+    queryFn: () => caosBulkApi.getImportDetails(importId),
   });
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin', 'imported-users', importId, usersPage],
-    queryFn: () => adminApi.getImportedUsers(importId, usersPage, usersLimit),
+    queryKey: ['admin', 'imported-leads', importId, usersPage],
+    queryFn: () => caosBulkApi.getImportedLeads(importId, usersPage, usersLimit),
     enabled: !!data?.data?.importedUserIds && data.data.importedUserIds.length > 0,
   });
 
   const handleExportUids = async () => {
     try {
       setExporting(true);
-      const blob = await adminApi.exportUids(importId);
+      const blob = await caosBulkApi.exportUids(importId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -52,12 +52,15 @@ export default function ImportDetailsPage({ params }: { params: Promise<{ import
 
   const importData = data?.data;
 
-  if (!importData) {
+  if (!importData || error) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Import not found</h1>
-          <Link href="/import">
+          <p className="text-gray-600 mb-4">
+            {error ? (error as any).message || 'Failed to load import details' : 'The requested import could not be found.'}
+          </p>
+          <Link href="/admin/import-history">
             <Button>Back to Import History</Button>
           </Link>
         </div>
@@ -68,7 +71,7 @@ export default function ImportDetailsPage({ params }: { params: Promise<{ import
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Link href="/import">
+        <Link href="/admin/import-history">
           <Button variant="ghost" className="mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Import History
@@ -141,6 +144,22 @@ export default function ImportDetailsPage({ params }: { params: Promise<{ import
                 <span className="text-gray-600">File Name:</span>
                 <span className="font-medium">{importData.fileName}</span>
               </div>
+              {(importData as any).createdByName && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Uploaded By:</span>
+                  <div className="text-right">
+                    <div className="font-medium">{(importData as any).createdByName}</div>
+                    {(importData as any).createdByEmail && (
+                      <div className="text-sm text-gray-500">{(importData as any).createdByEmail}</div>
+                    )}
+                    {(importData as any).createdByRole && (
+                      <Badge variant="secondary" className="mt-1">
+                        {(importData as any).createdByRole}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Operation Type:</span>
                 <Badge variant="secondary">{importData.operationType || 'create'}</Badge>
@@ -162,20 +181,20 @@ export default function ImportDetailsPage({ params }: { params: Promise<{ import
           {importData.importedUserIds && importData.importedUserIds.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Imported Users ({importData.importedUserIds.length})</CardTitle>
+                <CardTitle>Imported Leads ({importData.importedUserIds.length})</CardTitle>
                 <CardDescription>
-                  Showing {usersData?.data?.users.length || 0} of {importData.importedUserIds.length} imported users
+                  Showing {usersData?.data?.users.length || 0} of {importData.importedUserIds.length} imported leads
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {usersLoading ? (
-                  <div className="text-center py-8 text-gray-500">Loading users...</div>
+                  <div className="text-center py-8 text-gray-500">Loading leads...</div>
                 ) : usersData?.data?.users && usersData.data.users.length > 0 ? (
                   <>
                     <div className="space-y-2">
-                      {usersData.data.users.map((user: any, idx: number) => (
+                      {usersData.data.users.map((lead: any, idx: number) => (
                         <div
-                          key={user.uid}
+                          key={lead.leadId || lead.uid}
                           className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
                         >
                           <div className="flex items-center gap-4 flex-1">
@@ -186,33 +205,33 @@ export default function ImportDetailsPage({ params }: { params: Promise<{ import
                               <div className="flex items-center gap-2 mb-1">
                                 <User className="h-4 w-4 text-gray-400" />
                                 <p className="font-medium text-gray-900">
-                                  {user.name || 'Unknown User'}
+                                  {lead.name || 'Unknown Lead'}
                                 </p>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
-                                {user.phone && (
+                                {lead.phone && (
                                   <div className="flex items-center gap-1">
                                     <Phone className="h-3 w-3" />
-                                    <span>{user.phone}</span>
+                                    <span>{lead.phone}</span>
                                   </div>
                                 )}
-                                {user.city && (
+                                {lead.city && (
                                   <div className="flex items-center gap-1">
                                     <MapPin className="h-3 w-3" />
-                                    <span>{user.city}</span>
+                                    <span>{lead.city}</span>
                                   </div>
                                 )}
-                                {user.primarySkill && (
+                                {lead.primarySkill && (
                                   <div className="flex items-center gap-1">
                                     <Briefcase className="h-3 w-3" />
-                                    <span>{user.primarySkill}</span>
+                                    <span>{lead.primarySkill}</span>
                                   </div>
                                 )}
                               </div>
                             </div>
                           </div>
                           <div className="text-xs text-gray-500 font-mono">
-                            {user.uid.substring(0, 12)}...
+                            {(lead.leadId || lead.uid || '').substring(0, 12)}...
                           </div>
                         </div>
                       ))}
@@ -244,7 +263,7 @@ export default function ImportDetailsPage({ params }: { params: Promise<{ import
                     )}
                   </>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">No users found</div>
+                  <div className="text-center py-8 text-gray-500">No leads found</div>
                 )}
               </CardContent>
             </Card>

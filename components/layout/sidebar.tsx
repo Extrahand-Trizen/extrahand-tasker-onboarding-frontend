@@ -28,6 +28,7 @@ const navigation: Array<{
 const adminSectionItems = [
   { name: 'Create User', href: '/admin-management', icon: UserPlus },
   { name: 'User Management', href: '/admin/users', icon: UserCog },
+  { name: 'Import History', href: '/admin/import-history', icon: Upload },
 ];
 
 interface SidebarProps {

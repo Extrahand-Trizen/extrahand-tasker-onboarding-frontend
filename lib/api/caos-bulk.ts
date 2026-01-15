@@ -120,6 +120,10 @@ export interface ImportHistoryResponse {
     imports: Array<{
       importId: string;
       fileName: string;
+      createdBy?: string;        // userId
+      createdByName?: string;     // Uploader name
+      createdByEmail?: string;    // Uploader email
+      createdByRole?: 'qualifier' | 'onboarder' | 'lead_access_manager'; // Uploader role
       totalRows: number;
       successCount: number;
       failedCount: number;
@@ -142,6 +146,10 @@ export interface ImportDetailsResponse {
   data: {
     importId: string;
     fileName: string;
+    createdBy?: string;        // userId
+    createdByName?: string;     // Uploader name
+    createdByEmail?: string;    // Uploader email
+    createdByRole?: 'qualifier' | 'onboarder' | 'lead_access_manager'; // Uploader role
     totalRows: number;
     successCount: number;
     failedCount: number;
@@ -292,18 +300,36 @@ export const caosBulkApi = {
   },
 
   /**
-   * Get import history
+   * Get import history with filters (only for lead_access_manager)
    */
-  async getImportHistory(page: number = 1, limit: number = 20, all?: boolean): Promise<ImportHistoryResponse> {
+  async getImportHistory(
+    filters?: {
+      page?: number;
+      limit?: number;
+      role?: 'qualifier' | 'onboarder' | 'lead_access_manager';
+      createdBy?: string;
+      createdByEmail?: string;
+      createdByName?: string;
+      from?: string; // ISO date string
+      to?: string;   // ISO date string
+      status?: 'pending' | 'processing' | 'completed' | 'failed';
+    }
+  ): Promise<ImportHistoryResponse> {
     const token = await getAdminToken();
 
     const params = new URLSearchParams({
-      page: String(page),
-      limit: String(limit),
+      page: String(filters?.page || 1),
+      limit: String(filters?.limit || 20),
     });
-    if (all) {
-      params.append('all', 'true');
-    }
+
+    // Add filters
+    if (filters?.role) params.append('role', filters.role);
+    if (filters?.createdBy) params.append('createdBy', filters.createdBy);
+    if (filters?.createdByEmail) params.append('createdByEmail', filters.createdByEmail);
+    if (filters?.createdByName) params.append('createdByName', filters.createdByName);
+    if (filters?.from) params.append('from', filters.from);
+    if (filters?.to) params.append('to', filters.to);
+    if (filters?.status) params.append('status', filters.status);
 
     const response = await fetch(
       `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/history?${params.toString()}`,
@@ -315,7 +341,8 @@ export const caosBulkApi = {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to fetch import history');
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || error.message || 'Failed to fetch import history');
     }
 
     return response.json();
@@ -338,6 +365,61 @@ export const caosBulkApi = {
 
     if (!response.ok) {
       throw new Error('Failed to fetch import details');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get imported leads for an import (paginated)
+   */
+  async getImportedLeads(
+    importId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{
+    success: boolean;
+    data: {
+      users: Array<{
+        uid: string;
+        leadId: string;
+        name?: string;
+        phone?: string;
+        email?: string;
+        city?: string;
+        state?: string;
+        address?: string;
+        primarySkill?: string;
+        secondarySkill?: string;
+        status?: string;
+        createdAt?: string;
+      }>;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/${importId}/leads?${params.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch imported leads');
     }
 
     return response.json();
