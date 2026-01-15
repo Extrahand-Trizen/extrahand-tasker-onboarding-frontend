@@ -82,10 +82,10 @@ export function DocumentsSection({ lead, leadId }: DocumentsSectionProps) {
   // Qualifier: Cannot upload documents (view only)
   // Onboarder/Admin: Can upload and verify documents
   // Support: View only
-  const canUpload = ['onboarder', 'admin'].includes(role || '');
-  const canVerify = ['onboarder', 'admin'].includes(role || '');
+  const canUpload = ['onboarder', 'lead_access_manager'].includes(role || '');
+  const canVerify = ['onboarder', 'lead_access_manager'].includes(role || '');
   // Allow same roles that can upload to also delete their documents
-  const canDelete = ['onboarder', 'admin'].includes(role || '');
+  const canDelete = ['onboarder', 'lead_access_manager'].includes(role || '');
 
   const uploadMutation = useMutation({
     mutationFn: async (data: { 

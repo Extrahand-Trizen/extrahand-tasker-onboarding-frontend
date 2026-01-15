@@ -21,8 +21,8 @@ export function BulkUploadForm() {
   // ✅ Role-based permissions
   // Qualifier team can only create taskers, not update or delete
   const canCreate = true; // All roles can create
-  const canUpdate = role === 'onboarder' || role === 'admin';
-  const canDelete = role === 'onboarder' || role === 'admin';
+  const canUpdate = role === 'onboarder' || role === 'lead_access_manager';
+  const canDelete = role === 'onboarder' || role === 'lead_access_manager';
   
   // Reset to 'create' if qualifier team tries to access update/delete
   useEffect(() => {

@@ -13,18 +13,15 @@ import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 
-const ALL_ROLES = ['admin', 'onboarder', 'qualifier', 'lead_access_manager'] as const;
+const ALL_ROLES = ['lead_access_manager', 'onboarder', 'qualifier'] as const;
 
 export default function AdminManagementPage() {
   const qc = useQueryClient();
   const { role: currentUserRole } = useJWTAuth();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'onboarder' | 'qualifier' | 'lead_access_manager'>('onboarder');
+  const [role, setRole] = useState<'lead_access_manager' | 'onboarder' | 'qualifier'>('onboarder');
   
-  // ✅ Lead Access Manager can only create invites for Qualifier and Onboarder
-  const availableRoles = currentUserRole === 'lead_access_manager' 
-    ? ['qualifier', 'onboarder'] as const
-    : ALL_ROLES;
+  const availableRoles = ALL_ROLES;
   const [team, setTeam] = useState('');
   const [department, setDepartment] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -113,10 +110,9 @@ export default function AdminManagementPage() {
 
   const getRoleBadge = (role: string) => {
     const variants: Record<string, string> = {
-      admin: 'bg-purple-100 text-purple-800',
+      lead_access_manager: 'bg-purple-100 text-purple-800',
       onboarder: 'bg-blue-100 text-blue-800',
       qualifier: 'bg-pink-100 text-pink-800',
-      lead_access_manager: 'bg-indigo-100 text-indigo-800',
       support: 'bg-green-100 text-green-800',
       trust: 'bg-amber-100 text-amber-800',
     };

@@ -17,14 +17,14 @@ const navigation: Array<{
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Partner List', href: '/leads', icon: Users },
   { name: 'Add Partner', href: '/leads/new', icon: FileText },
-  { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'admin'] },
-  { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['onboarder', 'admin'] },
-  { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'admin'] },
+  { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'lead_access_manager'] },
+  { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['onboarder', 'lead_access_manager'] },
+  { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Upload Partners (CSV)', href: '/leads/bulk-import', icon: Upload },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
 
-// Admin section items (only for admin role)
+// Lead Access Manager section items (only for lead_access_manager role)
 const adminSectionItems = [
   { name: 'Create User', href: '/admin-management', icon: UserPlus },
   { name: 'User Management', href: '/admin/users', icon: UserCog },
@@ -49,7 +49,7 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
     }
   };
 
-  const isAdmin = role === 'admin';
+  const isLeadAccessManager = role === 'lead_access_manager';
   const isAdminPath = pathname?.startsWith('/admin') || pathname === '/admin-management';
 
   return (
@@ -129,8 +129,8 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
           );
         })}
 
-        {/* Admin Section (Collapsible) */}
-        {isAdmin && (
+        {/* Lead Access Manager Section (Collapsible) */}
+        {isLeadAccessManager && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <button
               onClick={() => setAdminSectionOpen(!adminSectionOpen)}

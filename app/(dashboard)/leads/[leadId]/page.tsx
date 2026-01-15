@@ -48,14 +48,14 @@ export default function LeadDetailPage() {
   const [noteText, setNoteText] = useState('');
 
   // ✅ Role-based permissions
-  // Admin can move to ANY stage (full access)
-  // Qualifier can only move stages up to "interested" (Operations handles documents)
-  // Operations can move to any stage (full access)
+  // Lead Access Manager can move to ANY stage (full access)
+  // Qualifier can only move stages up to "interested" (Onboarder handles documents)
+  // Onboarder can move to any stage (full access)
   // Wait for auth to load before showing/hiding button
-  const isAdmin = !authLoading && role === 'admin';
+  const isLeadAccessManager = !authLoading && role === 'lead_access_manager';
   const isQualifier = !authLoading && role === 'qualifier';
-  const isOperations = !authLoading && role === 'onboarder';
-  const canMoveStage = !authLoading && (isAdmin || isQualifier || isOperations);
+  const isOnboarder = !authLoading && role === 'onboarder';
+  const canMoveStage = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
   
   // ✅ Qualifier team can only move stages up to "interested"
   // Admin and Operations can move to ANY stage
@@ -456,7 +456,7 @@ export default function LeadDetailPage() {
                   You can move stages up to "Interested". After that, the verification team will review and approve.
                 </p>
               )}
-              {(isAdmin || isOperations) && (
+              {(isLeadAccessManager || isOnboarder) && (
                 <p className="text-sm text-gray-600 mt-1">
                   You have full access to move leads to any stage.
                 </p>

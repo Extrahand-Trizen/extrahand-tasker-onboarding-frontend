@@ -36,8 +36,8 @@ export default function InterestedCandidatesPage() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  // ✅ Role-based access: Only onboarder and admin can access interested candidates queue
-  const canAccess = !authLoading && (role === 'onboarder' || role === 'admin');
+  // ✅ Role-based access: Only onboarder and lead_access_manager can access interested candidates queue
+  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
 
   useEffect(() => {
     if (!authLoading && !canAccess) {

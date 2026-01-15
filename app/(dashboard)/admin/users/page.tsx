@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Clock, Key, Monitor, Trash2, RefreshCw, User, Mail, Calendar, Shield } from 'lucide-react';
 
-const ROLES = ['admin', 'onboarder', 'qualifier'] as const;
+const ROLES = ['lead_access_manager', 'onboarder', 'qualifier'] as const;
 const STATUSES = ['active', 'suspended', 'inactive'] as const;
 
 export default function UserManagementPage() {
@@ -162,10 +162,9 @@ export default function UserManagementPage() {
 
   const getRoleBadge = (role: string) => {
     const variants: Record<string, string> = {
-      admin: 'bg-red-100 text-red-800',
+      lead_access_manager: 'bg-red-100 text-red-800',
       onboarder: 'bg-blue-100 text-blue-800',
       qualifier: 'bg-purple-100 text-purple-800',
-      lead_access_manager: 'bg-indigo-100 text-indigo-800',
       support: 'bg-green-100 text-green-800',
       trust: 'bg-yellow-100 text-yellow-800',
     };

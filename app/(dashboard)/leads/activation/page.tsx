@@ -46,8 +46,8 @@ export default function ActivationQueuePage() {
   const [showBulkActivateModal, setShowBulkActivateModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
 
-  // ✅ Role-based access: Only onboarder and admin can access activation queue
-  const canAccess = !authLoading && (role === 'onboarder' || role === 'admin');
+  // ✅ Role-based access: Only onboarder and lead_access_manager can access activation queue
+  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
 
   const [bulkResult, setBulkResult] = useState<{
     success: { leadId: string; firebaseUid?: string; profileCreated?: boolean }[];
