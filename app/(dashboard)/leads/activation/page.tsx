@@ -154,7 +154,7 @@ export default function ActivationQueuePage() {
         <p className="text-gray-600">You do not have permission to access the activation queue.</p>
         <p className="text-sm text-gray-500">Only onboarder and admin teams can activate leads.</p>
         <Link href="/leads">
-          <Button variant="outline">Go to Partner List</Button>
+          <Button variant="outline">Go to Leads List</Button>
         </Link>
       </div>
     );

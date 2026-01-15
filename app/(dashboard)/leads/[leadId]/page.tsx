@@ -163,7 +163,7 @@ export default function LeadDetailPage() {
         <Link href="/leads">
           <Button variant="outline" className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Partner List
+            Back to Leads List
           </Button>
         </Link>
       </div>
@@ -485,14 +485,14 @@ export default function LeadDetailPage() {
                     {/* ✅ Admin and Operations can select ANY status */}
                     {isQualifier ? (
                       <>
-                        <SelectItem value="lead_added">New Tasker</SelectItem>
+                        <SelectItem value="lead_added">New Lead</SelectItem>
                         <SelectItem value="contacted">Contacted</SelectItem>
                         <SelectItem value="interested">Interested</SelectItem>
                       </>
                     ) : (
                       <>
                         {/* ✅ Admin and Operations: Full access to all statuses */}
-                        <SelectItem value="lead_added">New Tasker</SelectItem>
+                        <SelectItem value="lead_added">New Lead</SelectItem>
                         <SelectItem value="contacted">Contacted</SelectItem>
                         <SelectItem value="interested">Interested</SelectItem>
                         <SelectItem value="documents_submitted">Documents Received</SelectItem>

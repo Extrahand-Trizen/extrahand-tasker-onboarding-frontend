@@ -261,7 +261,7 @@ export default function AddLeadPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Add Partner</h1>
         <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
-          Create a new tasker entry
+          Create a new lead entry
         </p>
       </div>
 
@@ -269,7 +269,7 @@ export default function AddLeadPage() {
         <CardHeader className="px-4 sm:px-6">
           <CardTitle className="text-lg sm:text-xl">Add New Partner</CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Enter the basic information to create a new tasker in the pipeline
+            Enter the basic information to create a new lead in the pipeline
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">

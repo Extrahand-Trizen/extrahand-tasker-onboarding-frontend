@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search } from 'lucide-react';
-import Link from 'next/link';
+import { Search } from 'lucide-react';
 import { leadStatusLabel } from '@/lib/leadLabels';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -27,50 +26,60 @@ const statusColors: Record<LeadStatus, string> = {
   inactive: 'bg-gray-100 text-gray-500',
 };
 
-export default function LeadsPage() {
+export default function AllLeadsPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useJWTAuth();
+  const { role, loading: authLoading } = useJWTAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  // Get current user's ID (handles both JWT userId and Firebase uid)
-  const currentUserId = user?.userId || (user as any)?.uid;
+  // Redirect if not lead_access_manager
+  if (!authLoading && role !== 'lead_access_manager') {
+    router.replace('/leads');
+    return null;
+  }
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['leads', { search, statusFilter, page, userId: currentUserId }],
+    queryKey: ['all-leads', { search, statusFilter, page }],
     queryFn: () =>
       caosApi.searchLeads({
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        // ✅ Filter by current user's leads (for everyone, including lead_access_manager)
-        // This shows "My Leads" - leads added by the current user
-        addedBy: currentUserId || undefined,
+        // ✅ Don't pass addedBy - this shows ALL leads from all qualifiers
         page,
         limit,
       }),
-    enabled: !authLoading && !!currentUserId,
+    enabled: !authLoading && role === 'lead_access_manager',
   });
 
   const leads = data?.data || [];
   const pagination = data?.pagination;
 
+  if (authLoading) {
+    return (
+      <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
+        <div className="text-center py-12">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (role !== 'lead_access_manager') {
+    return null;
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Leads List</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">All Leads</h1>
           <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
-            Search and manage all your leads
+            View all leads from all qualifiers and onboarders
           </p>
         </div>
-        <Link href="/leads/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Tasker
-          </Button>
-        </Link>
       </div>
 
       {/* Filters */}
@@ -105,25 +114,28 @@ export default function LeadsPage() {
                 <SelectItem value="lead_added">New Lead</SelectItem>
                 <SelectItem value="contacted">Contacted</SelectItem>
                 <SelectItem value="interested">Interested</SelectItem>
+                <SelectItem value="documents_submitted">Documents Submitted</SelectItem>
+                <SelectItem value="under_verification">Under Verification</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
-                {/* ❌ REMOVED: account_created, activated - these are account statuses, not lead statuses */}
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Taskers Table/Cards */}
+      {/* Leads Table/Cards */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
           {isLoading ? (
             <div className="text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent"></div>
-              <p className="mt-4 text-sm text-gray-600">Loading taskers...</p>
+              <p className="mt-4 text-sm text-gray-600">Loading leads...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
-              <p className="text-red-600 font-medium">Error loading taskers</p>
+              <p className="text-red-600 font-medium">Error loading leads</p>
               <p className="text-sm text-gray-600 mt-2">
                 {error instanceof Error ? error.message : 'Failed to fetch leads'}
               </p>
@@ -135,20 +147,9 @@ export default function LeadsPage() {
                 Retry
               </Button>
             </div>
-          ) : authLoading ? (
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent"></div>
-              <p className="mt-4 text-sm text-gray-600">Loading...</p>
-            </div>
           ) : leads.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">No taskers found</p>
-              <Link href="/leads/new">
-                <Button variant="outline" className="mt-4">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create First Tasker
-                </Button>
-              </Link>
+              <p className="text-gray-600">No leads found</p>
             </div>
           ) : (
             <>
@@ -165,6 +166,11 @@ export default function LeadsPage() {
                         <h3 className="font-medium text-gray-900 text-sm">{lead.name}</h3>
                         <p className="text-xs text-gray-600 mt-1">{lead.phone}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{lead.city}</p>
+                        {lead.addedByName && (
+                          <p className="text-xs text-amber-600 mt-1 font-medium">
+                            Added by: {lead.addedByName}
+                          </p>
+                        )}
                         {lead.createdAt && (
                           <p className="text-xs text-gray-400 mt-1">
                             Created: {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
@@ -210,6 +216,7 @@ export default function LeadsPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">City</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Added By</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
@@ -225,6 +232,9 @@ export default function LeadsPage() {
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{lead.name}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{lead.phone}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{lead.city}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {lead.addedByName || 'Unknown'}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <Badge className={cn(statusColors[lead.status], "text-xs font-medium")}>
@@ -301,4 +311,3 @@ export default function LeadsPage() {
     </div>
   );
 }
-

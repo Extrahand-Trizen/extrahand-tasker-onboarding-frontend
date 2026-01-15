@@ -29,7 +29,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
-          Overview of your taskers and onboarding progress
+          Overview of your leads and onboarding progress
         </p>
       </div>
 

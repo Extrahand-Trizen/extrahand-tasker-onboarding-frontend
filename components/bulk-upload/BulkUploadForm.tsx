@@ -330,7 +330,7 @@ export function BulkUploadForm() {
       {/* Operation Type Selector */}
       <Card className="border-gray-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-900">Bulk Upload Partners</CardTitle>
+          <CardTitle className="text-lg font-semibold text-gray-900">Bulk Upload Leads</CardTitle>
           <CardDescription className="text-sm text-gray-500">
             Upload CSV to create taskers that will appear in the taskers list with status "Account Created"
           </CardDescription>
@@ -347,8 +347,8 @@ export function BulkUploadForm() {
               `}
             >
               <UserPlus className={`w-8 h-8 mx-auto mb-2 ${operationType === 'create' ? 'text-amber-600' : 'text-gray-400'}`} />
-              <h3 className="font-semibold text-gray-900">Create Partners</h3>
-              <p className="text-sm text-gray-600">Add new taskers to the system</p>
+              <h3 className="font-semibold text-gray-900">Create Leads</h3>
+              <p className="text-sm text-gray-600">Add new leads to the system</p>
             </button>
 
             {/* ✅ Update operation - Only for onboarder and admin */}

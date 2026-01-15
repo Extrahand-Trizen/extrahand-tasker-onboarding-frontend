@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, ShieldCheck, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, ShieldCheck, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useState } from 'react';
@@ -15,12 +15,13 @@ const navigation: Array<{
   roles?: string[];
 }> = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Partner List', href: '/leads', icon: Users },
-  { name: 'Add Partner', href: '/leads/new', icon: FileText },
+  { name: 'My Leads List', href: '/leads', icon: Users },
+  { name: 'All Leads', href: '/leads/all', icon: UsersRound, roles: ['lead_access_manager'] },
+  { name: 'Add Lead', href: '/leads/new', icon: FileText },
   { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'lead_access_manager'] },
-  { name: 'Upload Partners (CSV)', href: '/leads/bulk-import', icon: Upload },
+  { name: 'Upload Leads (CSV)', href: '/leads/bulk-import', icon: Upload },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
 
@@ -106,8 +107,11 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
           if (item.href === '/dashboard') {
             isActive = pathname === '/dashboard';
           } else if (item.href === '/leads') {
-            // Only highlight "Partner List" if we're exactly on /leads, not on /leads/new or /leads/[id]
+            // Only highlight "My Leads List" if we're exactly on /leads, not on /leads/new, /leads/all, or /leads/[id]
             isActive = pathname === '/leads';
+          } else if (item.href === '/leads/all') {
+            // Only highlight "All Leads" if we're exactly on /leads/all
+            isActive = pathname === '/leads/all';
           } else {
             // For other routes, check if pathname starts with the href
             isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
