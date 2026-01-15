@@ -290,7 +290,7 @@ export default function LeadDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-2">Primary Category</p>
-              <p className="font-medium">{lead.primarySkill}</p>
+              <p className="font-medium">{lead.primaryCategory || (lead as any).primarySkill || 'Not specified'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-2">Source</p>
