@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userManagementApi, type AdminUser, type Session } from '@/lib/api/userManagement';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,27 +20,74 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, Key, Monitor, Trash2, RefreshCw, User, Mail, Calendar, Shield } from 'lucide-react';
+import { 
+  Clock, 
+  Key, 
+  Monitor, 
+  Trash2, 
+  RefreshCw, 
+  User, 
+  Mail, 
+  Calendar, 
+  Shield,
+  ChevronUp,
+  ChevronDown,
+  MoreVertical,
+  Users,
+  UserCheck,
+  UserX,
+  TrendingUp
+} from 'lucide-react';
 
 const ROLES = ['lead_access_manager', 'onboarder', 'qualifier'] as const;
 const STATUSES = ['active', 'suspended', 'inactive'] as const;
+
+type SortField = 'email' | 'name' | 'createdAt' | 'lastLoginAt' | 'role' | 'status';
+type SortDir = 'asc' | 'desc';
 
 export default function UserManagementPage() {
   const qc = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [sort, setSort] = useState<SortField>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [editRole, setEditRole] = useState<string>('');
   const [editStatus, setEditStatus] = useState<string>('');
+  const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
+  const quickActionsRef = useRef<HTMLDivElement>(null);
+
+  // Close quick actions menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (quickActionsRef.current && !quickActionsRef.current.contains(event.target as Node)) {
+        setShowQuickActions(null);
+      }
+    };
+
+    if (showQuickActions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showQuickActions]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-users', filterStatus, filterRole, search],
+    queryKey: ['admin-users', filterStatus, filterRole, search, page, limit, sort, sortDir],
     queryFn: () => userManagementApi.list({
       status: filterStatus !== 'all' ? filterStatus : undefined,
       role: filterRole !== 'all' ? filterRole : undefined,
       search: search || undefined,
+      page,
+      limit,
+      sort,
+      dir: sortDir,
     }),
   });
 
@@ -65,6 +112,7 @@ export default function UserManagementPage() {
       toast.success('User role updated');
       qc.invalidateQueries({ queryKey: ['admin-users'] });
       refetchUserDetails();
+      setShowQuickActions(null);
     },
     onError: (e: any) => toast.error(e.message || 'Failed to update role'),
   });
@@ -76,6 +124,7 @@ export default function UserManagementPage() {
       toast.success('User status updated');
       qc.invalidateQueries({ queryKey: ['admin-users'] });
       refetchUserDetails();
+      setShowQuickActions(null);
     },
     onError: (e: any) => toast.error(e.message || 'Failed to update status'),
   });
@@ -88,26 +137,24 @@ export default function UserManagementPage() {
           description: `The reset link expires on ${data.data.expiresAt ? new Date(data.data.expiresAt).toLocaleString() : '24 hours'}`,
         });
       } else if (data.data?.resetLink) {
-        // Email failed but we have the reset link - show it prominently
         toast.warning('Email sending failed, but reset link generated', {
           description: `Email: ${data.data.email || 'N/A'}. Link: ${data.data.resetLink}`,
-          duration: 10000, // Show for 10 seconds
+          duration: 10000,
         });
-        // Also log to console for easy copying
         console.warn('Password reset link (email failed):', data.data.resetLink);
       } else {
         toast.info('Password reset initiated', {
           description: data.message || 'Check server logs for details',
         });
       }
+      setShowQuickActions(null);
     },
     onError: (e: any) => {
       const errorMessage = e.message || 'Failed to reset password';
-      // If we have a reset link in the error data, show it
       if (e.data?.resetLink) {
         toast.error(errorMessage, {
           description: `Email: ${e.data.email || 'N/A'}. Reset link: ${e.data.resetLink}`,
-          duration: 15000, // Show for 15 seconds
+          duration: 15000,
         });
         console.error('Password reset link (error occurred):', e.data.resetLink);
       } else {
@@ -144,6 +191,27 @@ export default function UserManagementPage() {
     setEditRole(user.role);
     setEditStatus(user.status);
     setDetailsDialogOpen(true);
+    setShowQuickActions(null);
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sort === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSort(field);
+      setSortDir('desc');
+    }
+  };
+
+  const handleQuickAction = (action: 'suspend' | 'activate' | 'resetPassword', user: AdminUser) => {
+    setShowQuickActions(null);
+    if (action === 'suspend') {
+      updateStatusMutation.mutate({ userId: user.userId, status: 'suspended' });
+    } else if (action === 'activate') {
+      updateStatusMutation.mutate({ userId: user.userId, status: 'active' });
+    } else if (action === 'resetPassword') {
+      resetPasswordMutation.mutate(user.userId);
+    }
   };
 
   const handleSave = () => {
@@ -180,8 +248,26 @@ export default function UserManagementPage() {
     return variants[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getLastActiveText = (lastLoginAt?: string) => {
+    if (!lastLoginAt) return { text: 'Never', color: 'text-gray-500' };
+    const daysAgo = Math.floor((Date.now() - new Date(lastLoginAt).getTime()) / (1000 * 60 * 60 * 24));
+    if (daysAgo === 0) return { text: 'Today', color: 'text-green-600' };
+    if (daysAgo === 1) return { text: 'Yesterday', color: 'text-green-600' };
+    if (daysAgo < 7) return { text: `${daysAgo} days ago`, color: 'text-yellow-600' };
+    if (daysAgo < 30) return { text: `${daysAgo} days ago`, color: 'text-orange-600' };
+    return { text: `${daysAgo} days ago`, color: 'text-red-600' };
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sort !== field) return <ChevronUp className="h-3 w-3 opacity-30" />;
+    return sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+  };
+
   const user = userDetails?.data || selectedUser;
   const sessions = sessionsData?.data || [];
+  const users = data?.data || [];
+  const pagination = data?.pagination;
+  const stats = data?.stats;
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
@@ -192,6 +278,56 @@ export default function UserManagementPage() {
         </p>
       </div>
 
+      {/* Quick Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setFilterStatus('all')}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Users</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                </div>
+                <Users className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setFilterStatus('active')}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Active</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                </div>
+                <UserCheck className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setFilterStatus('suspended')}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Suspended</p>
+                  <p className="text-2xl font-bold text-red-600">{stats.suspended}</p>
+                </div>
+                <UserX className="h-8 w-8 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">New This Month</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.newThisMonth}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
@@ -201,12 +337,15 @@ export default function UserManagementPage() {
               <Input
                 placeholder="Search by email or name..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1); // Reset to first page on search
+                }}
               />
             </div>
             <div className="space-y-2">
               <Label className="text-sm">Filter by Role</Label>
-              <Select value={filterRole} onValueChange={setFilterRole}>
+              <Select value={filterRole} onValueChange={(v) => { setFilterRole(v); setPage(1); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -222,7 +361,7 @@ export default function UserManagementPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-sm">Filter by Status</Label>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -243,65 +382,206 @@ export default function UserManagementPage() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Admin Users</CardTitle>
-          <CardDescription>
-            {data?.data?.length || 0} user(s) found
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>Admin Users</CardTitle>
+              <CardDescription>
+                {pagination ? (
+                  <>Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} user(s)</>
+                ) : (
+                  <>{users.length} user(s) found</>
+                )}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Per page:</Label>
+              <Select value={limit.toString()} onValueChange={(v) => { setLimit(parseInt(v)); setPage(1); }}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">Loading...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Team</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Login</TableHead>
-                    <TableHead>Login Count</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.data?.map((user) => (
-                    <TableRow key={user.userId}>
-                      <TableCell className="font-mono text-sm">{user.email}</TableCell>
-                      <TableCell>{user.name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleBadge(user.role)}>
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{user.team || '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusBadge(user.status)}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {user.lastLoginAt
-                          ? new Date(user.lastLoginAt).toLocaleDateString()
-                          : 'Never'}
-                      </TableCell>
-                      <TableCell>{user.loginCount || 0}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewDetails(user)}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          ) : users.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p className="text-sm">No users found</p>
+              {(filterStatus !== 'all' || filterRole !== 'all' || search) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    setFilterStatus('all');
+                    setFilterRole('all');
+                    setSearch('');
+                    setPage(1);
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
             </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('email')}>
+                        <div className="flex items-center gap-1">
+                          Email
+                          <SortIcon field="email" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('name')}>
+                        <div className="flex items-center gap-1">
+                          Name
+                          <SortIcon field="name" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('role')}>
+                        <div className="flex items-center gap-1">
+                          Role
+                          <SortIcon field="role" />
+                        </div>
+                      </TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('createdAt')}>
+                        <div className="flex items-center gap-1">
+                          Created
+                          <SortIcon field="createdAt" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('lastLoginAt')}>
+                        <div className="flex items-center gap-1">
+                          Last Active
+                          <SortIcon field="lastLoginAt" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => {
+                      const lastActive = getLastActiveText(user.lastLoginAt);
+                      return (
+                        <TableRow key={user.userId}>
+                          <TableCell className="font-mono text-sm">{user.email}</TableCell>
+                          <TableCell>{user.name || '-'}</TableCell>
+                          <TableCell>
+                            <Badge className={getRoleBadge(user.role)}>
+                              {user.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadge(user.status)}>
+                              {user.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {user.createdAt
+                              ? new Date(user.createdAt).toLocaleDateString()
+                              : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <span className={lastActive.color}>{lastActive.text}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewDetails(user)}
+                              >
+                                View
+                              </Button>
+                              <div className="relative" ref={quickActionsRef}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowQuickActions(showQuickActions === user.userId ? null : user.userId)}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                                {showQuickActions === user.userId && (
+                                  <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                                    <div className="py-1">
+                                      <button
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                                        onClick={() => handleViewDetails(user)}
+                                      >
+                                        View Details
+                                      </button>
+                                      {user.status === 'active' ? (
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600"
+                                          onClick={() => handleQuickAction('suspend', user)}
+                                        >
+                                          Suspend User
+                                        </button>
+                                      ) : (
+                                        <button
+                                          className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-green-600"
+                                          onClick={() => handleQuickAction('activate', user)}
+                                        >
+                                          Activate User
+                                        </button>
+                                      )}
+                                      <button
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                                        onClick={() => handleQuickAction('resetPassword', user)}
+                                      >
+                                        Reset Password
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {pagination && pagination.pages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-6 pt-4 border-t">
+                  <div className="text-xs sm:text-sm text-gray-600">
+                    Page {pagination.page} of {pagination.pages}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={!pagination.hasPrev || isLoading}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => p + 1)}
+                      disabled={!pagination.hasNext || isLoading}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

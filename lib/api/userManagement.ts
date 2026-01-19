@@ -29,6 +29,26 @@ export interface AdminUser {
   activityTimeline?: ActivityItem[];
 }
 
+export interface UserListResponse {
+  success: boolean;
+  data: AdminUser[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  stats?: {
+    total: number;
+    active: number;
+    suspended: number;
+    inactive: number;
+    newThisMonth: number;
+  };
+}
+
 export interface Session {
   id: number;
   deviceInfo: string;
@@ -55,19 +75,27 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 export const userManagementApi = {
   /**
-   * List all admin users
+   * List all admin users with pagination and sorting
    */
   async list(filters?: {
     status?: string;
     role?: string;
     search?: string;
-  }): Promise<{ success: boolean; data: AdminUser[] }> {
+    page?: number;
+    limit?: number;
+    sort?: string;
+    dir?: 'asc' | 'desc';
+  }): Promise<UserListResponse> {
     const headers = await getAuthHeaders();
     const params = new URLSearchParams();
     
     if (filters?.status) params.append('status', filters.status);
     if (filters?.role) params.append('role', filters.role);
     if (filters?.search) params.append('search', filters.search);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.sort) params.append('sort', filters.sort);
+    if (filters?.dir) params.append('dir', filters.dir);
 
     const queryString = params.toString();
     const url = `${API_BASE_URL}/api/v1/admin/users${queryString ? `?${queryString}` : ''}`;

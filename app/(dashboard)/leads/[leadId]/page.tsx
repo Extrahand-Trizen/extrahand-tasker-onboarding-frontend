@@ -317,7 +317,7 @@ export default function LeadDetailPage() {
       </div>
 
       {/* Onboarding Checklist - Hidden for bulk upload taskers */}
-      {!isBulkUpload && (() => {
+      {/* {!isBulkUpload && (() => {
         const hasAadhaar = lead.documents?.some((d) => d.type === 'aadhaar') || false;
         const hasPan = lead.documents?.some((d) => d.type === 'pan') || false;
         const hasAddress = lead.documents?.some((d) => d.type === 'address_proof') || false;
@@ -368,7 +368,7 @@ export default function LeadDetailPage() {
             </CardContent>
           </Card>
         );
-      })()}
+      })()} */}
 
       {/* Status History / Timeline - Hidden for bulk upload taskers */}
       {!isBulkUpload && (

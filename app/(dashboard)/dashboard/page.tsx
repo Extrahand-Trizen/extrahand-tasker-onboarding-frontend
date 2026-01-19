@@ -19,8 +19,8 @@ export default function DashboardPage() {
   };
 
   const statCards = [
-    { title: 'Total Taskers', value: stats.total, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { title: 'Ready to Activate', value: stats.approved, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+    { title: 'Total Leads', value: stats.total, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { title: 'Ready to Invite', value: stats.approved, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50'},
     { title: 'Accounts Created', value: stats.activated, icon: UserPlus, color: 'text-blue-600', bg: 'bg-blue-50' },
   ];
 
