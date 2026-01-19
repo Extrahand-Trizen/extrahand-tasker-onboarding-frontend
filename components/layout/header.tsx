@@ -25,7 +25,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* <div className="flex items-center gap-2 sm:gap-3">
           <Image
             src="/logo.png"
             alt="ExtraHand Logo"
@@ -34,7 +34,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             className="rounded-lg"
           />
           <h2 className="text-sm sm:text-base font-semibold text-gray-800">Partner Onboarding</h2>
-        </div>
+        </div> */}
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         {user && (
