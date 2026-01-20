@@ -175,7 +175,7 @@ export default function ActivationQueuePage() {
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Ready for Activation</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Ready for Invitation</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-1.5">
             {total} approved taskers ready to create accounts
           </p>
@@ -243,7 +243,7 @@ export default function ActivationQueuePage() {
       <Card className="border-gray-200 shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-gray-900">Taskers Ready for Activation</CardTitle>
+            <CardTitle className="text-lg font-semibold text-gray-900">Taskers Ready for Invitation</CardTitle>
             {leads.length > 0 && (
               <div className="flex items-center gap-2">
                 <Checkbox
