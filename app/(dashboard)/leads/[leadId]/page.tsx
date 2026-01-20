@@ -2,7 +2,7 @@
 
 import { useParams, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { caosApi, type LeadStatus } from '@/lib/api/caos';
+import { caosApi, type LeadStatus, type LeadSource } from '@/lib/api/caos';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,18 @@ export default function LeadDetailPage() {
   const [noteText, setNoteText] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [editFormData, setEditFormData] = useState({
+  const [editFormData, setEditFormData] = useState<{
+    name: string;
+    email: string;
+    city: string;
+    state: string;
+    address: string;
+    pincode: string;
+    primaryCategory: string;
+    secondaryCategory: string;
+    source: LeadSource;
+    sourceDetails: string;
+  }>({
     name: '',
     email: '',
     city: '',
@@ -57,7 +68,7 @@ export default function LeadDetailPage() {
     pincode: '',
     primaryCategory: '',
     secondaryCategory: '',
-    source: 'referral' as LeadSource,
+    source: 'referral',
     sourceDetails: '',
   });
 
