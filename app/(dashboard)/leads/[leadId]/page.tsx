@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { 
   Phone, Mail, MapPin, Briefcase, Calendar, User, 
   MessageSquare, Clock, CheckCircle, XCircle,
-  ArrowLeft, Edit
+  ArrowLeft, Edit, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -46,6 +46,20 @@ export default function LeadDetailPage() {
   const [statusNotes, setStatusNotes] = useState('');
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
+    city: '',
+    state: '',
+    address: '',
+    pincode: '',
+    primaryCategory: '',
+    secondaryCategory: '',
+    source: 'referral' as LeadSource,
+    sourceDetails: '',
+  });
 
   // ✅ Role-based permissions
   // Lead Access Manager can move to ANY stage (full access)
@@ -56,6 +70,8 @@ export default function LeadDetailPage() {
   const isQualifier = !authLoading && role === 'qualifier';
   const isOnboarder = !authLoading && role === 'onboarder';
   const canMoveStage = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
+  const canUpdateLead = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
+  const canDeleteLead = !authLoading && isLeadAccessManager;
   
   // ✅ Qualifier team can only move stages up to "interested"
   // Admin and Operations can move to ANY stage
@@ -101,6 +117,24 @@ export default function LeadDetailPage() {
     }
   }, [lead]);
 
+  // Initialize edit form data when lead loads or edit modal opens
+  useEffect(() => {
+    if (lead && showEditModal) {
+      setEditFormData({
+        name: lead.name || '',
+        email: lead.email || '',
+        city: lead.city || '',
+        state: lead.state || '',
+        address: lead.address || '',
+        pincode: (lead as any).pincode || '',
+        primaryCategory: lead.primaryCategory || (lead as any).primarySkill || '',
+        secondaryCategory: lead.secondaryCategory || (lead as any).secondarySkill || '',
+        source: lead.source || 'referral',
+        sourceDetails: lead.sourceDetails || '',
+      });
+    }
+  }, [lead, showEditModal]);
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ status, notes }: { status: LeadStatus; notes?: string }) => {
       // ✅ Double-check permission before making API call
@@ -142,6 +176,53 @@ export default function LeadDetailPage() {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to add note');
+    },
+  });
+
+  const updateLeadMutation = useMutation({
+    mutationFn: (data: typeof editFormData) => {
+      // Map primaryCategory to primarySkill for API compatibility
+      const updateData: any = {
+        name: data.name,
+        email: data.email || undefined,
+        city: data.city,
+        state: data.state || undefined,
+        address: data.address || undefined,
+        pincode: data.pincode || undefined,
+        primarySkill: data.primaryCategory || undefined,
+        secondarySkill: data.secondaryCategory || undefined,
+        source: data.source,
+        sourceDetails: data.sourceDetails || undefined,
+      };
+      // Remove undefined fields
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined || updateData[key] === '') {
+          delete updateData[key];
+        }
+      });
+      return caosApi.updateLead(leadId, updateData);
+    },
+    onSuccess: () => {
+      toast.success('Lead updated successfully');
+      setShowEditModal(false);
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update lead');
+    },
+  });
+
+  const deleteLeadMutation = useMutation({
+    mutationFn: () => caosApi.deleteLead(leadId),
+    onSuccess: () => {
+      toast.success('Lead deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      // Redirect to leads list
+      window.location.href = '/leads';
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete lead');
     },
   });
 
@@ -195,8 +276,29 @@ export default function LeadDetailPage() {
             <p className="text-sm text-gray-500">Tasker ID: {lead.leadId}</p>
           </div>
         </div>
-        {!isBulkUpload && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {/* ✅ Edit Lead button - visible to users with canUpdateLead permission (qualifier, onboarder, lead_access_manager) */}
+          {/* ✅ Qualifiers can now edit ALL leads, including bulk upload leads */}
+          {canUpdateLead && (
+            <Button
+              variant="outline"
+              onClick={() => setShowEditModal(true)}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Lead
+            </Button>
+          )}
+          {/* ✅ Delete Lead button - visible only to lead_access_manager and only for non-bulk-upload leads */}
+          {canDeleteLead && !isBulkUpload && (
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteModal(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Lead
+            </Button>
+          )}
             {/* ✅ Only qualifier team can move stages */}
             {canMoveStage && (
               <Button
@@ -220,8 +322,7 @@ export default function LeadDetailPage() {
               <MessageSquare className="h-4 w-4 mr-2" />
               Add Note
             </Button>
-          </div>
-        )}
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -292,6 +393,12 @@ export default function LeadDetailPage() {
               <p className="text-sm text-gray-600 mb-2">Primary Category</p>
               <p className="font-medium">{lead.primaryCategory || (lead as any).primarySkill || 'Not specified'}</p>
             </div>
+            {(lead.secondaryCategory || (lead as any).secondarySkill) && (
+              <div>
+                <p className="text-sm text-gray-600 mb-2">Secondary Category</p>
+                <p className="font-medium">{lead.secondaryCategory || (lead as any).secondarySkill || 'Not specified'}</p>
+              </div>
+            )}
             <div>
               <p className="text-sm text-gray-600 mb-2">Source</p>
               <p className="font-medium capitalize">{lead.source}</p>
@@ -534,6 +641,206 @@ export default function LeadDetailPage() {
                     setStatusNotes('');
                   }}
                   disabled={updateStatusMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Lead Modal */}
+      {showEditModal && canUpdateLead && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEditModal(false);
+            }
+          }}
+        >
+          <Card className="w-full max-w-2xl bg-white shadow-xl my-8" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-900">Edit Lead Details</CardTitle>
+              <CardDescription className="text-sm text-gray-500">
+                Update lead information. Phone number cannot be changed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Name *</Label>
+                  <Input
+                    id="edit-name"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    placeholder="Full Name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-city">City *</Label>
+                  <Input
+                    id="edit-city"
+                    value={editFormData.city}
+                    onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                    placeholder="City"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-state">State</Label>
+                  <Input
+                    id="edit-state"
+                    value={editFormData.state}
+                    onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                    placeholder="State"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-address">Address</Label>
+                  <Input
+                    id="edit-address"
+                    value={editFormData.address}
+                    onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                    placeholder="Local Area / Address"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-pincode">Pincode</Label>
+                  <Input
+                    id="edit-pincode"
+                    value={editFormData.pincode}
+                    onChange={(e) => setEditFormData({ ...editFormData, pincode: e.target.value })}
+                    placeholder="6-digit pincode"
+                    maxLength={6}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-primary-category">Primary Category</Label>
+                  <Input
+                    id="edit-primary-category"
+                    value={editFormData.primaryCategory}
+                    onChange={(e) => setEditFormData({ ...editFormData, primaryCategory: e.target.value })}
+                    placeholder="e.g., cleaning, handyperson"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-secondary-category">Secondary Category</Label>
+                  <Input
+                    id="edit-secondary-category"
+                    value={editFormData.secondaryCategory}
+                    onChange={(e) => setEditFormData({ ...editFormData, secondaryCategory: e.target.value })}
+                    placeholder="e.g., deep cleaning, plumbing"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-source">Source *</Label>
+                  <Select
+                    value={editFormData.source}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, source: value as LeadSource })}
+                  >
+                    <SelectTrigger id="edit-source">
+                      <SelectValue placeholder="Select source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="referral">Referral</SelectItem>
+                      <SelectItem value="campaign">Campaign</SelectItem>
+                      <SelectItem value="walk-in">Walk-in</SelectItem>
+                      <SelectItem value="agent">Agent</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-source-details">Source Details</Label>
+                  <Input
+                    id="edit-source-details"
+                    value={editFormData.sourceDetails}
+                    onChange={(e) => setEditFormData({ ...editFormData, sourceDetails: e.target.value })}
+                    placeholder="Additional details about the source"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  onClick={() => {
+                    if (!editFormData.name || !editFormData.city) {
+                      toast.error('Name and City are required');
+                      return;
+                    }
+                    updateLeadMutation.mutate(editFormData);
+                  }}
+                  disabled={updateLeadMutation.isPending}
+                  className="flex-1"
+                >
+                  {updateLeadMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={updateLeadMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Lead Confirmation Modal */}
+      {showDeleteModal && canDeleteLead && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowDeleteModal(false);
+            }
+          }}
+        >
+          <Card className="w-full max-w-md bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-900 text-red-600">Delete Lead</CardTitle>
+              <CardDescription className="text-sm text-gray-500">
+                This action cannot be undone. The lead and all associated data will be permanently deleted.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-red-900 mb-2">Lead Information:</p>
+                <div className="text-sm text-red-800 space-y-1">
+                  <p><strong>Name:</strong> {lead.name}</p>
+                  <p><strong>Phone:</strong> {lead.phone}</p>
+                  <p><strong>City:</strong> {lead.city}</p>
+                  <p><strong>Status:</strong> {leadStatusLabel(lead.status)}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={() => {
+                    deleteLeadMutation.mutate();
+                  }}
+                  disabled={deleteLeadMutation.isPending}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                >
+                  {deleteLeadMutation.isPending ? 'Deleting...' : 'Delete Lead'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleteLeadMutation.isPending}
                 >
                   Cancel
                 </Button>

@@ -1,19 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { caosApi, type LeadStatus, type LeadSource } from '@/lib/api/caos';
+import { caosApi, type LeadStatus, type LeadSource, type Lead } from '@/lib/api/caos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Search, Trash2 } from 'lucide-react';
 import { leadStatusLabel } from '@/lib/leadLabels';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { toast } from 'sonner';
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -28,11 +31,14 @@ const statusColors: Record<LeadStatus, string> = {
 
 export default function AllLeadsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { role, loading: authLoading } = useJWTAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // Redirect if not lead_access_manager
   if (!authLoading && role !== 'lead_access_manager') {
@@ -55,6 +61,49 @@ export default function AllLeadsPage() {
 
   const leads = data?.data || [];
   const pagination = data?.pagination;
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (leadIds: string[]) => caosApi.bulkDeleteLeads(leadIds),
+    onSuccess: (response) => {
+      const { deletedCount, failedCount } = response.data;
+      if (failedCount === 0) {
+        toast.success(`Successfully deleted ${deletedCount} lead(s)`);
+      } else {
+        toast.warning(`Deleted ${deletedCount} lead(s), ${failedCount} failed`);
+      }
+      setSelectedLeadIds(new Set());
+      setShowBulkDeleteModal(false);
+      queryClient.invalidateQueries({ queryKey: ['all-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete leads');
+    },
+  });
+
+  // Handle individual checkbox toggle
+  const handleToggleLead = (leadId: string) => {
+    const newSelected = new Set(selectedLeadIds);
+    if (newSelected.has(leadId)) {
+      newSelected.delete(leadId);
+    } else {
+      newSelected.add(leadId);
+    }
+    setSelectedLeadIds(newSelected);
+  };
+
+  // Handle select all
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedLeadIds(new Set(leads.map(lead => lead.leadId)));
+    } else {
+      setSelectedLeadIds(new Set());
+    }
+  };
+
+  const isAllSelected = leads.length > 0 && selectedLeadIds.size === leads.length;
+  const isSomeSelected = selectedLeadIds.size > 0 && selectedLeadIds.size < leads.length;
 
   if (authLoading) {
     return (
@@ -80,6 +129,22 @@ export default function AllLeadsPage() {
             View all leads from all qualifiers and onboarders
           </p>
         </div>
+        {selectedLeadIds.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              {selectedLeadIds.size} selected
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowBulkDeleteModal(true)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Selected
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -158,24 +223,34 @@ export default function AllLeadsPage() {
                 {leads.map((lead) => (
                   <div
                     key={lead.leadId}
-                    className="border border-gray-200 rounded-lg p-4 hover:bg-amber-50/50 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/leads/${lead.leadId}`)}
+                    className={cn(
+                      "border border-gray-200 rounded-lg p-4 transition-colors",
+                      selectedLeadIds.has(lead.leadId) ? "bg-amber-50" : "hover:bg-amber-50/50"
+                    )}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 text-sm">{lead.name}</h3>
-                        <p className="text-xs text-gray-600 mt-1">{lead.phone}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{lead.city}</p>
-                        {lead.addedByName && (
-                          <p className="text-xs text-amber-600 mt-1 font-medium">
-                            Added by: {lead.addedByName}
-                          </p>
-                        )}
-                        {lead.createdAt && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            Created: {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
-                          </p>
-                        )}
+                      <div className="flex items-start gap-2 flex-1">
+                        <Checkbox
+                          checked={selectedLeadIds.has(lead.leadId)}
+                          onCheckedChange={() => handleToggleLead(lead.leadId)}
+                          className="mt-1 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex-1" onClick={() => router.push(`/leads/${lead.leadId}`)}>
+                          <h3 className="font-medium text-gray-900 text-sm">{lead.name}</h3>
+                          <p className="text-xs text-gray-600 mt-1">{lead.phone}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{lead.city}</p>
+                          {lead.addedByName && (
+                            <p className="text-xs text-amber-600 mt-1 font-medium">
+                              Added by: {lead.addedByName}
+                            </p>
+                          )}
+                          {lead.createdAt && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Created: {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
@@ -213,6 +288,13 @@ export default function AllLeadsPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={handleSelectAll}
+                          className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                        />
+                      </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">City</th>
@@ -226,16 +308,53 @@ export default function AllLeadsPage() {
                     {leads.map((lead) => (
                       <tr
                         key={lead.leadId}
-                        className="hover:bg-amber-50/50 cursor-pointer transition-colors"
-                        onClick={() => router.push(`/leads/${lead.leadId}`)}
+                        className={cn(
+                          "hover:bg-amber-50/50 transition-colors",
+                          selectedLeadIds.has(lead.leadId) && "bg-amber-50"
+                        )}
                       >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{lead.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{lead.phone}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{lead.city}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td 
+                          className="px-4 py-3"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleLead(lead.leadId);
+                          }}
+                        >
+                          <Checkbox
+                            checked={selectedLeadIds.has(lead.leadId)}
+                            onCheckedChange={() => handleToggleLead(lead.leadId)}
+                            className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </td>
+                        <td 
+                          className="px-4 py-3 text-sm font-medium text-gray-900 cursor-pointer"
+                          onClick={() => router.push(`/leads/${lead.leadId}`)}
+                        >
+                          {lead.name}
+                        </td>
+                        <td 
+                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
+                          onClick={() => router.push(`/leads/${lead.leadId}`)}
+                        >
+                          {lead.phone}
+                        </td>
+                        <td 
+                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
+                          onClick={() => router.push(`/leads/${lead.leadId}`)}
+                        >
+                          {lead.city}
+                        </td>
+                        <td 
+                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
+                          onClick={() => router.push(`/leads/${lead.leadId}`)}
+                        >
                           {lead.addedByName || 'Unknown'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td 
+                          className="px-4 py-3 cursor-pointer"
+                          onClick={() => router.push(`/leads/${lead.leadId}`)}
+                        >
                           <div className="flex items-center gap-2">
                             <Badge className={cn(statusColors[lead.status], "text-xs font-medium")}>
                               {leadStatusLabel(lead.status)}
@@ -252,7 +371,10 @@ export default function AllLeadsPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td 
+                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
+                          onClick={() => router.push(`/leads/${lead.leadId}`)}
+                        >
                           {lead.createdAt ? format(new Date(lead.createdAt), 'MMM dd, yyyy') : '-'}
                         </td>
                         <td className="px-4 py-3">
@@ -308,6 +430,45 @@ export default function AllLeadsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <Dialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete Selected Leads</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. {selectedLeadIds.size} lead(s) will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm font-medium text-red-900 mb-2">Warning:</p>
+              <p className="text-sm text-red-800">
+                You are about to delete {selectedLeadIds.size} lead(s). This action cannot be undone and all associated data will be permanently removed.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDeleteModal(false)}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                bulkDeleteMutation.mutate(Array.from(selectedLeadIds));
+              }}
+              disabled={bulkDeleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {bulkDeleteMutation.isPending ? 'Deleting...' : `Delete ${selectedLeadIds.size} Lead(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

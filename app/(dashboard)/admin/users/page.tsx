@@ -59,21 +59,27 @@ export default function UserManagementPage() {
   const [editRole, setEditRole] = useState<string>('');
   const [editStatus, setEditStatus] = useState<string>('');
   const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const quickActionsRef = useRef<HTMLDivElement>(null);
 
   // Close quick actions menu when clicking outside
   useEffect(() => {
+    if (!showQuickActions) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (quickActionsRef.current && !quickActionsRef.current.contains(event.target as Node)) {
         setShowQuickActions(null);
       }
     };
 
-    if (showQuickActions) {
+    // Add event listener with a small delay to prevent immediate closure
+    const timeoutId = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
-    }
+    }, 10);
 
     return () => {
+      clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showQuickActions]);
@@ -165,6 +171,29 @@ export default function UserManagementPage() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: string) => {
+      console.log('[Delete User] Calling API with userId:', userId);
+      return userManagementApi.deleteUser(userId);
+    },
+    onSuccess: () => {
+      console.log('[Delete User] Success');
+      toast.success('User deleted successfully');
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      setShowQuickActions(null);
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      if (selectedUser?.userId === userToDelete?.userId) {
+        setDetailsDialogOpen(false);
+        setSelectedUser(null);
+      }
+    },
+    onError: (e: any) => {
+      console.error('[Delete User] Error:', e);
+      toast.error(e.message || 'Failed to delete user');
+    },
+  });
+
   const revokeSessionMutation = useMutation({
     mutationFn: ({ userId, sessionIndex }: { userId: string; sessionIndex: number }) =>
       userManagementApi.revokeSession(userId, sessionIndex),
@@ -203,7 +232,8 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleQuickAction = (action: 'suspend' | 'activate' | 'resetPassword', user: AdminUser) => {
+  const handleQuickAction = (action: 'suspend' | 'activate' | 'resetPassword' | 'delete', user: AdminUser) => {
+    console.log('[Quick Action] Action:', action, 'User:', user.userId);
     setShowQuickActions(null);
     if (action === 'suspend') {
       updateStatusMutation.mutate({ userId: user.userId, status: 'suspended' });
@@ -211,6 +241,10 @@ export default function UserManagementPage() {
       updateStatusMutation.mutate({ userId: user.userId, status: 'active' });
     } else if (action === 'resetPassword') {
       resetPasswordMutation.mutate(user.userId);
+    } else if (action === 'delete') {
+      console.log('[Quick Action] Opening delete modal for user:', user.userId);
+      setUserToDelete(user);
+      setShowDeleteModal(true);
     }
   };
 
@@ -474,7 +508,15 @@ export default function UserManagementPage() {
                     {users.map((user) => {
                       const lastActive = getLastActiveText(user.lastLoginAt);
                       return (
-                        <TableRow key={user.userId}>
+                        <TableRow 
+                          key={user.userId}
+                          onClick={(e) => {
+                            // Prevent row click from interfering with button clicks
+                            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="button"]')) {
+                              e.stopPropagation();
+                            }
+                          }}
+                        >
                           <TableCell className="font-mono text-sm">{user.email}</TableCell>
                           <TableCell>{user.name || '-'}</TableCell>
                           <TableCell>
@@ -506,41 +548,85 @@ export default function UserManagementPage() {
                               </Button>
                               <div className="relative" ref={quickActionsRef}>
                                 <Button
+                                  type="button"
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => setShowQuickActions(showQuickActions === user.userId ? null : user.userId)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowQuickActions(showQuickActions === user.userId ? null : user.userId);
+                                  }}
                                 >
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                                 {showQuickActions === user.userId && (
-                                  <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                                  <div 
+                                    className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-[100]"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                    }}
+                                  >
                                     <div className="py-1">
                                       <button
+                                        type="button"
                                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                                        onClick={() => handleViewDetails(user)}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleViewDetails(user);
+                                        }}
                                       >
                                         View Details
                                       </button>
                                       {user.status === 'active' ? (
                                         <button
+                                          type="button"
                                           className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600"
-                                          onClick={() => handleQuickAction('suspend', user)}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleQuickAction('suspend', user);
+                                          }}
                                         >
                                           Suspend User
                                         </button>
                                       ) : (
                                         <button
+                                          type="button"
                                           className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-green-600"
-                                          onClick={() => handleQuickAction('activate', user)}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleQuickAction('activate', user);
+                                          }}
                                         >
                                           Activate User
                                         </button>
                                       )}
                                       <button
+                                        type="button"
                                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                                        onClick={() => handleQuickAction('resetPassword', user)}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleQuickAction('resetPassword', user);
+                                        }}
                                       >
                                         Reset Password
+                                      </button>
+                                      <div className="border-t border-gray-200 my-1"></div>
+                                      <button
+                                        type="button"
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleQuickAction('delete', user);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 inline mr-2" />
+                                        Delete User
                                       </button>
                                     </div>
                                   </div>
@@ -815,6 +901,71 @@ export default function UserManagementPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Modal */}
+      <Dialog 
+        open={showDeleteModal} 
+        onOpenChange={(open) => {
+          console.log('[Delete User Modal] onOpenChange called with:', open);
+          if (!open && !deleteUserMutation.isPending) {
+            setShowDeleteModal(false);
+            setUserToDelete(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete User</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The user and all associated data will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+          {userToDelete && (
+            <div className="space-y-4 py-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-red-900 mb-2">User Information:</p>
+                <div className="text-sm text-red-800 space-y-1">
+                  <p><strong>Name:</strong> {userToDelete.name || 'N/A'}</p>
+                  <p><strong>Email:</strong> {userToDelete.email}</p>
+                  <p><strong>Role:</strong> {userToDelete.role}</p>
+                  <p><strong>Status:</strong> {userToDelete.status}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setUserToDelete(null);
+              }}
+              disabled={deleteUserMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Delete User] Button clicked, userToDelete:', userToDelete);
+                if (userToDelete) {
+                  console.log('[Delete User] Calling mutation with userId:', userToDelete.userId);
+                  deleteUserMutation.mutate(userToDelete.userId);
+                } else {
+                  console.error('[Delete User] userToDelete is null!');
+                  toast.error('User information is missing. Please try again.');
+                }
+              }}
+              disabled={deleteUserMutation.isPending || !userToDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
             </Button>
           </DialogFooter>
         </DialogContent>

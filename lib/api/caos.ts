@@ -128,6 +128,7 @@ export interface Lead {
   state?: string;
   address?: string;
   primaryCategory: string;
+  secondaryCategory?: string;
   source: LeadSource;
   sourceDetails?: string;
   addedBy: string;
@@ -390,6 +391,60 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to update status' }));
       throw new Error(error.error || error.message || 'Failed to update status');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Delete lead
+   */
+  async deleteLead(leadId: string): Promise<{ success: boolean; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to delete lead' }));
+      throw new Error(error.error || error.message || 'Failed to delete lead');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Bulk delete leads
+   */
+  async bulkDeleteLeads(leadIds: string[]): Promise<{ 
+    success: boolean; 
+    message: string;
+    data: {
+      deletedCount: number;
+      failedCount: number;
+      deletedLeadIds: string[];
+      failedLeads: Array<{ leadId: string; error: string }>;
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-delete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ leadIds }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to bulk delete leads' }));
+      throw new Error(error.error || error.message || 'Failed to bulk delete leads');
     }
 
     return response.json();
