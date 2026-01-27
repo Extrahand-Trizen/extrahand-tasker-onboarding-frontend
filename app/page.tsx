@@ -11,7 +11,7 @@ import { CheckCircle, ShieldCheck, Zap, Users } from 'lucide-react';
 const features = [
   { title: 'Capture partners fast', desc: 'Add or upload CSVs, auto-check duplicates.', icon: Users },
   { title: 'Verify & approve', desc: 'Docs, skills, checklist in one flow.', icon: ShieldCheck },
-  { title: 'Create accounts', desc: 'Bulk-create users after approval.', icon: Zap },
+  { title: 'Invite to platform', desc: 'Invite users after approval.', icon: Zap },
   { title: 'Stay compliant', desc: 'Secure docs, role-gated actions.', icon: CheckCircle },
 ];
 
@@ -55,7 +55,7 @@ export default function LandingPage() {
               Track and upload bulk users in one place.
             </h1>
             <p className="text-lg text-gray-600 leading-relaxed">
-              Simple tool for managing partners, verifying documents, and creating accounts.
+              Simple tool for managing partners, verifying documents, and inviting them to the platform.
             </p>
             <div className="flex gap-3">
               <Button size="lg" onClick={() => router.push('/login')}>
