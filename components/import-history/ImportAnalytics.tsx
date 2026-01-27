@@ -145,7 +145,7 @@ export function ImportAnalytics({ className }: ImportAnalyticsProps) {
         <Card>
           <CardHeader>
             <CardTitle>Upload Performance by User</CardTitle>
-            <CardDescription>Total leads uploaded per user</CardDescription>
+            <CardDescription>Total unique leads uploaded per user</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
