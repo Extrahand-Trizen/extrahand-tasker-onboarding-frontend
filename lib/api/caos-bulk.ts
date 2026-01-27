@@ -110,6 +110,7 @@ export interface BulkLeadImportResponse {
       error: string;
     }>;
     importedLeadIds: string[];
+    updatedLeadIds?: string[];
   };
   message: string;
 }
