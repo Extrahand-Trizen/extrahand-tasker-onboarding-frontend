@@ -25,10 +25,16 @@ export default function AdminManagementPage() {
   const [team, setTeam] = useState('');
   const [department, setDepartment] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const limit = 20;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-invites', filterStatus],
-    queryFn: () => invitesApi.list(filterStatus !== 'all' ? { status: filterStatus } : undefined),
+    queryKey: ['admin-invites', filterStatus, page],
+    queryFn: () => invitesApi.list({
+      ...(filterStatus !== 'all' ? { status: filterStatus } : {}),
+      page,
+      limit,
+    }),
   });
 
   const createMutation = useMutation({
@@ -83,6 +89,7 @@ export default function AdminManagementPage() {
   });
 
   const invites: AdminInvite[] = data?.data || [];
+  const pagination = data?.pagination;
 
   const handleCreateInvite = () => {
     if (!email) {
@@ -222,7 +229,13 @@ export default function AdminManagementPage() {
             </CardDescription>
           </div>
           <div className="w-40">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <Select 
+              value={filterStatus} 
+              onValueChange={(value) => {
+                setFilterStatus(value);
+                setPage(1); // Reset to first page when filter changes
+              }}
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -320,6 +333,43 @@ export default function AdminManagementPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-6 pt-4 border-t border-gray-200">
+              <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
+                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                {pagination.total} invites
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === 1}
+                  onClick={() => {
+                    setPage(pagination.page - 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="flex-1 sm:flex-none"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page === pagination.totalPages}
+                  onClick={() => {
+                    setPage(pagination.page + 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="flex-1 sm:flex-none"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

@@ -90,9 +90,9 @@ export function BulkUploadForm() {
       const { summary } = preview.data;
       if (summary.invalid > 0 || summary.duplicatesInFile > 0 || summary.duplicatesInDb > 0) {
         const warnings = [];
-        if (summary.invalid > 0) warnings.push(`${summary.invalid} invalid rows`);
-        if (summary.duplicatesInFile > 0) warnings.push(`${summary.duplicatesInFile} duplicates in file`);
-        if (summary.duplicatesInDb > 0) warnings.push(`${summary.duplicatesInDb} already exist in database`);
+        if (summary.invalid > 0) warnings.push(`${summary.invalid} rows have errors`);
+        if (summary.duplicatesInFile > 0) warnings.push(`${summary.duplicatesInFile} repeated in file`);
+        if (summary.duplicatesInDb > 0) warnings.push(`${summary.duplicatesInDb} already exist in system`);
         
         toast.warning(`Preview completed: ${warnings.join(', ')}`);
       } else {
@@ -597,13 +597,13 @@ export function BulkUploadForm() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900 text-sm">Preview with Validation</h3>
                 <div className="flex gap-4 text-xs">
-                  <span className="text-green-600">✓ Valid: {previewData.summary.valid}</span>
-                  <span className="text-red-600">✗ Invalid: {previewData.summary.invalid}</span>
+                  <span className="text-green-600">✓ Ready to import: {previewData.summary.valid}</span>
+                  <span className="text-red-600">✗ Has errors: {previewData.summary.invalid}</span>
                   {previewData.summary.duplicatesInFile > 0 && (
-                    <span className="text-orange-600">⚠ Duplicates in file: {previewData.summary.duplicatesInFile}</span>
+                    <span className="text-orange-600">⚠ Repeated in file: {previewData.summary.duplicatesInFile}</span>
                   )}
                   {previewData.summary.duplicatesInDb > 0 && (
-                    <span className="text-purple-600">⚠ Already in system: {previewData.summary.duplicatesInDb}</span>
+                    <span className="text-purple-600">⚠ Already exists: {previewData.summary.duplicatesInDb}</span>
                   )}
                 </div>
               </div>
@@ -625,7 +625,8 @@ export function BulkUploadForm() {
                     {previewData.rows.map((row: any, idx: number) => (
                       <tr key={idx} className={`
                         ${row.status === 'valid' ? 'bg-green-50' : 'bg-red-50'}
-                        ${row.isDuplicateInFile || row.isDuplicateInDb ? 'bg-orange-50' : ''}
+                        ${(row.isDuplicateInFile || (row.isDuplicateInDb && !row.isDifferentCategory)) ? 'bg-orange-50' : ''}
+                        ${row.isDifferentCategory && !row.isDuplicateInDb ? 'bg-blue-50' : ''}
                       `}>
                         <td className="px-2 py-2 border-b">{row.rowNumber}</td>
                         <td className="px-2 py-2 border-b">
@@ -652,10 +653,17 @@ export function BulkUploadForm() {
                             <span className="text-green-600">-</span>
                           )}
                           {row.isDuplicateInFile && (
-                            <div className="text-xs text-orange-600">⚠ Duplicate in file</div>
+                            <div className="text-xs text-orange-600">⚠ This phone number appears multiple times in your file</div>
                           )}
                           {row.isDuplicateInDb && (
-                            <div className="text-xs text-purple-600">⚠ Already in system ({row.duplicateLeadId})</div>
+                            <div className="text-xs text-purple-600">
+                              ⚠ This person already exists in system (Lead: {row.duplicateLeadId})
+                            </div>
+                          )}
+                          {row.isDifferentCategory && !row.isDuplicateInDb && (
+                            <div className="text-xs text-blue-600">
+                              ℹ Same person, different category - will be imported
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -667,8 +675,8 @@ export function BulkUploadForm() {
               {previewData.summary.invalid > 0 && (
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <p className="text-sm text-yellow-800">
-                    <strong>Warning:</strong> {previewData.summary.invalid} rows have errors and will be skipped during import.
-                    Only {previewData.summary.valid} valid rows will be imported.
+                    <strong>Note:</strong> {previewData.summary.invalid} rows have errors and will be skipped. 
+                    {previewData.summary.valid} rows are ready to import.
                   </p>
                 </div>
               )}

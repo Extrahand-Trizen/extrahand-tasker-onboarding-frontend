@@ -38,6 +38,7 @@ import {
   UserX,
   TrendingUp
 } from 'lucide-react';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 
 const ROLES = ['lead_access_manager', 'onboarder', 'qualifier'] as const;
 const STATUSES = ['active', 'suspended', 'inactive'] as const;
@@ -47,9 +48,10 @@ type SortDir = 'asc' | 'desc';
 
 export default function UserManagementPage() {
   const qc = useQueryClient();
+  const { role, loading: authLoading } = useJWTAuth();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState<string>('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [sort, setSort] = useState<SortField>('createdAt');
@@ -62,6 +64,9 @@ export default function UserManagementPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const quickActionsRef = useRef<HTMLDivElement>(null);
+
+  // Only lead_access_manager can delete users
+  const canDeleteUser = !authLoading && role === 'lead_access_manager';
 
   // Close quick actions menu when clicking outside
   useEffect(() => {
@@ -505,11 +510,11 @@ export default function UserManagementPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => {
+                    {users.map((user, index) => {
                       const lastActive = getLastActiveText(user.lastLoginAt);
                       return (
                         <TableRow 
-                          key={user.userId}
+                          key={user.userId || `user-${index}`}
                           onClick={(e) => {
                             // Prevent row click from interfering with button clicks
                             if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="button"]')) {
@@ -615,19 +620,23 @@ export default function UserManagementPage() {
                                       >
                                         Reset Password
                                       </button>
-                                      <div className="border-t border-gray-200 my-1"></div>
-                                      <button
-                                        type="button"
-                                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          handleQuickAction('delete', user);
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4 inline mr-2" />
-                                        Delete User
-                                      </button>
+                                      {canDeleteUser && (
+                                        <>
+                                          <div className="border-t border-gray-200 my-1"></div>
+                                          <button
+                                            type="button"
+                                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              handleQuickAction('delete', user);
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4 inline mr-2" />
+                                            Delete User
+                                          </button>
+                                        </>
+                                      )}
                                     </div>
                                   </div>
                                 )}

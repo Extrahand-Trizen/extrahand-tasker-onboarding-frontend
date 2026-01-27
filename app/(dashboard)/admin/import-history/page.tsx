@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosBulkApi } from '@/lib/api/caos-bulk';
+import { caosApi } from '@/lib/api/caos';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, Search, Filter, X } from 'lucide-react';
+import { Eye, Search, Filter, X, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { ImportAnalytics } from '@/components/import-history/ImportAnalytics';
 
 export default function ImportHistoryPage() {
   const { role, loading: authLoading } = useJWTAuth();
@@ -23,12 +25,22 @@ export default function ImportHistoryPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [nameSearch, setNameSearch] = useState('');
+  const [nameFilter, setNameFilter] = useState<string>('all');
   const [emailSearch, setEmailSearch] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  // Fetch lead creators for the dropdown
+  const { data: creatorsData } = useQuery({
+    queryKey: ['lead-creators'],
+    queryFn: () => caosApi.getLeadCreators(),
+    enabled: !authLoading && role === 'lead_access_manager',
+  });
+
+  const leadCreators = creatorsData?.data || [];
 
   // ✅ Only lead_access_manager can access this page
   if (!authLoading && role !== 'lead_access_manager') {
@@ -55,8 +67,8 @@ export default function ImportHistoryPage() {
   if (roleFilter !== 'all') {
     filters.role = roleFilter;
   }
-  if (nameSearch.trim()) {
-    filters.createdByName = nameSearch.trim();
+  if (nameFilter !== 'all') {
+    filters.createdByName = nameFilter;
   }
   if (emailSearch.trim()) {
     filters.createdByEmail = emailSearch.trim();
@@ -104,7 +116,7 @@ export default function ImportHistoryPage() {
 
   const handleClearFilters = () => {
     setRoleFilter('all');
-    setNameSearch('');
+    setNameFilter('all');
     setEmailSearch('');
     setFromDate('');
     setToDate('');
@@ -112,7 +124,7 @@ export default function ImportHistoryPage() {
     setPage(1);
   };
 
-  const hasActiveFilters = roleFilter !== 'all' || nameSearch || emailSearch || fromDate || toDate || statusFilter !== 'all';
+  const hasActiveFilters = roleFilter !== 'all' || nameFilter !== 'all' || emailSearch || fromDate || toDate || statusFilter !== 'all';
 
   if (authLoading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -120,12 +132,36 @@ export default function ImportHistoryPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Import History</h1>
-        <p className="text-xs sm:text-sm text-gray-600 mt-1">
-          View all CSV imports with uploader details, filters, and pagination
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Import History</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
+            View all CSV imports with uploader details, filters, and pagination
+          </p>
+        </div>
+        <Button
+          variant={showAnalytics ? "default" : "outline"}
+          onClick={() => setShowAnalytics(!showAnalytics)}
+        >
+          <BarChart3 className="w-4 h-4 mr-2" />
+          {showAnalytics ? 'Hide' : 'Show'} Analytics
+        </Button>
       </div>
+
+      {/* Analytics Section */}
+      {showAnalytics && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Import Analytics Dashboard</CardTitle>
+            <CardDescription>
+              Comprehensive analytics and insights about bulk imports
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ImportAnalytics />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters Card */}
       <Card>
@@ -178,14 +214,28 @@ export default function ImportHistoryPage() {
                 </Select>
               </div>
 
-              {/* Name Search */}
+              {/* Name Filter */}
               <div className="space-y-2">
                 <Label className="text-sm">Uploader Name</Label>
-                <Input
-                  placeholder="Search by name..."
-                  value={nameSearch}
-                  onChange={(e) => setNameSearch(e.target.value)}
-                />
+                <Select 
+                  value={nameFilter} 
+                  onValueChange={(value) => {
+                    setNameFilter(value);
+                    setPage(1); // Reset to first page when filter changes
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Uploaders" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Uploaders</SelectItem>
+                    {leadCreators.map((creator) => (
+                      <SelectItem key={creator.userId} value={creator.name}>
+                        {creator.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Email Search */}

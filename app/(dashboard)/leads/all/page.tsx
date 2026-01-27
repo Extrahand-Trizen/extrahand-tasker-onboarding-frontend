@@ -35,6 +35,7 @@ export default function AllLeadsPage() {
   const { role, loading: authLoading } = useJWTAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
+  const [addedByFilter, setAddedByFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
@@ -46,13 +47,22 @@ export default function AllLeadsPage() {
     return null;
   }
 
+  // Fetch lead creators for the filter dropdown
+  const { data: creatorsData } = useQuery({
+    queryKey: ['lead-creators'],
+    queryFn: () => caosApi.getLeadCreators(),
+    enabled: !authLoading && role === 'lead_access_manager',
+  });
+
+  const leadCreators = creatorsData?.data || [];
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['all-leads', { search, statusFilter, page }],
+    queryKey: ['all-leads', { search, statusFilter, addedByFilter, page }],
     queryFn: () =>
       caosApi.searchLeads({
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        // ✅ Don't pass addedBy - this shows ALL leads from all qualifiers
+        addedBy: addedByFilter !== 'all' ? addedByFilter : undefined,
         page,
         limit,
       }),
@@ -184,6 +194,26 @@ export default function AllLeadsPage() {
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={addedByFilter}
+              onValueChange={(value) => {
+                setAddedByFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="border-gray-300">
+                <SelectValue placeholder="All Uploaders" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Uploaders</SelectItem>
+                {leadCreators.map((creator) => (
+                  <SelectItem key={creator.userId} value={creator.userId}>
+                    {creator.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

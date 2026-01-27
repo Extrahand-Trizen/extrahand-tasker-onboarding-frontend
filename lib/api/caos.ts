@@ -145,7 +145,7 @@ export interface Lead {
   skills: Array<{
     name: string;
     category?: string;
-    level?: 'beginner' | 'experienced';
+    level?: 'beginner' | 'intermediate' | 'experienced';
     toolsAvailable?: boolean;
     assignedBy?: string;
     assignedAt?: string;
@@ -275,6 +275,29 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to create lead' }));
       throw new Error(error.error || error.message || 'Failed to create lead');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get unique users who have added leads (for filter dropdown)
+   */
+  async getLeadCreators(): Promise<{ success: boolean; data: Array<{ userId: string; name: string }> }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/creators`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch lead creators' }));
+      throw new Error(error.error || error.message || 'Failed to fetch lead creators');
     }
 
     return response.json();
@@ -630,7 +653,7 @@ export const caosApi = {
    */
   async addSkill(
     leadId: string,
-    skill: { name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }
+    skill: { name: string; category?: string; level?: 'beginner' | 'intermediate' | 'experienced'; toolsAvailable?: boolean }
   ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
@@ -657,7 +680,7 @@ export const caosApi = {
   async updateSkill(
     leadId: string,
     skillIndex: number,
-    skill: Partial<{ name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }>
+    skill: Partial<{ name: string; category?: string; level?: 'beginner' | 'intermediate' | 'experienced'; toolsAvailable?: boolean }>
   ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 

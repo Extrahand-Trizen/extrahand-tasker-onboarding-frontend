@@ -50,7 +50,7 @@ export default function LandingPage() {
       <main className="px-6 py-16 lg:px-16 max-w-7xl mx-auto">
         <section>
           <div className="max-w-3xl space-y-6">
-            <p className="text-sm font-semibold text-amber-600 uppercase tracking-wide">For Qualifier Teams</p>
+            <p className="text-sm font-semibold text-amber-600 uppercase tracking-wide">For Qualifier,Onboarder and leads managemer Teams</p>
             <h1 className="text-4xl lg:text-5xl font-bold leading-tight text-gray-900">
               Track and upload bulk users in one place.
             </h1>

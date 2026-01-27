@@ -9,7 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, Download, FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Upload, Download, FileText, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export function BulkLeadImportForm() {
   const [file, setFile] = useState<File | null>(null);
@@ -18,6 +26,7 @@ export function BulkLeadImportForm() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const queryClient = useQueryClient();
 
   // Load backend preview with validation and duplicate checking
@@ -40,15 +49,16 @@ export function BulkLeadImportForm() {
       
       // Show warnings for duplicates or errors
       const { summary } = preview.data;
-      if (summary.invalid > 0 || summary.duplicatesInFile > 0 || summary.duplicatesInDb > 0) {
+      if (summary.invalid > 0 || summary.duplicatesInFile > 0 || summary.duplicatesInDb > 0 || summary.differentCategory > 0) {
         const warnings = [];
-        if (summary.invalid > 0) warnings.push(`${summary.invalid} invalid rows`);
-        if (summary.duplicatesInFile > 0) warnings.push(`${summary.duplicatesInFile} duplicates in file`);
-        if (summary.duplicatesInDb > 0) warnings.push(`${summary.duplicatesInDb} already exist in database`);
+        if (summary.invalid > 0) warnings.push(`${summary.invalid} rows with errors`);
+        if (summary.duplicatesInFile > 0) warnings.push(`${summary.duplicatesInFile} repeated entries in file`);
+        if (summary.duplicatesInDb > 0) warnings.push(`${summary.duplicatesInDb} already exist`);
+        if (summary.differentCategory > 0) warnings.push(`${summary.differentCategory} already exist with different category`);
         
         toast.warning(`Preview completed: ${warnings.join(', ')}`);
       } else {
-        toast.success(`Preview loaded: ${summary.valid} valid rows`);
+        toast.success(`Preview loaded: ${summary.valid} rows ready to import`);
       }
     } catch (error: any) {
       setPreviewError(error.message || 'Failed to load preview');
@@ -247,8 +257,26 @@ export function BulkLeadImportForm() {
       setFile(null);
       setPrimaryCategory('');
       setSecondaryCategory('');
+      setPreviewData(null);
+      
+      // Invalidate all lead-related queries
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['import-history'] });
+      
+      // Also invalidate individual lead queries for all imported leads
+      // This ensures lead detail pages refresh if open
+      if (response.data.importedLeadIds && Array.isArray(response.data.importedLeadIds)) {
+        response.data.importedLeadIds.forEach((leadId: string) => {
+          queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+        });
+      }
+      
+      // Also invalidate for updated leads (if the API returns updatedLeadIds)
+      if (response.data.updatedLeadIds && Array.isArray(response.data.updatedLeadIds)) {
+        response.data.updatedLeadIds.forEach((leadId: string) => {
+          queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+        });
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || 'Import failed');
@@ -271,6 +299,22 @@ export function BulkLeadImportForm() {
       return;
     }
 
+    // Check if there are leads with different categories
+    const differentCategoryLeads = previewData?.rows?.filter((row: any) => row.isDifferentCategory) || [];
+    
+    if (differentCategoryLeads.length > 0) {
+      // Show confirmation modal
+      setShowConfirmModal(true);
+    } else {
+      // Proceed directly with import
+      proceedWithImport();
+    }
+  };
+
+  const proceedWithImport = () => {
+    if (!file) return;
+    
+    setShowConfirmModal(false);
     uploadMutation.mutate({
       file,
       primaryCategory,
@@ -460,13 +504,16 @@ export function BulkLeadImportForm() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-gray-900 text-sm">Preview with Validation</h3>
                   <div className="flex gap-4 text-xs">
-                    <span className="text-green-600">✓ Valid: {previewData.summary.valid}</span>
-                    <span className="text-red-600">✗ Invalid: {previewData.summary.invalid}</span>
+                    <span className="text-green-600">✓ Ready to import: {previewData.summary.valid + (previewData.summary.differentCategory || 0)}</span>
+                    {/* <span className="text-red-600">✗ Has errors: {previewData.summary.invalid}</span> */}
+                    {previewData.summary.differentCategory > 0 && (
+                      <span className="text-orange-600">⚠ Already exists with different category: {previewData.summary.differentCategory}</span>
+                    )}
                     {previewData.summary.duplicatesInFile > 0 && (
-                      <span className="text-orange-600">⚠ Duplicates in file: {previewData.summary.duplicatesInFile}</span>
+                      <span className="text-orange-600">⚠ Repeated in uploaded file: {previewData.summary.duplicatesInFile}</span>
                     )}
                     {previewData.summary.duplicatesInDb > 0 && (
-                      <span className="text-purple-600">⚠ Already in system: {previewData.summary.duplicatesInDb}</span>
+                      <span className="text-red-600">⚠ Already exists on the platform with this category: {previewData.summary.duplicatesInDb}</span>
                     )}
                   </div>
                 </div>
@@ -487,13 +534,15 @@ export function BulkLeadImportForm() {
                     <tbody>
                       {previewData.rows.map((row: any, idx: number) => (
                         <tr key={idx} className={`
-                          ${row.status === 'valid' ? 'bg-green-50' : 'bg-red-50'}
+                          ${row.status === 'valid' ? 'bg-green-50' : row.status === 'warning' ? 'bg-orange-50' : 'bg-red-50'}
                           ${row.isDuplicateInFile || row.isDuplicateInDb ? 'bg-orange-50' : ''}
                         `}>
                           <td className="px-2 py-2 border-b">{row.rowNumber}</td>
                           <td className="px-2 py-2 border-b">
                             {row.status === 'valid' ? (
                               <span className="text-green-600 font-semibold">✓</span>
+                            ) : row.status === 'warning' ? (
+                              <span className="text-orange-600 font-semibold">⚠</span>
                             ) : (
                               <span className="text-red-600 font-semibold">✗</span>
                             )}
@@ -511,6 +560,10 @@ export function BulkLeadImportForm() {
                                   <div key={i} className="text-xs text-red-600">• {error}</div>
                                 ))}
                               </div>
+                            ) : row.isDifferentCategory && row.existingPrimaryCategory ? (
+                              <div className="text-xs text-orange-600">
+                                ⚠ Already exists with: {row.existingPrimaryCategory} - {row.existingSecondaryCategory || 'N/A'}
+                              </div>
                             ) : (
                               <span className="text-green-600">-</span>
                             )}
@@ -524,8 +577,8 @@ export function BulkLeadImportForm() {
                 {previewData.summary.invalid > 0 && (
                   <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
                     <p className="text-sm text-yellow-800">
-                      <strong>Warning:</strong> {previewData.summary.invalid} rows have errors and will be skipped during import.
-                      Only {previewData.summary.valid} valid rows will be imported.
+                      <strong>Note:</strong> {previewData.summary.invalid} rows have errors and will be skipped during import.
+                      {previewData.summary.valid} rows are ready to import.
                     </p>
                   </div>
                 )}
@@ -546,7 +599,7 @@ export function BulkLeadImportForm() {
               ) : previewData ? (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Import {previewData.summary.valid} Valid Leads
+                  Import {previewData.summary.valid + (previewData.summary.differentCategory || 0)} Leads Ready to Import
                 </>
               ) : (
                 <>
@@ -594,6 +647,70 @@ export function BulkLeadImportForm() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Confirmation Modal for Different Category Leads */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+              Leads Already Exist with Different Categories
+            </DialogTitle>
+            <DialogDescription>
+              The following leads already exist on the platform with different categories. The new category will be added to their existing skills instead of creating duplicate leads.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="space-y-2 pr-2">
+              {previewData?.rows
+                ?.filter((row: any) => row.isDifferentCategory)
+                .map((row: any, idx: number) => (
+                  <div key={idx} className="p-3 border border-orange-200 rounded-lg bg-orange-50">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm text-gray-900">
+                          {row.name} ({row.phone})
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          <span className="font-medium">New Category:</span> {row.primaryCategory} - {row.secondaryCategory}
+                        </p>
+                        <p className="text-xs text-orange-700 mt-1">
+                          <span className="font-medium">Existing Category:</span> {row.existingPrimaryCategory || 'N/A'} - {row.existingSecondaryCategory || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          <DialogFooter className="shrink-0 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmModal(false)}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={proceedWithImport}
+              disabled={uploadMutation.isPending}
+            >
+              {uploadMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -166,6 +166,61 @@ export interface ImportDetailsResponse {
   };
 }
 
+export interface ImportAnalyticsResponse {
+  success: boolean;
+  data: {
+    uploadsByUser: Array<{
+      userId: string;
+      userName: string;
+      userRole: string;
+      totalUploads: number;
+      totalLeads: number;
+      successRate: number;
+      avgLeadsPerUpload: number;
+    }>;
+    uniqueVsDuplicate: {
+      uniqueLeads: number;
+      duplicateLeads: number;
+      updatedLeads: number;
+    };
+    statusDistribution: Array<{
+      status: string;
+      count: number;
+    }>;
+    roleBreakdown: Array<{
+      role: string;
+      totalUploads: number;
+      totalLeads: number;
+      successRate: number;
+    }>;
+    uploadsOverTime: Array<{
+      date: string;
+      uploads: number;
+      leads: number;
+    }>;
+    summaryMetrics: {
+      totalImports: number;
+      totalLeadsImported: number;
+      totalUniqueLeads: number;
+      totalDuplicates: number;
+      avgSuccessRate: number;
+      totalUploaders: number;
+    };
+    topUploaders: Array<{
+      userId: string;
+      userName: string;
+      totalLeads: number;
+      successRate: number;
+    }>;
+    qualityMetrics: {
+      avgDuplicateRate: number;
+      avgSuccessRate: number;
+      avgRowsPerUpload: number;
+      largestUpload: number;
+    };
+  };
+}
+
 export interface BulkLeadPreviewResponse {
   success: boolean;
   data: {
@@ -179,11 +234,14 @@ export interface BulkLeadPreviewResponse {
       primaryCategory: string;
       secondaryCategory: string;
       experienceLevel?: string;
-      status: "valid" | "invalid";
+      status: "valid" | "invalid" | "warning";
       errors: string[];
       isDuplicateInFile: boolean;
       isDuplicateInDb: boolean;
+      isDifferentCategory?: boolean; // New field: true if same phone but different category
       duplicateLeadId?: string;
+      existingPrimaryCategory?: string;
+      existingSecondaryCategory?: string;
     }>;
     summary: {
       total: number;
@@ -191,6 +249,7 @@ export interface BulkLeadPreviewResponse {
       invalid: number;
       duplicatesInFile: number;
       duplicatesInDb: number;
+      differentCategory: number;
     };
   };
 }
@@ -445,6 +504,29 @@ export const caosBulkApi = {
     }
 
     return response.blob();
+  },
+
+  /**
+   * Get import analytics
+   */
+  async getImportAnalytics(): Promise<ImportAnalyticsResponse> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-import/analytics`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || error.message || 'Failed to fetch import analytics');
+    }
+
+    return response.json();
   },
 };
 
