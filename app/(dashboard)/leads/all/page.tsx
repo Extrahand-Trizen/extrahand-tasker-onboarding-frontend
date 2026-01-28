@@ -3,20 +3,27 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { caosApi, type LeadStatus, type LeadSource, type Lead } from '@/lib/api/caos';
+import { caosApi, type LeadStatus, type LeadSource } from '@/lib/api/caos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Search, Trash2 } from 'lucide-react';
 import { leadStatusLabel } from '@/lib/leadLabels';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -37,9 +44,9 @@ export default function AllLeadsPage() {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [addedByFilter, setAddedByFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const limit = 20;
-  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [limit, setLimit] = useState(20);
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Redirect if not lead_access_manager
   if (!authLoading && role !== 'lead_access_manager') {
@@ -57,7 +64,7 @@ export default function AllLeadsPage() {
   const leadCreators = creatorsData?.data || [];
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['all-leads', { search, statusFilter, addedByFilter, page }],
+    queryKey: ['all-leads', { search, statusFilter, addedByFilter, page, limit }],
     queryFn: () =>
       caosApi.searchLeads({
         search: search || undefined,
@@ -72,18 +79,26 @@ export default function AllLeadsPage() {
   const leads = data?.data || [];
   const pagination = data?.pagination;
 
-  // Bulk delete mutation
+  // Delete mutations
+  const deleteMutation = useMutation({
+    mutationFn: (leadId: string) => caosApi.deleteLead(leadId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Lead deleted successfully');
+      setSelectedLeads(new Set());
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete lead');
+    },
+  });
+
   const bulkDeleteMutation = useMutation({
     mutationFn: (leadIds: string[]) => caosApi.bulkDeleteLeads(leadIds),
-    onSuccess: (response) => {
-      const { deletedCount, failedCount } = response.data;
-      if (failedCount === 0) {
-        toast.success(`Successfully deleted ${deletedCount} lead(s)`);
-      } else {
-        toast.warning(`Deleted ${deletedCount} lead(s), ${failedCount} failed`);
-      }
-      setSelectedLeadIds(new Set());
-      setShowBulkDeleteModal(false);
+    onSuccess: (data) => {
+      toast.success(`Deleted ${data.data.success} of ${data.data.success + data.data.failed} leads`);
+      setSelectedLeads(new Set());
+      setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ['all-leads'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
@@ -92,28 +107,38 @@ export default function AllLeadsPage() {
     },
   });
 
-  // Handle individual checkbox toggle
-  const handleToggleLead = (leadId: string) => {
-    const newSelected = new Set(selectedLeadIds);
+  const toggleSelect = (leadId: string) => {
+    const newSelected = new Set(selectedLeads);
     if (newSelected.has(leadId)) {
       newSelected.delete(leadId);
     } else {
       newSelected.add(leadId);
     }
-    setSelectedLeadIds(newSelected);
+    setSelectedLeads(newSelected);
   };
 
-  // Handle select all
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedLeadIds(new Set(leads.map(lead => lead.leadId)));
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === leads.length) {
+      setSelectedLeads(new Set());
     } else {
-      setSelectedLeadIds(new Set());
+      setSelectedLeads(new Set(leads.map(l => l.leadId)));
     }
   };
 
-  const isAllSelected = leads.length > 0 && selectedLeadIds.size === leads.length;
-  const isSomeSelected = selectedLeadIds.size > 0 && selectedLeadIds.size < leads.length;
+  const handleDelete = () => {
+    if (selectedLeads.size === 0) {
+      toast.error('Please select at least one lead');
+      return;
+    }
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    bulkDeleteMutation.mutate(Array.from(selectedLeads));
+  };
+
+  // Lead access managers can delete any lead
+  const canDelete = role === 'lead_access_manager';
 
   if (authLoading) {
     return (
@@ -139,22 +164,6 @@ export default function AllLeadsPage() {
             View all leads from all qualifiers and onboarders
           </p>
         </div>
-        {selectedLeadIds.size > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
-              {selectedLeadIds.size} selected
-            </span>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setShowBulkDeleteModal(true)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Selected
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Filters */}
@@ -209,7 +218,7 @@ export default function AllLeadsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Uploaders</SelectItem>
-                {leadCreators.map((creator) => (
+                {leadCreators.map((creator: { userId: string; name: string }) => (
                   <SelectItem key={creator.userId} value={creator.userId}>
                     {creator.name}
                   </SelectItem>
@@ -219,6 +228,30 @@ export default function AllLeadsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Bulk Actions Bar */}
+      {selectedLeads.size > 0 && canDelete && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-900">
+                  {selectedLeads.size} lead(s) selected
+                </span>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                disabled={bulkDeleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Leads Table/Cards */}
       <Card className="border-gray-200 shadow-sm">
@@ -250,67 +283,94 @@ export default function AllLeadsPage() {
             <>
               {/* Mobile Card View */}
               <div className="block sm:hidden space-y-3">
-                {leads.map((lead) => (
-                  <div
-                    key={lead.leadId}
-                    className={cn(
-                      "border border-gray-200 rounded-lg p-4 transition-colors",
-                      selectedLeadIds.has(lead.leadId) ? "bg-amber-50" : "hover:bg-amber-50/50"
-                    )}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-start gap-2 flex-1">
-                        <Checkbox
-                          checked={selectedLeadIds.has(lead.leadId)}
-                          onCheckedChange={() => handleToggleLead(lead.leadId)}
-                          className="mt-1 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <div className="flex-1" onClick={() => router.push(`/leads/${lead.leadId}`)}>
-                          <h3 className="font-medium text-gray-900 text-sm">{lead.name}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{lead.phone}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{lead.city}</p>
-                          {lead.addedByName && (
-                            <p className="text-xs text-amber-600 mt-1 font-medium">
-                              Added by: {lead.addedByName}
-                            </p>
-                          )}
-                          {lead.createdAt && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              Created: {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
-                            </p>
+                {leads.map((lead) => {
+                  const isSelected = selectedLeads.has(lead.leadId);
+                  return (
+                    <div
+                      key={lead.leadId}
+                      className={cn(
+                        "border rounded-lg p-4 transition-colors",
+                        isSelected ? "border-blue-300 bg-blue-50" : "border-gray-200 hover:bg-amber-50/50 cursor-pointer"
+                      )}
+                      onClick={() => !canDelete && router.push(`/leads/${lead.leadId}`)}
+                    >
+                      <div className="flex items-start gap-3 mb-2">
+                        {canDelete && (
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelect(lead.leadId)}
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h3 
+                            className="font-medium text-gray-900 text-sm cursor-pointer"
+                            onClick={() => router.push(`/leads/${lead.leadId}`)}
+                          >
+                            {lead.name}
+                          </h3>
+                        <p className="text-xs text-gray-600 mt-1">{lead.phone}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{lead.city}</p>
+                        {lead.addedByName && (
+                          <p className="text-xs text-amber-600 mt-1 font-medium">
+                            Added by: {lead.addedByName}
+                          </p>
+                        )}
+                        {lead.createdAt && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Created: {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
+                          </p>
+                        )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/leads/${lead.leadId}`);
+                            }}
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          >
+                            View
+                          </Button>
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this lead?')) {
+                                  deleteMutation.mutate(lead.leadId);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/leads/${lead.leadId}`);
-                        }}
-                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 ml-2"
-                      >
-                        View
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <Badge className={cn(statusColors[lead.status], "text-xs font-medium")}>
-                        {leadStatusLabel(lead.status)}
-                      </Badge>
-                      {lead.creationMethod === 'bulk_upload' && (
-                        <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                          Bulk Upload
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <Badge className={cn(statusColors[lead.status], "text-xs font-medium")}>
+                          {leadStatusLabel(lead.status)}
                         </Badge>
-                      )}
-                      {lead.creationMethod === 'manual_onboarding' && (
-                        <Badge className="text-xs bg-gray-50 text-gray-700 border border-gray-200">
-                          Manual
-                        </Badge>
-                      )}
+                        {lead.creationMethod === 'bulk_upload' && (
+                          <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                            Bulk Upload
+                          </Badge>
+                        )}
+                        {lead.creationMethod === 'manual_onboarding' && (
+                          <Badge className="text-xs bg-gray-50 text-gray-700 border border-gray-200">
+                            Manual
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Desktop Table View */}
@@ -318,13 +378,14 @@ export default function AllLeadsPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
-                        <Checkbox
-                          checked={isAllSelected}
-                          onCheckedChange={handleSelectAll}
-                          className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
-                        />
-                      </th>
+                      {canDelete && (
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
+                          <Checkbox
+                            checked={leads.length > 0 && selectedLeads.size === leads.length}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </th>
+                      )}
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">City</th>
@@ -335,56 +396,38 @@ export default function AllLeadsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {leads.map((lead) => (
-                      <tr
-                        key={lead.leadId}
-                        className={cn(
-                          "hover:bg-amber-50/50 transition-colors",
-                          selectedLeadIds.has(lead.leadId) && "bg-amber-50"
-                        )}
-                      >
-                        <td 
-                          className="px-4 py-3"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleLead(lead.leadId);
-                          }}
+                    {leads.map((lead) => {
+                      const isSelected = selectedLeads.has(lead.leadId);
+                      return (
+                        <tr
+                          key={lead.leadId}
+                          className={cn(
+                            "hover:bg-amber-50/50 transition-colors",
+                            isSelected && "bg-blue-50",
+                            canDelete ? "" : "cursor-pointer"
+                          )}
+                          onClick={() => !canDelete && router.push(`/leads/${lead.leadId}`)}
                         >
-                          <Checkbox
-                            checked={selectedLeadIds.has(lead.leadId)}
-                            onCheckedChange={() => handleToggleLead(lead.leadId)}
-                            className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </td>
-                        <td 
-                          className="px-4 py-3 text-sm font-medium text-gray-900 cursor-pointer"
-                          onClick={() => router.push(`/leads/${lead.leadId}`)}
-                        >
-                          {lead.name}
-                        </td>
-                        <td 
-                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
-                          onClick={() => router.push(`/leads/${lead.leadId}`)}
-                        >
-                          {lead.phone}
-                        </td>
-                        <td 
-                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
-                          onClick={() => router.push(`/leads/${lead.leadId}`)}
-                        >
-                          {lead.city}
-                        </td>
-                        <td 
-                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
-                          onClick={() => router.push(`/leads/${lead.leadId}`)}
-                        >
+                          {canDelete && (
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelect(lead.leadId)}
+                              />
+                            </td>
+                          )}
+                          <td 
+                            className="px-4 py-3 text-sm font-medium text-gray-900 cursor-pointer"
+                            onClick={() => router.push(`/leads/${lead.leadId}`)}
+                          >
+                            {lead.name}
+                          </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{lead.phone}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{lead.city}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
                           {lead.addedByName || 'Unknown'}
                         </td>
-                        <td 
-                          className="px-4 py-3 cursor-pointer"
-                          onClick={() => router.push(`/leads/${lead.leadId}`)}
-                        >
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <Badge className={cn(statusColors[lead.status], "text-xs font-medium")}>
                               {leadStatusLabel(lead.status)}
@@ -401,33 +444,49 @@ export default function AllLeadsPage() {
                             )}
                           </div>
                         </td>
-                        <td 
-                          className="px-4 py-3 text-sm text-gray-600 cursor-pointer"
-                          onClick={() => router.push(`/leads/${lead.leadId}`)}
-                        >
+                        <td className="px-4 py-3 text-sm text-gray-600">
                           {lead.createdAt ? format(new Date(lead.createdAt), 'MMM dd, yyyy') : '-'}
                         </td>
                         <td className="px-4 py-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/leads/${lead.leadId}`);
-                            }}
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          >
-                            View
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/leads/${lead.leadId}`);
+                              }}
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            >
+                              View
+                            </Button>
+                            {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Are you sure you want to delete this lead?')) {
+                                    deleteMutation.mutate(lead.leadId);
+                                  }
+                                }}
+                                disabled={deleteMutation.isPending}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>
 
               {/* Pagination */}
-              {pagination && pagination.totalPages > 1 && (
+              {pagination && pagination.totalPages > 0 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-6 pt-4 border-t border-gray-200">
                   <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                     Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
@@ -444,6 +503,9 @@ export default function AllLeadsPage() {
                     >
                       Previous
                     </Button>
+                    <span className="text-xs sm:text-sm text-gray-600 px-2">
+                      Page {pagination.page} of {pagination.totalPages}
+                    </span>
                     <Button
                       variant="outline"
                       size="sm"
@@ -461,40 +523,29 @@ export default function AllLeadsPage() {
         </CardContent>
       </Card>
 
-      {/* Bulk Delete Confirmation Modal */}
-      <Dialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
-        <DialogContent className="max-w-md">
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-red-600">Delete Selected Leads</DialogTitle>
+            <DialogTitle>Delete Selected Leads</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. {selectedLeadIds.size} lead(s) will be permanently deleted.
+              Are you sure you want to delete {selectedLeads.size} lead(s)? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-red-900 mb-2">Warning:</p>
-              <p className="text-sm text-red-800">
-                You are about to delete {selectedLeadIds.size} lead(s). This action cannot be undone and all associated data will be permanently removed.
-              </p>
-            </div>
-          </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowBulkDeleteModal(false)}
+              onClick={() => setShowDeleteDialog(false)}
               disabled={bulkDeleteMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                bulkDeleteMutation.mutate(Array.from(selectedLeadIds));
-              }}
+              onClick={confirmDelete}
               disabled={bulkDeleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700"
             >
-              {bulkDeleteMutation.isPending ? 'Deleting...' : `Delete ${selectedLeadIds.size} Lead(s)`}
+              {bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

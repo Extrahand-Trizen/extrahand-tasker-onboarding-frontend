@@ -265,41 +265,4 @@ export const userManagementApi = {
 
     return response.json();
   },
-
-  /**
-   * Delete user
-   */
-  async deleteUser(userId: string): Promise<{ success: boolean; message: string }> {
-    console.log('[Delete User API] Starting delete request for userId:', userId);
-    console.log('[Delete User API] API_BASE_URL:', API_BASE_URL);
-    
-    const headers = await getAuthHeaders();
-    console.log('[Delete User API] Headers:', headers);
-    
-    const url = `${API_BASE_URL}/api/v1/admin/users/${userId}`;
-    console.log('[Delete User API] Request URL:', url);
-    
-    try {
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers,
-      });
-
-      console.log('[Delete User API] Response status:', response.status);
-      console.log('[Delete User API] Response ok:', response.ok);
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('[Delete User API] Error response:', error);
-        throw new Error(error.error || 'Failed to delete user');
-      }
-
-      const data = await response.json();
-      console.log('[Delete User API] Success response:', data);
-      return data;
-    } catch (error: any) {
-      console.error('[Delete User API] Exception:', error);
-      throw error;
-    }
-  },
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ if (!API_BASE_URL) {
   throw new Error('NEXT_PUBLIC_API_URL or NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
 }
 
-function ResetPasswordContent() {
+export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -311,26 +311,5 @@ function ResetPasswordContent() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function ResetPasswordPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-amber-50/30 px-4">
-          <Card className="w-full max-w-md border-gray-200 shadow-lg">
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mb-4"></div>
-                <p className="text-sm text-gray-600">Loading...</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      }
-    >
-      <ResetPasswordContent />
-    </Suspense>
   );
 }

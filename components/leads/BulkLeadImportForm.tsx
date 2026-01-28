@@ -257,26 +257,8 @@ export function BulkLeadImportForm() {
       setFile(null);
       setPrimaryCategory('');
       setSecondaryCategory('');
-      setPreviewData(null);
-      
-      // Invalidate all lead-related queries
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['import-history'] });
-      
-      // Also invalidate individual lead queries for all imported leads
-      // This ensures lead detail pages refresh if open
-      if (response.data.importedLeadIds && Array.isArray(response.data.importedLeadIds)) {
-        response.data.importedLeadIds.forEach((leadId: string) => {
-          queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
-        });
-      }
-      
-      // Also invalidate for updated leads (if the API returns updatedLeadIds)
-      if (response.data.updatedLeadIds && Array.isArray(response.data.updatedLeadIds)) {
-        response.data.updatedLeadIds.forEach((leadId: string) => {
-          queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
-        });
-      }
     },
     onError: (error: any) => {
       toast.error(error.message || 'Import failed');
@@ -526,6 +508,7 @@ export function BulkLeadImportForm() {
                         <th className="px-2 py-2 text-left font-semibold border-b">Status</th>
                         <th className="px-2 py-2 text-left font-semibold border-b">Name</th>
                         <th className="px-2 py-2 text-left font-semibold border-b">Phone</th>
+                        <th className="px-2 py-2 text-left font-semibold border-b">Landline</th>
                         <th className="px-2 py-2 text-left font-semibold border-b">City</th>
                         <th className="px-2 py-2 text-left font-semibold border-b">Category</th>
                         <th className="px-2 py-2 text-left font-semibold border-b">Issues</th>
@@ -549,6 +532,7 @@ export function BulkLeadImportForm() {
                           </td>
                           <td className="px-2 py-2 border-b whitespace-nowrap">{row.name}</td>
                           <td className="px-2 py-2 border-b whitespace-nowrap">{row.phone || '-'}</td>
+                          <td className="px-2 py-2 border-b whitespace-nowrap">{row.landline || '-'}</td>
                           <td className="px-2 py-2 border-b whitespace-nowrap">{row.city}</td>
                           <td className="px-2 py-2 border-b whitespace-nowrap text-xs">
                             {row.primaryCategory} - {row.secondaryCategory}
@@ -650,19 +634,19 @@ export function BulkLeadImportForm() {
 
       {/* Confirmation Modal for Different Category Leads */}
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-          <DialogHeader className="shrink-0">
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-600" />
               Leads Already Exist with Different Categories
             </DialogTitle>
             <DialogDescription>
-              The following leads already exist on the platform with different categories. The new category will be added to their existing skills instead of creating duplicate leads.
+              The following leads already exist on the platform with different categories. They will still be imported with the new category.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="space-y-2 pr-2">
+          <div className="max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
               {previewData?.rows
                 ?.filter((row: any) => row.isDifferentCategory)
                 .map((row: any, idx: number) => (
@@ -685,7 +669,7 @@ export function BulkLeadImportForm() {
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 mt-4">
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setShowConfirmModal(false)}

@@ -24,11 +24,11 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
   const [selectedSkillIndex, setSelectedSkillIndex] = useState<number | null>(null);
   const [skillName, setSkillName] = useState('');
   const [skillCategory, setSkillCategory] = useState('');
-  const [skillLevel, setSkillLevel] = useState<'beginner' | 'intermediate' | 'experienced'>('experienced');
+  const [skillLevel, setSkillLevel] = useState<'beginner' | 'experienced'>('experienced');
   const [toolsAvailable, setToolsAvailable] = useState(false);
 
   const addSkillMutation = useMutation({
-    mutationFn: (data: { name: string; category?: string; level?: 'beginner' | 'intermediate' | 'experienced'; toolsAvailable?: boolean }) =>
+    mutationFn: (data: { name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }) =>
       caosApi.addSkill(leadId, data),
     onSuccess: () => {
       toast.success('Skill added successfully');
@@ -42,7 +42,7 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
   });
 
   const updateSkillMutation = useMutation({
-    mutationFn: (data: Partial<{ name: string; category?: string; level?: 'beginner' | 'intermediate' | 'experienced'; toolsAvailable?: boolean }>) =>
+    mutationFn: (data: Partial<{ name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }>) =>
       caosApi.updateSkill(leadId, selectedSkillIndex!, data),
     onSuccess: () => {
       toast.success('Skill updated successfully');
@@ -170,9 +170,11 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
                         {skill.category && (
                           <Badge className="border border-gray-200 bg-gray-50 text-gray-700">{skill.category}</Badge>
                         )}
-                        <Badge className="capitalize border border-gray-200 bg-gray-50 text-gray-700">
-                          {skill.level || 'Not specified'}
-                        </Badge>
+                        {skill.level && (
+                          <Badge className="capitalize border border-gray-200 bg-gray-50 text-gray-700">
+                            {skill.level}
+                          </Badge>
+                        )}
                         {skill.toolsAvailable && (
                           <Badge className="bg-green-100 text-green-800">
                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -250,14 +252,13 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
                 <Label htmlFor="skill-level-select">Level</Label>
                 <Select
                   value={skillLevel}
-                  onValueChange={(value) => setSkillLevel(value as 'beginner' | 'intermediate' | 'experienced')}
+                  onValueChange={(value) => setSkillLevel(value as 'beginner' | 'experienced')}
                 >
                   <SelectTrigger id="skill-level-select">
                     <SelectValue placeholder="Select level" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="beginner">Beginner</SelectItem>
-                    <SelectItem value="intermediate">Intermediate</SelectItem>
                     <SelectItem value="experienced">Experienced</SelectItem>
                   </SelectContent>
                 </Select>

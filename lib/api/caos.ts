@@ -122,13 +122,13 @@ export type LeadSource = 'referral' | 'campaign' | 'walk-in' | 'agent' | 'other'
 export interface Lead {
   leadId: string;
   name: string;
-  phone: string;
+  phone?: string; // Made optional - either phone or landline required
+  landline?: string; // New optional field
   email?: string;
   city: string;
   state?: string;
   address?: string;
   primaryCategory: string;
-  secondaryCategory?: string;
   source: LeadSource;
   sourceDetails?: string;
   addedBy: string;
@@ -145,7 +145,7 @@ export interface Lead {
   skills: Array<{
     name: string;
     category?: string;
-    level?: 'beginner' | 'intermediate' | 'experienced';
+    level?: 'beginner' | 'experienced';
     toolsAvailable?: boolean;
     assignedBy?: string;
     assignedAt?: string;
@@ -198,7 +198,8 @@ export interface Lead {
 
 export interface CreateLeadData {
   name: string;
-  phone: string;
+  phone?: string;
+  landline?: string;
   email?: string;
   city: string;
   state?: string;
@@ -275,29 +276,6 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to create lead' }));
       throw new Error(error.error || error.message || 'Failed to create lead');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Get unique users who have added leads (for filter dropdown)
-   */
-  async getLeadCreators(): Promise<{ success: boolean; data: Array<{ userId: string; name: string }> }> {
-    const token = await getAdminToken();
-
-    const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/creators`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to fetch lead creators' }));
-      throw new Error(error.error || error.message || 'Failed to fetch lead creators');
     }
 
     return response.json();
@@ -420,60 +398,6 @@ export const caosApi = {
   },
 
   /**
-   * Delete lead
-   */
-  async deleteLead(leadId: string): Promise<{ success: boolean; message: string }> {
-    const token = await getAdminToken();
-
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to delete lead' }));
-      throw new Error(error.error || error.message || 'Failed to delete lead');
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Bulk delete leads
-   */
-  async bulkDeleteLeads(leadIds: string[]): Promise<{ 
-    success: boolean; 
-    message: string;
-    data: {
-      deletedCount: number;
-      failedCount: number;
-      deletedLeadIds: string[];
-      failedLeads: Array<{ leadId: string; error: string }>;
-    };
-  }> {
-    const token = await getAdminToken();
-
-    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-delete`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ leadIds }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to bulk delete leads' }));
-      throw new Error(error.error || error.message || 'Failed to bulk delete leads');
-    }
-
-    return response.json();
-  },
-
-  /**
    * Add internal note
    */
   async addNote(leadId: string, note: string, isPrivate?: boolean): Promise<{ success: boolean; data: Lead; message: string }> {
@@ -499,8 +423,15 @@ export const caosApi = {
   /**
    * Check for duplicates
    */
-  async checkDuplicate(phone: string, name?: string, city?: string): Promise<DuplicateCheckResponse> {
+  async checkDuplicate(value: string, type: 'phone' | 'landline' = 'phone', name?: string, city?: string): Promise<DuplicateCheckResponse> {
     const token = await getAdminToken();
+
+    const body: any = { name, city };
+    if (type === 'phone') {
+      body.phone = value;
+    } else {
+      body.landline = value;
+    }
 
     const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/duplicate-check`, {
       method: 'POST',
@@ -508,7 +439,7 @@ export const caosApi = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ phone, name, city }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -653,7 +584,7 @@ export const caosApi = {
    */
   async addSkill(
     leadId: string,
-    skill: { name: string; category?: string; level?: 'beginner' | 'intermediate' | 'experienced'; toolsAvailable?: boolean }
+    skill: { name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }
   ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
@@ -680,7 +611,7 @@ export const caosApi = {
   async updateSkill(
     leadId: string,
     skillIndex: number,
-    skill: Partial<{ name: string; category?: string; level?: 'beginner' | 'intermediate' | 'experienced'; toolsAvailable?: boolean }>
+    skill: Partial<{ name: string; category?: string; level?: 'beginner' | 'experienced'; toolsAvailable?: boolean }>
   ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
@@ -1158,6 +1089,78 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to verify PAN' }));
       throw new Error(error.error || error.message || 'Failed to verify PAN');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Delete a lead
+   */
+  async deleteLead(leadId: string): Promise<{ success: boolean; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to delete lead' }));
+      throw new Error(error.error || error.message || 'Failed to delete lead');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Bulk delete leads
+   */
+  async bulkDeleteLeads(leadIds: string[]): Promise<{
+    success: boolean;
+    data: {
+      success: number;
+      failed: number;
+      errors: Array<{ leadId: string; error: string }>;
+    };
+    message: string;
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/bulk-delete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ leadIds }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to bulk delete leads' }));
+      throw new Error(error.error || error.message || 'Failed to bulk delete leads');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get list of lead creators (users who have created leads)
+   */
+  async getLeadCreators(): Promise<{ success: boolean; data: Array<{ userId: string; name: string }> }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/creators`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch lead creators' }));
+      throw new Error(error.error || error.message || 'Failed to fetch lead creators');
     }
 
     return response.json();

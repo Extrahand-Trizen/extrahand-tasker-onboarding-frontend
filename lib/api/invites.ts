@@ -34,12 +34,6 @@ export interface CreateInviteRequest {
 export interface InviteListResponse {
   success: boolean;
   data: AdminInvite[];
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
 }
 
 export interface InviteDetailsResponse {
@@ -96,16 +90,12 @@ export const invitesApi = {
   async list(filters?: {
     status?: string;
     email?: string;
-    page?: number;
-    limit?: number;
   }): Promise<InviteListResponse> {
     const headers = await getAuthHeaders();
     const params = new URLSearchParams();
     
     if (filters?.status) params.append('status', filters.status);
     if (filters?.email) params.append('email', filters.email);
-    if (filters?.page) params.append('page', filters.page.toString());
-    if (filters?.limit) params.append('limit', filters.limit.toString());
 
     const queryString = params.toString();
     const url = `${API_BASE_URL}/api/v1/admin/invites${queryString ? `?${queryString}` : ''}`;

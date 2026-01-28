@@ -110,7 +110,6 @@ export interface BulkLeadImportResponse {
       error: string;
     }>;
     importedLeadIds: string[];
-    updatedLeadIds?: string[];
   };
   message: string;
 }
@@ -167,61 +166,6 @@ export interface ImportDetailsResponse {
   };
 }
 
-export interface ImportAnalyticsResponse {
-  success: boolean;
-  data: {
-    uploadsByUser: Array<{
-      userId: string;
-      userName: string;
-      userRole: string;
-      totalUploads: number;
-      totalLeads: number;
-      successRate: number;
-      avgLeadsPerUpload: number;
-    }>;
-    uniqueVsDuplicate: {
-      uniqueLeads: number;
-      duplicateLeads: number;
-      updatedLeads: number;
-    };
-    statusDistribution: Array<{
-      status: string;
-      count: number;
-    }>;
-    roleBreakdown: Array<{
-      role: string;
-      totalUploads: number;
-      totalLeads: number;
-      successRate: number;
-    }>;
-    uploadsOverTime: Array<{
-      date: string;
-      uploads: number;
-      leads: number;
-    }>;
-    summaryMetrics: {
-      totalImports: number;
-      totalLeadsImported: number;
-      totalUniqueLeads: number;
-      totalDuplicates: number;
-      avgSuccessRate: number;
-      totalUploaders: number;
-    };
-    topUploaders: Array<{
-      userId: string;
-      userName: string;
-      totalLeads: number;
-      successRate: number;
-    }>;
-    qualityMetrics: {
-      avgDuplicateRate: number;
-      avgSuccessRate: number;
-      avgRowsPerUpload: number;
-      largestUpload: number;
-    };
-  };
-}
-
 export interface BulkLeadPreviewResponse {
   success: boolean;
   data: {
@@ -235,14 +179,11 @@ export interface BulkLeadPreviewResponse {
       primaryCategory: string;
       secondaryCategory: string;
       experienceLevel?: string;
-      status: "valid" | "invalid" | "warning";
+      status: "valid" | "invalid";
       errors: string[];
       isDuplicateInFile: boolean;
       isDuplicateInDb: boolean;
-      isDifferentCategory?: boolean; // New field: true if same phone but different category
       duplicateLeadId?: string;
-      existingPrimaryCategory?: string;
-      existingSecondaryCategory?: string;
     }>;
     summary: {
       total: number;
@@ -250,7 +191,6 @@ export interface BulkLeadPreviewResponse {
       invalid: number;
       duplicatesInFile: number;
       duplicatesInDb: number;
-      differentCategory: number;
     };
   };
 }
@@ -508,9 +448,21 @@ export const caosBulkApi = {
   },
 
   /**
-   * Get import analytics
+   * Get comprehensive import analytics
    */
-  async getImportAnalytics(): Promise<ImportAnalyticsResponse> {
+  async getImportAnalytics(): Promise<{
+    success: boolean;
+    data: {
+      uploadsByUser: Array<{ userId: string; userName: string; userRole: string; totalUploads: number; totalLeads: number; successRate: number; avgLeadsPerUpload: number }>;
+      uniqueVsDuplicate: { uniqueLeads: number; duplicateLeads: number; updatedLeads: number };
+      statusDistribution: Array<{ status: string; count: number }>;
+      roleBreakdown: Array<{ role: string; totalUploads: number; totalLeads: number; successRate: number }>;
+      uploadsOverTime: Array<{ date: string; uploads: number; leads: number }>;
+      summaryMetrics: { totalImports: number; totalLeadsImported: number; totalUniqueLeads: number; totalDuplicates: number; avgSuccessRate: number; totalUploaders: number };
+      topUploaders: Array<{ userId: string; userName: string; totalLeads: number; successRate: number }>;
+      qualityMetrics: { avgDuplicateRate: number; avgSuccessRate: number; avgRowsPerUpload: number; largestUpload: number };
+    };
+  }> {
     const token = await getAdminToken();
 
     const response = await fetch(
@@ -523,7 +475,7 @@ export const caosBulkApi = {
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch import analytics' }));
       throw new Error(error.error || error.message || 'Failed to fetch import analytics');
     }
 

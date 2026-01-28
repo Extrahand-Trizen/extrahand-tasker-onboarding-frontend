@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosBulkApi } from '@/lib/api/caos-bulk';
-import { caosApi } from '@/lib/api/caos';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,6 +16,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ImportAnalytics } from '@/components/import-history/ImportAnalytics';
+import { caosApi } from '@/lib/api/caos';
 
 export default function ImportHistoryPage() {
   const { role, loading: authLoading } = useJWTAuth();
@@ -229,7 +229,7 @@ export default function ImportHistoryPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Uploaders</SelectItem>
-                    {leadCreators.map((creator) => (
+                    {leadCreators.map((creator: { userId: string; name: string }) => (
                       <SelectItem key={creator.userId} value={creator.name}>
                         {creator.name}
                       </SelectItem>

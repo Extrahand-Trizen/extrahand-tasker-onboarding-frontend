@@ -18,7 +18,8 @@ import { AlertCircle } from 'lucide-react';
 
 const leadSchema = z.object({
   name: z.string().min(2, 'Full Name must be at least 2 characters'),
-  phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number (10 digits, starting with 6-9)'),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number (10 digits, starting with 6-9)').optional().or(z.literal('')),
+  landline: z.string().regex(/^[0-9]{6,15}$/, 'Invalid landline number (6-15 digits)').optional().or(z.literal('')),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   city: z.string().min(2, 'City is required'),
   address: z.string().min(2, 'Local Area is required'),
@@ -56,7 +57,17 @@ const leadSchema = z.object({
   workingDays: z.string().optional(),
   preferredTimeSlot: z.string().optional(),
   source: z.enum(['referral', 'campaign', 'walk-in', 'agent', 'other']),
-});
+}).refine(
+  (data) => {
+    const phone = data.phone?.trim();
+    const landline = data.landline?.trim();
+    return (phone && phone.length > 0) || (landline && landline.length > 0);
+  },
+  {
+    message: 'At least one contact number (Mobile or Landline) is required',
+    path: ['phone'], // Show error on phone field
+  }
+);
 
 type LeadFormData = z.infer<typeof leadSchema>;
 
@@ -211,12 +222,14 @@ export default function AddLeadPage() {
     ? secondaryCategoriesMap[primaryCategoryValue] || []
     : [];
 
-  // Check for duplicates when phone changes
-  const checkDuplicate = async (phone: string) => {
-    if (!phone || phone.length < 10) return;
+  // Check for duplicates when phone or landline changes
+  const checkDuplicate = async (value: string, type: 'phone' | 'landline' = 'phone') => {
+    if (!value || (type === 'phone' && value.length < 10) || (type === 'landline' && value.length < 6)) {
+      return;
+    }
 
     try {
-      const result = await caosApi.checkDuplicate(phone);
+      const result = await caosApi.checkDuplicate(value, type);
       if (result.data.isDuplicate && result.data.existingLead) {
         setDuplicateWarning(
           `Duplicate found: Tasker ${result.data.existingLead.leadId} (${result.data.existingLead.status})`
@@ -246,10 +259,21 @@ export default function AddLeadPage() {
 
   const onSubmit = async (data: LeadFormData) => {
     // Check duplicate one more time before submitting
-    await checkDuplicate(data.phone);
+    if (data.phone?.trim()) {
+      await checkDuplicate(data.phone.trim(), 'phone');
+    }
+    if (data.landline?.trim()) {
+      await checkDuplicate(data.landline.trim(), 'landline');
+    }
     
     if (duplicateWarning) {
       toast.warning('Please resolve duplicate before creating tasker');
+      return;
+    }
+
+    // Ensure at least one contact number is provided
+    if (!data.phone?.trim() && !data.landline?.trim()) {
+      toast.error('At least one contact number (Mobile or Landline) is required');
       return;
     }
 
@@ -289,20 +313,52 @@ export default function AddLeadPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Mobile Number *</Label>
+                <Label htmlFor="phone">Mobile Number</Label>
                 <Input
                   id="phone"
                   {...register('phone')}
                   placeholder="9876543210"
                   maxLength={10}
-                  onBlur={(e) => checkDuplicate(e.target.value)}
+                  onBlur={(e) => {
+                    const value = e.target.value.trim();
+                    if (value) {
+                      checkDuplicate(value, 'phone');
+                    }
+                  }}
                   className={errors.phone ? 'border-red-500' : ''}
                 />
                 {errors.phone && (
                   <p className="text-sm text-red-600">{errors.phone.message}</p>
                 )}
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="landline">Landline Number (Optional)</Label>
+                <Input
+                  id="landline"
+                  {...register('landline')}
+                  placeholder="01123456789"
+                  maxLength={15}
+                  onBlur={(e) => {
+                    const value = e.target.value.trim();
+                    if (value) {
+                      checkDuplicate(value, 'landline');
+                    }
+                  }}
+                  className={errors.landline ? 'border-red-500' : ''}
+                />
+                {errors.landline && (
+                  <p className="text-sm text-red-600">{errors.landline.message}</p>
+                )}
+              </div>
             </div>
+
+            {(errors.phone?.message?.includes('At least one contact number') || 
+              (!watch('phone')?.trim() && !watch('landline')?.trim() && (errors.phone || errors.landline))) && (
+              <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
+                At least one contact number (Mobile or Landline) is required
+              </div>
+            )}
 
             {duplicateWarning && (
               <Alert variant="destructive">
