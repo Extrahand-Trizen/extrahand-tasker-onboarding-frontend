@@ -183,6 +183,7 @@ export interface BulkLeadPreviewResponse {
       errors: string[];
       isDuplicateInFile: boolean;
       isDuplicateInDb: boolean;
+      isDifferentCategory?: boolean;
       duplicateLeadId?: string;
     }>;
     summary: {
@@ -191,6 +192,7 @@ export interface BulkLeadPreviewResponse {
       invalid: number;
       duplicatesInFile: number;
       duplicatesInDb: number;
+      differentCategory: number;
     };
   };
 }

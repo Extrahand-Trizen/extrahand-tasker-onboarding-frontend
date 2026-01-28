@@ -129,6 +129,7 @@ export interface Lead {
   state?: string;
   address?: string;
   primaryCategory: string;
+  secondaryCategory?: string;
   source: LeadSource;
   sourceDetails?: string;
   addedBy: string;
