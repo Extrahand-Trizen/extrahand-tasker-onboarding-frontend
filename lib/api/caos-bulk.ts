@@ -265,8 +265,8 @@ export const caosBulkApi = {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-      throw new Error(error.error || error.message || 'Upload failed');
+      const err = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(err.message || err.error || 'Upload failed');
     }
 
     return response.json();

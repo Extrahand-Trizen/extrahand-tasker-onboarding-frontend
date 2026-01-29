@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -74,6 +74,7 @@ type LeadFormData = z.infer<typeof leadSchema>;
 export default function AddLeadPage() {
   const router = useRouter();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   const {
     register,
@@ -255,9 +256,15 @@ export default function AddLeadPage() {
         toast.error(error.message || 'Failed to create tasker');
       }
     },
+    onSettled: () => {
+      submittingRef.current = false;
+    },
   });
 
   const onSubmit = async (data: LeadFormData) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
     // Check duplicate one more time before submitting
     if (data.phone?.trim()) {
       await checkDuplicate(data.phone.trim(), 'phone');
@@ -268,12 +275,14 @@ export default function AddLeadPage() {
     
     if (duplicateWarning) {
       toast.warning('Please resolve duplicate before creating tasker');
+      submittingRef.current = false;
       return;
     }
 
     // Ensure at least one contact number is provided
     if (!data.phone?.trim() && !data.landline?.trim()) {
       toast.error('At least one contact number (Mobile or Landline) is required');
+      submittingRef.current = false;
       return;
     }
 

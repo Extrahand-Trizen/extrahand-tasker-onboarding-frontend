@@ -1,6 +1,6 @@
 'use client';
 
-import { useState,useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { caosBulkApi } from '@/lib/api/caos-bulk';
@@ -27,6 +27,7 @@ export function BulkLeadImportForm() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const importingRef = useRef(false);
   const queryClient = useQueryClient();
 
   // Load backend preview with validation and duplicate checking
@@ -295,7 +296,8 @@ export function BulkLeadImportForm() {
 
   const proceedWithImport = () => {
     if (!file) return;
-    
+    if (importingRef.current) return;
+    importingRef.current = true;
     setShowConfirmModal(false);
     uploadMutation.mutate({
       file,
