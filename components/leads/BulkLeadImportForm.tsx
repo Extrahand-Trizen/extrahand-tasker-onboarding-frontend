@@ -384,9 +384,7 @@ export function BulkLeadImportForm() {
                         {category}
                       </SelectItem>
                     ))}
-                    {primaryCategory !== 'water-tanker' && (
-                      <SelectItem value="other">Other (specify in CSV)</SelectItem>
-                    )}
+                    <SelectItem value="other">Other (specify in CSV)</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
