@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Heart, ShieldAlert, Upload, Eye } from 'lucide-react';
 import Link from 'next/link';
-import { leadStatusLabel } from '@/lib/leadLabels';
+import { leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
 
 const statusColors: Record<Lead['status'], string> = {
@@ -207,7 +207,7 @@ export default function InterestedCandidatesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="secondary" className="text-xs">
-                            {lead.primaryCategory}
+                            {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
@@ -281,7 +281,7 @@ export default function InterestedCandidatesPage() {
                         <div>
                           <span className="text-gray-500">Primary Skill:</span>{' '}
                           <Badge variant="secondary" className="text-xs ml-1">
-                            {lead.primaryCategory}
+                            {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </Badge>
                         </div>
                         <div>

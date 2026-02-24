@@ -83,33 +83,38 @@ export function BulkLeadImportForm() {
         setPreviewData(null);
         setPreviewError(null);
 
-        // Load preview if categories are selected
-        if (primaryCategory && secondaryCategory) {
-          await loadBackendPreview(selected, primaryCategory, secondaryCategory);
+        // Load preview if categories are selected (secondary optional for water-tanker)
+        if (primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
+          await loadBackendPreview(selected, primaryCategory, secondaryCategory || undefined);
         }
       }
     },
   });
 
-  // Reload preview when categories change
+  // Reload preview when categories change (secondary optional for water-tanker)
   useEffect(() => {
-    if (file && primaryCategory && secondaryCategory) {
-      loadBackendPreview(file, primaryCategory, secondaryCategory);
+    if (file && primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
+      loadBackendPreview(file, primaryCategory, secondaryCategory || undefined);
     }
   }, [primaryCategory, secondaryCategory]);
 
   const downloadTemplateMutation = useMutation({
     mutationFn: () => {
-      if (!primaryCategory || !secondaryCategory) {
-        throw new Error('Please select primary and secondary categories first');
+      if (!primaryCategory) {
+        throw new Error('Please select a primary category first');
       }
-      return caosBulkApi.downloadTemplate(primaryCategory, secondaryCategory);
+      if (primaryCategory !== 'water-tanker' && !secondaryCategory) {
+        throw new Error('Please select a secondary category first');
+      }
+      return caosBulkApi.downloadTemplate(primaryCategory, primaryCategory === 'water-tanker' ? (secondaryCategory || undefined) : secondaryCategory);
     },
     onSuccess: (blob) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `tasker-import-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`;
+      a.download = secondaryCategory
+        ? `tasker-import-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
+        : `tasker-import-${primaryCategory}-template.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -238,6 +243,11 @@ export function BulkLeadImportForm() {
       'Event Management',
       'Party Planning'
     ],
+    'water-tanker': [
+      'Residential Water Tankers',
+      'Commercial / Construction Tankers',
+      'Emergency Water Supply'
+    ],
     other: [
       'Custom Service',
       'Other'
@@ -277,7 +287,7 @@ export function BulkLeadImportForm() {
       return;
     }
 
-    if (!secondaryCategory) {
+    if (primaryCategory !== 'water-tanker' && !secondaryCategory) {
       toast.error('Please select a secondary category');
       return;
     }
@@ -302,7 +312,7 @@ export function BulkLeadImportForm() {
     uploadMutation.mutate({
       file,
       primaryCategory,
-      secondaryCategory
+      secondaryCategory: primaryCategory === 'water-tanker' ? (secondaryCategory || '') : secondaryCategory
     });
   };
 
@@ -347,28 +357,36 @@ export function BulkLeadImportForm() {
                   <SelectItem value="beauty">Beauty & Wellness</SelectItem>
                   <SelectItem value="pet-care">Pet Care</SelectItem>
                   <SelectItem value="events">Events & Entertainment</SelectItem>
+                  <SelectItem value="water-tanker">Water & Tanker Services</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bulk-secondary-category">Secondary Category *</Label>
+              <Label htmlFor="bulk-secondary-category">
+                Secondary Category {primaryCategory === 'water-tanker' ? '(optional)' : '*'}
+              </Label>
               {primaryCategory && availableSecondaryCategories.length > 0 ? (
                 <Select
-                  value={secondaryCategory}
-                  onValueChange={setSecondaryCategory}
+                  value={secondaryCategory || (primaryCategory === 'water-tanker' ? '__general__' : undefined)}
+                  onValueChange={(v) => setSecondaryCategory(v === '__general__' ? '' : v)}
                 >
                   <SelectTrigger id="bulk-secondary-category">
-                    <SelectValue placeholder="Select secondary category" />
+                    <SelectValue placeholder={primaryCategory === 'water-tanker' ? 'Select or leave as General' : 'Select secondary category'} />
                   </SelectTrigger>
                   <SelectContent>
+                    {primaryCategory === 'water-tanker' && (
+                      <SelectItem value="__general__">General water tanker services</SelectItem>
+                    )}
                     {availableSecondaryCategories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
                     ))}
-                    <SelectItem value="other">Other (specify in CSV)</SelectItem>
+                    {primaryCategory !== 'water-tanker' && (
+                      <SelectItem value="other">Other (specify in CSV)</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               ) : (
@@ -393,8 +411,10 @@ export function BulkLeadImportForm() {
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Download CSV Template</p>
                   <p className="text-xs text-gray-500">
-                    {primaryCategory && secondaryCategory 
-                      ? `Template for ${primaryCategory} - ${secondaryCategory}`
+                    {primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')
+                      ? secondaryCategory
+                        ? `Template for ${primaryCategory} - ${secondaryCategory}`
+                        : `Template for ${primaryCategory} (general)`
                       : 'Select categories above to download template'}
                   </p>
                 </div>
@@ -403,7 +423,7 @@ export function BulkLeadImportForm() {
                 variant="outline"
                 size="sm"
                 onClick={() => downloadTemplateMutation.mutate()}
-                disabled={!primaryCategory || !secondaryCategory || downloadTemplateMutation.isPending}
+                disabled={!primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory) || downloadTemplateMutation.isPending}
               >
                 {downloadTemplateMutation.isPending ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -413,9 +433,10 @@ export function BulkLeadImportForm() {
                 Download Template
               </Button>
             </div>
-            {primaryCategory && secondaryCategory && (
+            {primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker') && (
               <p className="text-xs text-gray-600 mt-2">
-                The template will be pre-configured for <strong>{primaryCategory}</strong> - <strong>{secondaryCategory}</strong>. 
+                The template will be pre-configured for <strong>{primaryCategory}</strong>
+                {secondaryCategory ? <> - <strong>{secondaryCategory}</strong></> : ' (general)'}.
                 You don't need to include category columns in your CSV.
               </p>
             )}
@@ -537,7 +558,9 @@ export function BulkLeadImportForm() {
                           <td className="px-2 py-2 border-b whitespace-nowrap">{row.landline || '-'}</td>
                           <td className="px-2 py-2 border-b whitespace-nowrap">{row.city}</td>
                           <td className="px-2 py-2 border-b whitespace-nowrap text-xs">
-                            {row.primaryCategory} - {row.secondaryCategory}
+                            {row.primaryCategory === 'water-tanker' && !row.secondaryCategory
+                              ? 'Water & Tanker Services (General)'
+                              : `${row.primaryCategory}${row.secondaryCategory ? ` - ${row.secondaryCategory}` : ''}`}
                           </td>
                           <td className="px-2 py-2 border-b">
                             {row.errors.length > 0 ? (
@@ -574,7 +597,7 @@ export function BulkLeadImportForm() {
             {/* Upload Button */}
             <Button
               onClick={handleUpload}
-              disabled={!file || !primaryCategory || !secondaryCategory || uploadMutation.isPending}
+              disabled={!file || !primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory) || uploadMutation.isPending}
               className="w-full mt-4"
             >
               {uploadMutation.isPending ? (
@@ -659,7 +682,10 @@ export function BulkLeadImportForm() {
                           {row.name} ({row.phone})
                         </p>
                         <p className="text-xs text-gray-600 mt-1">
-                          <span className="font-medium">New Category:</span> {row.primaryCategory} - {row.secondaryCategory}
+                          <span className="font-medium">New Category:</span>{' '}
+                          {row.primaryCategory === 'water-tanker' && !row.secondaryCategory
+                            ? 'Water & Tanker Services (General)'
+                            : `${row.primaryCategory}${row.secondaryCategory ? ` - ${row.secondaryCategory}` : ''}`}
                         </p>
                         <p className="text-xs text-orange-700 mt-1">
                           <span className="font-medium">Existing Category:</span> {row.existingPrimaryCategory || 'N/A'} - {row.existingSecondaryCategory || 'N/A'}

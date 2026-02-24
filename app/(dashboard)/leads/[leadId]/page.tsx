@@ -21,7 +21,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { DocumentsSection } from '@/components/leads/DocumentsSection';
 import { SkillsSection } from '@/components/leads/SkillsSection';
-import { leadStatusLabel } from '@/lib/leadLabels';
+import { leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -401,15 +401,11 @@ function LeadDetailContent() {
               </Badge>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-2">Primary Category</p>
-              <p className="font-medium">{lead.primaryCategory || (lead as any).primarySkill || 'Not specified'}</p>
+              <p className="text-sm text-gray-600 mb-2">Category</p>
+              <p className="font-medium">
+                {categoryDisplay(lead.primaryCategory || (lead as any).primarySkill, lead.secondaryCategory || (lead as any).secondarySkill)}
+              </p>
             </div>
-            {(lead.secondaryCategory || (lead as any).secondarySkill) && (
-              <div>
-                <p className="text-sm text-gray-600 mb-2">Secondary Category</p>
-                <p className="font-medium">{lead.secondaryCategory || (lead as any).secondarySkill || 'Not specified'}</p>
-              </div>
-            )}
             <div>
               <p className="text-sm text-gray-600 mb-2">Source</p>
               <p className="font-medium capitalize">{lead.source}</p>

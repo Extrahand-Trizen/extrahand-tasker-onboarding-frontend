@@ -37,37 +37,42 @@ const leadSchema = z.object({
     'beauty',
     'pet-care',
     'events',
+    'water-tanker',
     'other'
   ], {
     message: 'Please select a primary category',
   }),
-  secondaryCategory: z.string()
-    .min(1, 'Secondary category is required')
-    .refine(
-      (val) => {
-        const trimmed = val.trim();
-        // Value must not be empty and if it's "other", user must have typed a custom value
-        return trimmed.length > 0 && trimmed !== 'other';
-      },
-      { message: 'Please specify the secondary category' }
-    ),
+  secondaryCategory: z.string().optional().default(''),
   experienceLevel: z.enum(['beginner', 'intermediate', 'experienced'], {
     message: 'Please select an experience level',
   }),
   workingDays: z.string().optional(),
   preferredTimeSlot: z.string().optional(),
   source: z.enum(['referral', 'campaign', 'walk-in', 'agent', 'other']),
-}).refine(
-  (data) => {
-    const phone = data.phone?.trim();
-    const landline = data.landline?.trim();
-    return (phone && phone.length > 0) || (landline && landline.length > 0);
-  },
-  {
-    message: 'At least one contact number (Mobile or Landline) is required',
-    path: ['phone'], // Show error on phone field
-  }
-);
+})
+  .refine(
+    (data) => {
+      const phone = data.phone?.trim();
+      const landline = data.landline?.trim();
+      return (phone && phone.length > 0) || (landline && landline.length > 0);
+    },
+    {
+      message: 'At least one contact number (Mobile or Landline) is required',
+      path: ['phone'],
+    }
+  )
+  .superRefine((data, ctx) => {
+    // Secondary category required for all primary categories except water-tanker (generalized service)
+    if (data.primaryCategory === 'water-tanker') return;
+    const trimmed = (data.secondaryCategory ?? '').trim();
+    if (trimmed.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Secondary category is required', path: ['secondaryCategory'] });
+      return;
+    }
+    if (trimmed === 'other') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please specify the secondary category', path: ['secondaryCategory'] });
+    }
+  });
 
 type LeadFormData = z.infer<typeof leadSchema>;
 
@@ -212,6 +217,11 @@ export default function AddLeadPage() {
       'Event Management',
       'Party Planning'
     ],
+    'water-tanker': [
+      'Residential Water Tankers',
+      'Commercial / Construction Tankers',
+      'Emergency Water Supply'
+    ],
     other: [
       'Custom Service',
       'Other'
@@ -286,7 +296,8 @@ export default function AddLeadPage() {
       return;
     }
 
-    createLeadMutation.mutate(data);
+    const payload = { ...data, secondaryCategory: data.secondaryCategory === '__general__' ? '' : (data.secondaryCategory ?? '') };
+    createLeadMutation.mutate(payload);
   };
 
   return (
@@ -462,6 +473,7 @@ export default function AddLeadPage() {
                     <SelectItem value="beauty" className="hover:bg-gray-100 cursor-pointer">Beauty & Wellness</SelectItem>
                     <SelectItem value="pet-care" className="hover:bg-gray-100 cursor-pointer">Pet Care</SelectItem>
                     <SelectItem value="events" className="hover:bg-gray-100 cursor-pointer">Events & Entertainment</SelectItem>
+                    <SelectItem value="water-tanker" className="hover:bg-gray-100 cursor-pointer">Water & Tanker Services</SelectItem>
                     <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -471,13 +483,15 @@ export default function AddLeadPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="secondaryCategory">Secondary Category *</Label>
+                <Label htmlFor="secondaryCategory">
+                  Secondary Category {primaryCategoryValue === 'water-tanker' ? '(optional – leave blank for general)' : '*'}
+                </Label>
                 {primaryCategoryValue && availableSecondaryCategories.length > 0 ? (
                   <div className="flex gap-2">
                     <Select
-                      value={secondaryCategoryValue || undefined}
+                      value={secondaryCategoryValue || (primaryCategoryValue === 'water-tanker' ? '__general__' : undefined)}
                       onValueChange={(value) => {
-                        setValue('secondaryCategory', value, { shouldValidate: true });
+                        setValue('secondaryCategory', value === '__general__' ? '' : value, { shouldValidate: true });
                         trigger('secondaryCategory');
                       }}
                     >
@@ -485,9 +499,12 @@ export default function AddLeadPage() {
                         id="secondaryCategory"
                         className={`bg-white flex-1 ${errors.secondaryCategory ? 'border-red-500' : ''}`}
                       >
-                        <SelectValue placeholder="Select secondary category" />
+                        <SelectValue placeholder={primaryCategoryValue === 'water-tanker' ? 'Select or leave as General' : 'Select secondary category'} />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
+                        {primaryCategoryValue === 'water-tanker' && (
+                          <SelectItem value="__general__" className="hover:bg-gray-100 cursor-pointer">General water tanker services</SelectItem>
+                        )}
                         {availableSecondaryCategories.map((category) => (
                           <SelectItem 
                             key={category} 
@@ -497,7 +514,9 @@ export default function AddLeadPage() {
                             {category}
                           </SelectItem>
                         ))}
-                        <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other (specify below)</SelectItem>
+                        {primaryCategoryValue !== 'water-tanker' && (
+                          <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other (specify below)</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     {secondaryCategoryValue && secondaryCategoryValue !== 'other' && (

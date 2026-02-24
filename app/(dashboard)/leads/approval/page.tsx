@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { CheckCircle, XCircle, AlertCircle, CheckSquare, Square, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
-import { leadStatusLabel } from '@/lib/leadLabels';
+import { leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import {
   Dialog,
   DialogContent,
@@ -270,7 +270,7 @@ export default function ApprovalQueuePage() {
                             <span className="text-gray-600">City:</span> {lead.city}
                           </div>
                           <div>
-                            <span className="text-gray-600">Skill:</span> {lead.primaryCategory}
+                            <span className="text-gray-600">Skill:</span> {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </div>
                           <div>
                             <span className="text-gray-600">Tasker ID:</span> {lead.leadId}

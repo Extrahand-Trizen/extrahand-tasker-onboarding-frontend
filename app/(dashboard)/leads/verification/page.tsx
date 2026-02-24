@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, Clock, Eye, FileText, Loader2, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
-import { leadStatusLabel } from '@/lib/leadLabels';
+import { leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 
 const documentTypeLabels: Record<Lead['documents'][0]['type'], string> = {
   aadhaar: 'Aadhaar',
@@ -240,7 +240,7 @@ export default function VerificationQueuePage() {
                           <span className="font-medium">City:</span> {lead.city}
                         </div>
                         <div>
-                          <span className="font-medium">Skill:</span> {lead.primaryCategory}
+                          <span className="font-medium">Skill:</span> {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                         </div>
                         <div>
                           <span className="font-medium">ID:</span> {lead.leadId.slice(0, 8)}...

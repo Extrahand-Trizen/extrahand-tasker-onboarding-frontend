@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Briefcase, CheckCircle } from 'lucide-react';
+import { categoryDisplay } from '@/lib/leadLabels';
 
 interface SkillsSectionProps {
   lead: Lead;
@@ -144,16 +145,13 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
                   <Briefcase className="h-5 w-5 text-gray-400" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium">{lead.primaryCategory || (lead as any).primarySkill}</p>
+                      <p className="font-medium">
+                        {categoryDisplay(lead.primaryCategory || (lead as any).primarySkill, lead.secondaryCategory || (lead as any).secondarySkill)}
+                      </p>
                       <Badge className="border border-gray-200 bg-gray-50 text-gray-700">
                         Primary Category
                       </Badge>
                     </div>
-                    {(lead as any).secondaryCategory && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Secondary: {(lead as any).secondaryCategory}
-                      </p>
-                    )}
                   </div>
                 </div>
               )}

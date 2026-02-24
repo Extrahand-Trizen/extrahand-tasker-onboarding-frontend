@@ -57,9 +57,9 @@ export function BulkUploadForm() {
         setPreviewData(null);
         setPreviewError(null);
 
-        // Only load preview for create operation if categories are selected
-        if (operationType === 'create' && primaryCategory && secondaryCategory) {
-          await loadBackendPreview(selected, primaryCategory, secondaryCategory);
+        // Only load preview for create operation if categories are selected (secondary optional for water-tanker)
+        if (operationType === 'create' && primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
+          await loadBackendPreview(selected, primaryCategory, secondaryCategory || undefined);
         } else if (operationType !== 'create') {
           // For update/delete, can preview without categories
           await loadBackendPreview(selected);
@@ -106,10 +106,10 @@ export function BulkUploadForm() {
     }
   };
 
-  // Reload preview when categories change (for create operation)
+  // Reload preview when categories change (for create operation; secondary optional for water-tanker)
   useEffect(() => {
-    if (file && operationType === 'create' && primaryCategory && secondaryCategory) {
-      loadBackendPreview(file, primaryCategory, secondaryCategory);
+    if (file && operationType === 'create' && primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
+      loadBackendPreview(file, primaryCategory, secondaryCategory || undefined);
     }
   }, [primaryCategory, secondaryCategory]);
 
@@ -230,6 +230,11 @@ export function BulkUploadForm() {
       'Event Management',
       'Party Planning'
     ],
+    'water-tanker': [
+      'Residential Water Tankers',
+      'Commercial / Construction Tankers',
+      'Emergency Water Supply'
+    ],
     other: [
       'Custom Service',
       'Other'
@@ -241,21 +246,27 @@ export function BulkUploadForm() {
     : [];
 
   const handleDownloadTemplate = async () => {
-    if (operationType === 'create' && (!primaryCategory || !secondaryCategory)) {
-      toast.error('Please select primary and secondary categories first');
+    if (operationType === 'create' && !primaryCategory) {
+      toast.error('Please select a primary category first');
+      return;
+    }
+    if (operationType === 'create' && primaryCategory !== 'water-tanker' && !secondaryCategory) {
+      toast.error('Please select a secondary category first');
       return;
     }
     try {
       const blob = await adminApi.downloadTemplate(
         operationType, 
         operationType === 'create' ? primaryCategory : undefined,
-        operationType === 'create' ? secondaryCategory : undefined
+        operationType === 'create' ? (primaryCategory === 'water-tanker' ? (secondaryCategory || undefined) : secondaryCategory) : undefined
       );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const filename = operationType === 'create' && primaryCategory && secondaryCategory
-        ? `tasker-${operationType}-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
+      const filename = operationType === 'create' && primaryCategory
+        ? secondaryCategory
+          ? `tasker-${operationType}-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
+          : `tasker-${operationType}-${primaryCategory}-template.csv`
         : `tasker-${operationType}-template.csv`;
       a.download = filename;
       a.click();
@@ -283,8 +294,12 @@ export function BulkUploadForm() {
       return;
     }
 
-    if (operationType === 'create' && (!primaryCategory || !secondaryCategory)) {
-      toast.error('Please select primary and secondary categories first');
+    if (operationType === 'create' && !primaryCategory) {
+      toast.error('Please select a primary category first');
+      return;
+    }
+    if (operationType === 'create' && primaryCategory !== 'water-tanker' && !secondaryCategory) {
+      toast.error('Please select a secondary category first');
       return;
     }
 
@@ -301,7 +316,7 @@ export function BulkUploadForm() {
       const response = await adminApi.bulkUploadUsers(
         file,
         operationType === 'create' ? primaryCategory : undefined,
-        operationType === 'create' ? secondaryCategory : undefined,
+        operationType === 'create' ? (primaryCategory === 'water-tanker' ? (secondaryCategory || '') : secondaryCategory) : undefined,
         sendEmails
       );
       
@@ -436,28 +451,36 @@ export function BulkUploadForm() {
                     <SelectItem value="beauty">Beauty & Wellness</SelectItem>
                     <SelectItem value="pet-care">Pet Care</SelectItem>
                     <SelectItem value="events">Events & Entertainment</SelectItem>
+                    <SelectItem value="water-tanker">Water & Tanker Services</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bulk-secondary-category">Secondary Category *</Label>
+                <Label htmlFor="bulk-secondary-category">
+                  Secondary Category {primaryCategory === 'water-tanker' ? '(optional)' : '*'}
+                </Label>
                 {primaryCategory && availableSecondaryCategories.length > 0 ? (
                   <Select
-                    value={secondaryCategory}
-                    onValueChange={setSecondaryCategory}
+                    value={secondaryCategory || (primaryCategory === 'water-tanker' ? '__general__' : undefined)}
+                    onValueChange={(v) => setSecondaryCategory(v === '__general__' ? '' : v)}
                   >
                     <SelectTrigger id="bulk-secondary-category">
-                      <SelectValue placeholder="Select secondary category" />
+                      <SelectValue placeholder={primaryCategory === 'water-tanker' ? 'Select or leave as General' : 'Select secondary category'} />
                     </SelectTrigger>
                     <SelectContent>
+                      {primaryCategory === 'water-tanker' && (
+                        <SelectItem value="__general__">General water tanker services</SelectItem>
+                      )}
                       {availableSecondaryCategories.map((category) => (
                         <SelectItem key={category} value={category}>
                           {category}
                         </SelectItem>
                       ))}
-                      <SelectItem value="other">Other (specify in CSV)</SelectItem>
+                      {primaryCategory !== 'water-tanker' && (
+                        <SelectItem value="other">Other (specify in CSV)</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 ) : (
@@ -469,10 +492,11 @@ export function BulkUploadForm() {
                 )}
               </div>
             </div>
-            {primaryCategory && secondaryCategory && (
+            {primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker') && (
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  All rows in your CSV will be assigned <strong>{primaryCategory}</strong> - <strong>{secondaryCategory}</strong>. 
+                  All rows in your CSV will be assigned <strong>{primaryCategory}</strong>
+                  {secondaryCategory ? <> - <strong>{secondaryCategory}</strong></> : ' (general)'}.
                   You don't need to include category columns in your CSV.
                 </p>
               </div>
@@ -492,8 +516,10 @@ export function BulkUploadForm() {
                 {operationType === 'delete' && 'Upload CSV/Excel to Delete Users'}
               </CardTitle>
               <CardDescription className="text-sm text-gray-500">
-                {operationType === 'create' && (primaryCategory && secondaryCategory 
-                  ? `Template for ${primaryCategory} - ${secondaryCategory}`
+                {operationType === 'create' && (primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')
+                  ? secondaryCategory
+                    ? `Template for ${primaryCategory} - ${secondaryCategory}`
+                    : `Template for ${primaryCategory} (general)`
                   : 'Select categories above to download template')}
                 {operationType === 'update' && 'Download template for updating existing users'}
                 {operationType === 'delete' && 'Download template for deleting users'}
@@ -502,7 +528,7 @@ export function BulkUploadForm() {
             <Button 
               variant="outline" 
               onClick={handleDownloadTemplate}
-              disabled={operationType === 'create' && (!primaryCategory || !secondaryCategory)}
+              disabled={operationType === 'create' && (!primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory))}
             >
               <Download className="w-4 h-4 mr-2" />
               Download Template
@@ -639,7 +665,9 @@ export function BulkUploadForm() {
                         <td className="px-2 py-2 border-b whitespace-nowrap">{row.phone || '-'}</td>
                         <td className="px-2 py-2 border-b whitespace-nowrap">{row.city}</td>
                         <td className="px-2 py-2 border-b whitespace-nowrap text-xs">
-                          {row.primaryCategory} - {row.secondaryCategory}
+                          {row.primaryCategory === 'water-tanker' && !row.secondaryCategory
+                            ? 'Water & Tanker Services (General)'
+                            : `${row.primaryCategory}${row.secondaryCategory ? ` - ${row.secondaryCategory}` : ''}`}
                         </td>
                         <td className="px-2 py-2 border-b">
                           {row.errors.length > 0 ? (
@@ -707,7 +735,7 @@ export function BulkUploadForm() {
           {/* Upload Button */}
           <Button
             onClick={handleUpload}
-            disabled={!file || uploading || (operationType === 'create' && (!primaryCategory || !secondaryCategory))}
+            disabled={!file || uploading || (operationType === 'create' && (!primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory)))}
             className="w-full"
           >
             {uploading ? 'Uploading...' : previewData ? `Import ${previewData.summary.valid} Valid Leads` : 'Upload & Process'}
