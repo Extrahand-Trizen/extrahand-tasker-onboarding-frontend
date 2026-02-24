@@ -42,7 +42,7 @@ const leadSchema = z.object({
   ], {
     message: 'Please select a primary category',
   }),
-  secondaryCategory: z.string().optional().default(''),
+  secondaryCategory: z.string().default(''),
   experienceLevel: z.enum(['beginner', 'intermediate', 'experienced'], {
     message: 'Please select an experience level',
   }),
