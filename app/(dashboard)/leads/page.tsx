@@ -125,8 +125,8 @@ export default function LeadsPage() {
     bulkDeleteMutation.mutate(Array.from(selectedLeads));
   };
 
-  // Check if user can delete (onboarder or lead_access_manager)
-  const canDelete = role === 'onboarder' || role === 'lead_access_manager';
+  // Only lead_access_manager can delete leads; onboarder can view All Leads but not delete
+  const canDelete = role === 'lead_access_manager';
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">

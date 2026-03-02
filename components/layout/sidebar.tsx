@@ -16,7 +16,7 @@ const navigation: Array<{
 }> = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'My Leads List', href: '/leads', icon: Users },
-  { name: 'All Leads', href: '/leads/all', icon: UsersRound, roles: ['lead_access_manager'] },
+  { name: 'All Leads', href: '/leads/all', icon: UsersRound, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Add Lead', href: '/leads/new', icon: FileText },
   { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['onboarder', 'lead_access_manager'] },

@@ -48,17 +48,18 @@ export default function AllLeadsPage() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Redirect if not lead_access_manager
-  if (!authLoading && role !== 'lead_access_manager') {
+  // Allow onboarder and lead_access_manager to view All Leads (delete only for lead_access_manager)
+  const canViewAllLeads = role === 'onboarder' || role === 'lead_access_manager';
+  if (!authLoading && !canViewAllLeads) {
     router.replace('/leads');
     return null;
   }
 
-  // Fetch lead creators for the filter dropdown
+  // Fetch lead creators for the filter dropdown (both onboarder and lead_access_manager can view all leads)
   const { data: creatorsData } = useQuery({
     queryKey: ['lead-creators'],
     queryFn: () => caosApi.getLeadCreators(),
-    enabled: !authLoading && role === 'lead_access_manager',
+    enabled: !authLoading && canViewAllLeads,
   });
 
   const leadCreators = creatorsData?.data || [];
@@ -73,7 +74,7 @@ export default function AllLeadsPage() {
         page,
         limit,
       }),
-    enabled: !authLoading && role === 'lead_access_manager',
+    enabled: !authLoading && canViewAllLeads,
   });
 
   const leads = data?.data || [];
@@ -151,7 +152,7 @@ export default function AllLeadsPage() {
     );
   }
 
-  if (role !== 'lead_access_manager') {
+  if (!canViewAllLeads) {
     return null;
   }
 
