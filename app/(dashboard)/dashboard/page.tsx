@@ -22,17 +22,15 @@ export default function DashboardPage() {
 
   const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
 
-  // Counts only for onboarder & lead_access_manager
+  // Counts only for onboarder & lead_access_manager (enabled: false for other roles)
   const countQueries = useQueries({
-    queries: isOnboarderOrManager
-      ? [
-          { queryKey: ["interested-count"], queryFn: () => caosApi.getInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000 },
-          { queryKey: ["not-interested-count"], queryFn: () => caosApi.getNotInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000 },
-          { queryKey: ["count-not-registered"], queryFn: () => caosApi.searchLeads({ registrationStatus: "not_registered", page: 1, limit: 1 }), staleTime: 60_000 },
-          { queryKey: ["count-registered"], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered", page: 1, limit: 1 }), staleTime: 60_000 },
-          { queryKey: ["count-registered-verified"], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered_verified", page: 1, limit: 1 }), staleTime: 60_000 },
-        ]
-      : [],
+    queries: [
+      { queryKey: ["interested-count", isOnboarderOrManager], queryFn: () => caosApi.getInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
+      { queryKey: ["not-interested-count", isOnboarderOrManager], queryFn: () => caosApi.getNotInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
+      { queryKey: ["count-not-registered", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "not_registered", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
+      { queryKey: ["count-registered", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
+      { queryKey: ["count-registered-verified", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered_verified", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
+    ],
   });
 
   const stats = {
