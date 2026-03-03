@@ -61,13 +61,13 @@ function ConversionStatusCard({
   let statusLabel: string;
   let statusBadgeClass: string;
   if (!converted) {
-    statusLabel = 'Not converted';
+    statusLabel = 'Not registered';
     statusBadgeClass = 'bg-gray-100 text-gray-800';
   } else if (!verified) {
-    statusLabel = 'Converted – verification pending';
+    statusLabel = 'Registered';
     statusBadgeClass = 'bg-amber-100 text-amber-800';
   } else {
-    statusLabel = 'Converted & verified';
+    statusLabel = 'Registered and verified';
     statusBadgeClass = 'bg-green-100 text-green-800';
   }
 
@@ -79,7 +79,7 @@ function ConversionStatusCard({
           Platform status
         </CardTitle>
         <CardDescription className="text-sm text-gray-500">
-          Whether this lead has registered on the main website and verified Aadhaar
+          Registration and Aadhaar verification status on the main website
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -116,7 +116,7 @@ function ConversionStatusCard({
           </Button>
         )}
         {!hasPhone && (
-          <p className="text-sm text-amber-700">No phone number – cannot check conversion status</p>
+          <p className="text-sm text-amber-700">No phone number – cannot check registration status</p>
         )}
       </CardContent>
     </Card>

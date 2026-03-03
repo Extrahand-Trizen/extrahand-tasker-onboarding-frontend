@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2, Heart, ShieldAlert, Eye } from 'lucide-react';
 import Link from 'next/link';
@@ -26,12 +27,22 @@ const statusColors: Record<Lead['status'], string> = {
   inactive: 'bg-gray-100 text-gray-500',
 };
 
+function getRegistrationLabel(lead: Lead): { label: string; className: string } {
+  const cd = lead.conversionData;
+  const hasUid = !!(cd?.platformUid);
+  const verified = !!cd?.isAadhaarVerified;
+  if (!hasUid) return { label: 'Not registered', className: 'bg-gray-100 text-gray-800' };
+  if (!verified) return { label: 'Registered', className: 'bg-amber-100 text-amber-800' };
+  return { label: 'Registered and verified', className: 'bg-green-100 text-green-800' };
+}
+
 export default function InterestedCandidatesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { role, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
+  const [registrationFilter, setRegistrationFilter] = useState<'all' | 'not_registered' | 'registered' | 'registered_verified'>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
 
@@ -46,8 +57,14 @@ export default function InterestedCandidatesPage() {
   }, [authLoading, canAccess, router]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['interested-candidates', page, searchCity, searchSkill],
-    queryFn: () => caosApi.getInterestedCandidates({ city: searchCity, primarySkill: searchSkill, page, limit }),
+    queryKey: ['interested-candidates', page, searchCity, searchSkill, registrationFilter],
+    queryFn: () => caosApi.getInterestedCandidates({
+      city: searchCity,
+      primarySkill: searchSkill,
+      page,
+      limit,
+      registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
+    }),
     enabled: canAccess,
   });
 
@@ -88,19 +105,17 @@ export default function InterestedCandidatesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Interested Candidates</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-1.5">
-            {total} interested candidates
-          </p>
-        </div>
+      <div className="flex items-baseline gap-3 flex-wrap">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Interested Candidates</h1>
+        <span className="inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1">
+          {total} {total === 1 ? 'person' : 'people'}
+        </span>
       </div>
 
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
@@ -127,12 +142,33 @@ export default function InterestedCandidatesPage() {
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
+            <div>
+              <Label htmlFor="registration-filter" className="text-sm font-medium text-gray-700">Registration status</Label>
+              <Select
+                value={registrationFilter}
+                onValueChange={(value: 'all' | 'not_registered' | 'registered' | 'registered_verified') => {
+                  setRegistrationFilter(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger id="registration-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="not_registered">Not registered</SelectItem>
+                  <SelectItem value="registered">Registered</SelectItem>
+                  <SelectItem value="registered_verified">Registered and verified</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-end sm:col-span-2 md:col-span-1">
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchCity('');
                   setSearchSkill('');
+                  setRegistrationFilter('all');
                   setPage(1);
                 }}
                 className="w-full"
@@ -180,12 +216,17 @@ export default function InterestedCandidatesPage() {
                         Primary Skill
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Registration
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {leads.map((lead) => (
+                    {leads.map((lead) => {
+                      const reg = getRegistrationLabel(lead);
+                      return (
                       <tr key={lead.leadId} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <div className="font-medium text-gray-900">{lead.name}</div>
@@ -207,6 +248,11 @@ export default function InterestedCandidatesPage() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
+                          <Badge className={`text-xs ${reg.className}`}>
+                            {reg.label}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
                           <Link href={`/leads/${lead.leadId}`}>
                             <Button variant="outline" size="sm">
                               <Eye className="h-4 w-4 mr-1" />
@@ -215,14 +261,16 @@ export default function InterestedCandidatesPage() {
                           </Link>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4">
-                {leads.map((lead) => (
+                {leads.map((lead) => {
+                  const reg = getRegistrationLabel(lead);
+                  return (
                   <Card key={lead.leadId} className="border-gray-200">
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between mb-3">
@@ -232,9 +280,14 @@ export default function InterestedCandidatesPage() {
                             {lead.createdAt ? format(new Date(lead.createdAt), 'MMM dd, yyyy') : '-'}
                           </p>
                         </div>
-                        <Badge className={statusColors[lead.status]}>
-                          {leadStatusLabel(lead.status)}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge className={statusColors[lead.status]}>
+                            {leadStatusLabel(lead.status)}
+                          </Badge>
+                          <Badge className={`text-xs ${reg.className}`}>
+                            {reg.label}
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="space-y-2 text-sm">
@@ -273,7 +326,7 @@ export default function InterestedCandidatesPage() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                );})}
               </div>
 
               {/* Pagination */}

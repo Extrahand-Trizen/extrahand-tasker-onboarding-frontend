@@ -238,6 +238,7 @@ export interface SearchLeadsParams {
   endDate?: string;
   page?: number;
   limit?: number;
+  registrationStatus?: 'not_registered' | 'registered' | 'registered_verified';
 }
 
 export interface SearchLeadsResponse {
@@ -804,8 +805,9 @@ export const caosApi = {
 
   /**
    * Get interested candidates queue
+   * registrationStatus: not_registered | registered | registered_verified
    */
-  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number }): Promise<{
+  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified' }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -841,7 +843,6 @@ export const caosApi = {
     }
 
     const result = await response.json();
-    // Transform the response to match the queue format
     return {
       success: result.success,
       data: {

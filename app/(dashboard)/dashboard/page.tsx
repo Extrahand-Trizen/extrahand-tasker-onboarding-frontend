@@ -1,63 +1,67 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { caosApi } from "@/lib/api/caos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, CheckCircle } from "lucide-react";
+import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus } from "lucide-react";
 import { useJWTAuth } from "@/lib/hooks/useJWTAuth";
 
 export default function DashboardPage() {
-  const { data: leadsData, isLoading } = useQuery({
-    queryKey: ["leads", "dashboard"],
-    queryFn: () => caosApi.searchLeads({ limit: 100 }),
-  });
-
   const { role } = useJWTAuth();
 
+  const { data: leadsData, isLoading } = useQuery({
+    queryKey: ["leads", "dashboard"],
+    queryFn: () => caosApi.searchLeads({ limit: 1 }),
+  });
+
+  const { data: approvedData } = useQuery({
+    queryKey: ["leads", "dashboard", "approved"],
+    queryFn: () => caosApi.searchLeads({ status: "approved", limit: 1 }),
+    enabled: role !== "qualifier",
+  });
+
+  const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
+
+  // Counts only for onboarder & lead_access_manager
+  const countQueries = useQueries({
+    queries: isOnboarderOrManager
+      ? [
+          { queryKey: ["interested-count"], queryFn: () => caosApi.getInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000 },
+          { queryKey: ["not-interested-count"], queryFn: () => caosApi.getNotInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000 },
+          { queryKey: ["count-not-registered"], queryFn: () => caosApi.searchLeads({ registrationStatus: "not_registered", page: 1, limit: 1 }), staleTime: 60_000 },
+          { queryKey: ["count-registered"], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered", page: 1, limit: 1 }), staleTime: 60_000 },
+          { queryKey: ["count-registered-verified"], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered_verified", page: 1, limit: 1 }), staleTime: 60_000 },
+        ]
+      : [],
+  });
+
   const stats = {
-    total: leadsData?.pagination.total || 0,
-    approved:
-      leadsData?.data.filter((l) => l.status === "approved").length || 0,
-    // ✅ UPDATED: Check accountStatus instead of lead status
-    activated:
-      leadsData?.data.filter(
-        (l) => l.accountStatus === "activated" || l.activationData?.firebaseUid,
-      ).length || 0,
+    total: leadsData?.pagination?.total ?? 0,
+    approved: approvedData?.pagination?.total ?? 0,
   };
 
+  const interestedTotal = countQueries[0]?.data?.data?.total ?? 0;
+  const notInterestedTotal = countQueries[1]?.data?.data?.total ?? 0;
+  const notRegisteredTotal = countQueries[2]?.data?.pagination?.total ?? 0;
+  const registeredTotal = countQueries[3]?.data?.pagination?.total ?? 0;
+  const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
   const statCards =
     role === "qualifier"
       ? [
-          {
-            title: "My Leads",
-            value: stats.total,
-            icon: Users,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
-          },
+          { title: "My Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
         ]
       : [
-          {
-            title: "Total Leads",
-            value: stats.total,
-            icon: Users,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
-          },
-          {
-            title: "Ready to Invite",
-            value: stats.approved,
-            icon: CheckCircle,
-            color: "text-green-600",
-            bg: "bg-green-50",
-          },
-          {
-            title: "Accounts Created",
-            value: stats.activated,
-            icon: UserPlus,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
-          },
+          { title: "Total Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
+          { title: "Ready to Invite", value: stats.approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
+          ...(isOnboarderOrManager
+            ? [
+                { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50" },
+                { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50" },
+                { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
+                { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50" },
+                { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" },
+              ]
+            : []),
         ];
 
   return (
@@ -72,8 +76,8 @@ export default function DashboardPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {[1, 2, 3, 4, 5].map((i) => (
             <Card key={i} className="animate-pulse border-gray-200">
               <CardHeader>
                 <div className="h-4 w-32 bg-gray-200 rounded"></div>
@@ -85,7 +89,7 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {statCards.map((stat) => (
             <Card
               key={stat.title}

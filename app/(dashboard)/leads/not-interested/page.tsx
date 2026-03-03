@@ -84,13 +84,11 @@ export default function NotInterestedCandidatesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Contacted & Not Interested</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-1.5">
-            {total} candidates
-          </p>
-        </div>
+      <div className="flex items-baseline gap-3 flex-wrap">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Contacted & Not Interested</h1>
+        <span className="inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1">
+          {total} {total === 1 ? 'person' : 'people'}
+        </span>
       </div>
 
       <Card className="border-gray-200 shadow-sm">
