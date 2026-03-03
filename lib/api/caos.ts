@@ -62,6 +62,7 @@ async function getAdminToken(): Promise<string> {
   // Fallback to Firebase auth (for legacy users)
   try {
     const { auth } = await import('@/lib/config/firebase');
+    if (!auth) throw new Error('Admin not authenticated. Please login.');
     const { onAuthStateChanged } = await import('firebase/auth');
     
     const currentUser = auth.currentUser;
@@ -100,12 +101,11 @@ async function getAdminToken(): Promise<string> {
 // ✅ LEAD STATUS - CRM/Onboarding concern (ends at approved)
 export type LeadStatus = 
   | 'lead_added'
-  | 'contacted'
-  | 'interested'
+  | 'contacted_not_interested'
+  | 'contacted_interested'
   | 'documents_submitted'
   | 'under_verification'
   | 'approved'
-  | 'rejected'
   | 'inactive';
 
 // ✅ ACCOUNT STATUS - Auth/Platform concern (starts after lead approval)
@@ -192,9 +192,21 @@ export interface Lead {
     firebaseUid: string;
     profileCreated: boolean;
   };
+  conversionData?: {
+    platformUid?: string;
+    isAadhaarVerified?: boolean;
+    lastCheckedAt?: string;
+  };
   creationMethod?: CreationMethod;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ConversionStatusData {
+  converted: boolean;
+  platformUid?: string;
+  isAadhaarVerified?: boolean;
+  name?: string;
 }
 
 export interface CreateLeadData {
@@ -347,6 +359,26 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Lead not found' }));
       throw new Error(error.error || error.message || 'Lead not found');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get conversion status (did lead register on main website and verify Aadhaar?)
+   */
+  async getConversionStatus(leadId: string): Promise<{ success: boolean; data: ConversionStatusData }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/conversion-status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to get conversion status' }));
+      throw new Error(error.error || error.message || 'Failed to get conversion status');
     }
 
     return response.json();
@@ -785,7 +817,7 @@ export const caosApi = {
     const token = await getAdminToken();
 
     const queryParams = new URLSearchParams();
-    queryParams.append('status', 'interested');
+    queryParams.append('status', 'contacted_interested');
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
@@ -810,6 +842,56 @@ export const caosApi = {
 
     const result = await response.json();
     // Transform the response to match the queue format
+    return {
+      success: result.success,
+      data: {
+        leads: result.data || [],
+        total: result.pagination?.total || 0,
+        page: result.pagination?.page || 1,
+        limit: result.pagination?.limit || 20,
+      },
+    };
+  },
+
+  /**
+   * Get contacted & not interested candidates queue
+   */
+  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number }): Promise<{
+    success: boolean;
+    data: {
+      leads: Lead[];
+      total: number;
+      page: number;
+      limit: number;
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    queryParams.append('status', 'contacted_not_interested');
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch not interested candidates' }));
+      throw new Error(error.error || error.message || 'Failed to fetch not interested candidates');
+    }
+
+    const result = await response.json();
     return {
       success: result.success,
       data: {

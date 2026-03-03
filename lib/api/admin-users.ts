@@ -6,6 +6,7 @@
 async function getAdminToken(): Promise<string> {
   if (typeof window === 'undefined') throw new Error('Admin token can only be retrieved on client side');
   const { auth } = await import('@/lib/config/firebase');
+  if (!auth) throw new Error('Admin not authenticated. Please login.');
   const { onAuthStateChanged } = await import('firebase/auth');
   const currentUser = auth.currentUser;
   if (currentUser) {

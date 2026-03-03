@@ -14,25 +14,114 @@ import { toast } from 'sonner';
 import { 
   Phone, Mail, MapPin, Briefcase, Calendar, User, 
   MessageSquare, Clock, CheckCircle, XCircle,
-  ArrowLeft, Edit, Trash2
+  ArrowLeft, Edit, Trash2, RefreshCw, UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
-import { DocumentsSection } from '@/components/leads/DocumentsSection';
 import { SkillsSection } from '@/components/leads/SkillsSection';
 import { leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
-  contacted: 'bg-blue-100 text-blue-800',
-  interested: 'bg-yellow-100 text-yellow-800',
+  contacted_not_interested: 'bg-blue-100 text-blue-800',
+  contacted_interested: 'bg-yellow-100 text-yellow-800',
   documents_submitted: 'bg-purple-100 text-purple-800',
   under_verification: 'bg-orange-100 text-orange-800',
   approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
   inactive: 'bg-gray-100 text-gray-500',
 };
+
+/** Card showing whether lead has registered on main website and verified Aadhaar */
+function ConversionStatusCard({
+  leadId,
+  lead,
+  queryClient,
+}: {
+  leadId: string;
+  lead: { phone?: string; landline?: string; conversionData?: { platformUid?: string; isAadhaarVerified?: boolean; lastCheckedAt?: string } };
+  queryClient: ReturnType<typeof useQueryClient>;
+}) {
+  const hasPhone = !!(lead?.phone || (lead as any)?.landline);
+  const checkMutation = useMutation({
+    mutationFn: () => caosApi.getConversionStatus(leadId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      toast.success('Status updated');
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to check status');
+    },
+  });
+
+  const cd = lead?.conversionData;
+  const converted = !!cd?.platformUid;
+  const verified = !!cd?.isAadhaarVerified;
+
+  let statusLabel: string;
+  let statusBadgeClass: string;
+  if (!converted) {
+    statusLabel = 'Not converted';
+    statusBadgeClass = 'bg-gray-100 text-gray-800';
+  } else if (!verified) {
+    statusLabel = 'Converted – verification pending';
+    statusBadgeClass = 'bg-amber-100 text-amber-800';
+  } else {
+    statusLabel = 'Converted & verified';
+    statusBadgeClass = 'bg-green-100 text-green-800';
+  }
+
+  return (
+    <Card className="border-gray-200 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <UserCheck className="h-5 w-5 text-gray-500" />
+          Platform status
+        </CardTitle>
+        <CardDescription className="text-sm text-gray-500">
+          Whether this lead has registered on the main website and verified Aadhaar
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <p className="text-sm text-gray-600 mb-1">Status</p>
+          <Badge className={statusBadgeClass}>{statusLabel}</Badge>
+        </div>
+        {cd?.platformUid && (
+          <div>
+            <p className="text-sm text-gray-600 mb-1">Platform user ID</p>
+            <p className="font-mono text-xs text-gray-700 break-all">{cd.platformUid}</p>
+          </div>
+        )}
+        {cd?.lastCheckedAt && (
+          <p className="text-xs text-gray-500">
+            Last checked: {new Date(cd.lastCheckedAt).toLocaleString()}
+          </p>
+        )}
+        {hasPhone && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => checkMutation.mutate()}
+            disabled={checkMutation.isPending}
+          >
+            {checkMutation.isPending ? (
+              <>Checking…</>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-1.5" />
+                Check status
+              </>
+            )}
+          </Button>
+        )}
+        {!hasPhone && (
+          <p className="text-sm text-amber-700">No phone number – cannot check conversion status</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function LeadDetailContent() {
   const params = useParams();
@@ -42,7 +131,7 @@ function LeadDetailContent() {
   const { role, loading: authLoading } = useJWTAuth();
   const fromVerification = searchParams?.get('from') === 'verification';
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [newStatus, setNewStatus] = useState<LeadStatus>('contacted');
+  const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
   const [statusNotes, setStatusNotes] = useState('');
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteText, setNoteText] = useState('');
@@ -74,7 +163,7 @@ function LeadDetailContent() {
 
   // ✅ Role-based permissions
   // Lead Access Manager can move to ANY stage (full access)
-  // Qualifier can only move stages up to "interested" (Onboarder handles documents)
+  // Qualifier can only move stages up to "Contacted & Interested"
   // Onboarder can move to any stage (full access)
   // Wait for auth to load before showing/hiding button
   const isLeadAccessManager = !authLoading && role === 'lead_access_manager';
@@ -84,25 +173,20 @@ function LeadDetailContent() {
   const canUpdateLead = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
   const canDeleteLead = !authLoading && isLeadAccessManager;
   
-  // ✅ Qualifier team can only move stages up to "interested"
-  // Admin and Operations can move to ANY stage
+  // ✅ Qualifier team can only move stages up to "Contacted & Interested"
   const qualifierAllowedStatuses: LeadStatus[] = [
     'lead_added',
-    'contacted',
-    'interested'
+    'contacted_not_interested',
+    'contacted_interested'
   ];
   
-  // ✅ All available statuses (for admin and onboarder)
+  // ✅ All available statuses (for admin and onboarder) — no documents/verification stages
   const allStatuses: LeadStatus[] = [
     'lead_added',
-    'contacted',
-    'interested',
-    'documents_submitted',
-    'under_verification',
-    'approved',
-    'rejected',
-    'inactive'
-    // ❌ REMOVED: 'account_created', 'activated' - these are account statuses, not lead statuses
+    'contacted_not_interested',
+    'contacted_interested',
+    'approved'
+    // inactive: not offered in Move Stage (can still be set elsewhere if needed)
   ];
   
   // Debug: Log role for troubleshooting
@@ -154,10 +238,9 @@ function LeadDetailContent() {
         throw new Error('Unauthorized: Only qualifier team can move stages');
       }
       
-      // ✅ Qualifier can only set status up to interested
-      // ✅ FIX: Only restrict qualifier team, not admin/onboarder
+      // ✅ Qualifier can only set status up to Contacted & Interested
       if (isQualifier && !qualifierAllowedStatuses.includes(status)) {
-        toast.error(`Qualifier team can only move stages up to "Interested". After that, the verification team takes over.`);
+        toast.error(`Qualifier team can only move stages up to "Contacted & Interested". After that, the verification team takes over.`);
         throw new Error('Invalid status: Qualifier team cannot set this status');
       }
       
@@ -170,7 +253,6 @@ function LeadDetailContent() {
       setStatusNotes('');
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
-      queryClient.invalidateQueries({ queryKey: ['verification-queue'] });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to update status');
@@ -428,6 +510,9 @@ function LeadDetailContent() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Platform status (converted & verified on main website) */}
+        <ConversionStatusCard leadId={leadId} lead={lead} queryClient={queryClient} />
       </div>
 
       {/* Onboarding Checklist - Hidden for bulk upload taskers */}
@@ -517,9 +602,6 @@ function LeadDetailContent() {
         </Card>
       )}
 
-      {/* Documents Section */}
-      <DocumentsSection lead={lead} leadId={leadId} />
-
       {/* Skills Section */}
       <SkillsSection lead={lead} leadId={leadId} />
 
@@ -567,7 +649,7 @@ function LeadDetailContent() {
               <CardTitle className="text-lg font-semibold text-gray-900">Move Stage</CardTitle>
               {isQualifier && (
                 <p className="text-sm text-gray-600 mt-1">
-                  You can move stages up to "Interested". After that, the verification team will review and approve.
+                  You can move stages up to &quot;Contacted & Interested&quot;. After that, the verification team will review and approve.
                 </p>
               )}
               {(isLeadAccessManager || isOnboarder) && (
@@ -585,7 +667,7 @@ function LeadDetailContent() {
                     const selectedStatus = value as LeadStatus;
                     // ✅ Only restrict qualifier team - admin and onboarder can select any status
                     if (isQualifier && !qualifierAllowedStatuses.includes(selectedStatus)) {
-                      toast.error('Qualifier team can only move stages up to "Interested". Onboarder team will handle document collection.');
+                      toast.error('Qualifier team can only move stages up to "Contacted & Interested". Onboarder team will handle the rest.');
                       return;
                     }
                     setNewStatus(selectedStatus);
@@ -595,26 +677,18 @@ function LeadDetailContent() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {/* ✅ Qualifier team can only select up to "Interested" */}
-                    {/* ✅ Admin and Operations can select ANY status */}
                     {isQualifier ? (
                       <>
-                        <SelectItem value="lead_added">New Lead</SelectItem>
-                        <SelectItem value="contacted">Contacted</SelectItem>
-                        <SelectItem value="interested">Interested</SelectItem>
+                        <SelectItem value="lead_added">{leadStatusLabel('lead_added')}</SelectItem>
+                        <SelectItem value="contacted_not_interested">{leadStatusLabel('contacted_not_interested')}</SelectItem>
+                        <SelectItem value="contacted_interested">{leadStatusLabel('contacted_interested')}</SelectItem>
                       </>
                     ) : (
                       <>
-                        {/* ✅ Admin and Operations: Full access to all statuses */}
-                        <SelectItem value="lead_added">New Lead</SelectItem>
-                        <SelectItem value="contacted">Contacted</SelectItem>
-                        <SelectItem value="interested">Interested</SelectItem>
-                        <SelectItem value="documents_submitted">Documents Received</SelectItem>
-                        <SelectItem value="under_verification">Under Verification</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        {/* ❌ REMOVED: account_created, activated - these are account statuses, not lead statuses */}
+                        <SelectItem value="lead_added">{leadStatusLabel('lead_added')}</SelectItem>
+                        <SelectItem value="contacted_not_interested">{leadStatusLabel('contacted_not_interested')}</SelectItem>
+                        <SelectItem value="contacted_interested">{leadStatusLabel('contacted_interested')}</SelectItem>
+                        <SelectItem value="approved">{leadStatusLabel('approved')}</SelectItem>
                       </>
                     )}
                   </SelectContent>

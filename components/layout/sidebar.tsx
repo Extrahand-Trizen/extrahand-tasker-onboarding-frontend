@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, ShieldCheck, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useState } from 'react';
@@ -15,13 +15,13 @@ const navigation: Array<{
   roles?: string[];
 }> = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'My Leads List', href: '/leads', icon: Users },
+  { name: 'My Leads List', href: '/leads', icon: Users, roles: ['qualifier', 'lead_access_manager'] },
   { name: 'All Leads', href: '/leads/all', icon: UsersRound, roles: ['onboarder', 'lead_access_manager'] },
-  { name: 'Add Lead', href: '/leads/new', icon: FileText },
+  { name: 'Add Lead', href: '/leads/new', icon: FileText, roles: ['qualifier', 'lead_access_manager'] },
   { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'lead_access_manager'] },
-  { name: 'Document Verification', href: '/leads/verification', icon: ShieldCheck, roles: ['onboarder', 'lead_access_manager'] },
+  { name: 'Contacted & Not Interested', href: '/leads/not-interested', icon: UserX, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'lead_access_manager'] },
-  { name: 'Upload Leads (CSV)', href: '/leads/bulk-import', icon: Upload },
+  { name: 'Upload Leads (CSV)', href: '/leads/bulk-import', icon: Upload, roles: ['qualifier', 'lead_access_manager'] },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
 

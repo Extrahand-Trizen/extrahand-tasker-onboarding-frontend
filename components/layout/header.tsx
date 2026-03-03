@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Menu } from 'lucide-react';
 
@@ -10,7 +10,7 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { user, logout } = useAdminAuth();
+  const { user, logout } = useJWTAuth();
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 shadow-sm">

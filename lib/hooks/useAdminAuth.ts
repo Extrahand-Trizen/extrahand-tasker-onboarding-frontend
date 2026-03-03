@@ -12,6 +12,10 @@ export function useAdminAuth() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
@@ -32,6 +36,9 @@ export function useAdminAuth() {
   }, []);
 
   const login = async (email: string, password: string) => {
+    if (!auth) {
+      return { success: false, error: 'Firebase is not configured. Use JWT login.' };
+    }
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const token = await userCredential.user.getIdToken();
@@ -47,6 +54,13 @@ export function useAdminAuth() {
   };
 
   const logout = async () => {
+    if (!auth) {
+      localStorage.removeItem('adminToken');
+      setUser(null);
+      setRole(null);
+      router.push('/login');
+      return;
+    }
     try {
       await firebaseSignOut(auth);
       localStorage.removeItem('adminToken');

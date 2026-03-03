@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 
 type LeadFormData = {
   name: string;
@@ -106,7 +107,15 @@ const leadSchema = z.object({
 
 export default function AddLeadPage() {
   const router = useRouter();
+  const { role, loading: authLoading } = useJWTAuth();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+  // Onboarder cannot add leads; redirect to dashboard
+  useEffect(() => {
+    if (!authLoading && role === 'onboarder') {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, role, router]);
   const submittingRef = useRef(false);
 
   const {
@@ -331,6 +340,14 @@ export default function AddLeadPage() {
     const payload = { ...data, secondaryCategory: data.secondaryCategory === '__general__' ? '' : (data.secondaryCategory ?? '') };
     createLeadMutation.mutate(payload);
   };
+
+  if (!authLoading && role === 'onboarder') {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">

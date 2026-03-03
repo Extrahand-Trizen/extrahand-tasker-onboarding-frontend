@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { caosApi, type LeadStatus, type LeadSource } from '@/lib/api/caos';
@@ -28,12 +28,11 @@ import {
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
-  contacted: 'bg-blue-100 text-blue-800',
-  interested: 'bg-yellow-100 text-yellow-800',
+  contacted_not_interested: 'bg-blue-100 text-blue-800',
+  contacted_interested: 'bg-yellow-100 text-yellow-800',
   documents_submitted: 'bg-purple-100 text-purple-800',
   under_verification: 'bg-orange-100 text-orange-800',
   approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
   inactive: 'bg-gray-100 text-gray-500',
 };
 
@@ -51,6 +50,13 @@ export default function LeadsPage() {
   // Get current user's ID (handles both JWT userId and Firebase uid)
   const currentUserId = user?.userId || (user as any)?.uid;
 
+  // Onboarder cannot access My Leads List; redirect to All Leads
+  useEffect(() => {
+    if (!authLoading && role === 'onboarder') {
+      router.replace('/leads/all');
+    }
+  }, [authLoading, role, router]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['leads', { search, statusFilter, page, limit, userId: currentUserId }],
     queryFn: () =>
@@ -63,7 +69,7 @@ export default function LeadsPage() {
         page,
         limit,
       }),
-    enabled: !authLoading && !!currentUserId,
+    enabled: !authLoading && !!currentUserId && role !== 'onboarder',
   });
 
   const leads = data?.data || [];
@@ -128,6 +134,15 @@ export default function LeadsPage() {
   // Only lead_access_manager can delete leads; onboarder can view All Leads but not delete
   const canDelete = role === 'lead_access_manager';
 
+  // Don't render My Leads content for onboarder (they get redirected to All Leads)
+  if (!authLoading && role === 'onboarder') {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
@@ -175,8 +190,8 @@ export default function LeadsPage() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="lead_added">New Lead</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="interested">Interested</SelectItem>
+                <SelectItem value="contacted_not_interested">Contacted &amp; Not Interested</SelectItem>
+                <SelectItem value="contacted_interested">Contacted &amp; Interested</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 {/* ❌ REMOVED: account_created, activated - these are account statuses, not lead statuses */}
               </SelectContent>

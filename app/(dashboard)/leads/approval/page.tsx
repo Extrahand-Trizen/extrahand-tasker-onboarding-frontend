@@ -25,12 +25,11 @@ import {
 
 const statusColors: Record<Lead['status'], string> = {
   lead_added: 'bg-gray-100 text-gray-800',
-  contacted: 'bg-blue-100 text-blue-800',
-  interested: 'bg-yellow-100 text-yellow-800',
+  contacted_not_interested: 'bg-blue-100 text-blue-800',
+  contacted_interested: 'bg-yellow-100 text-yellow-800',
   documents_submitted: 'bg-purple-100 text-purple-800',
   under_verification: 'bg-orange-100 text-orange-800',
   approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
   inactive: 'bg-gray-100 text-gray-500',
 };
 

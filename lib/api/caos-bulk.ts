@@ -62,6 +62,7 @@ async function getAdminToken(): Promise<string> {
   // Fallback to Firebase auth (for legacy users)
   try {
     const { auth } = await import('@/lib/config/firebase');
+    if (!auth) throw new Error('Admin not authenticated. Please login.');
     const { onAuthStateChanged } = await import('firebase/auth');
     
     const currentUser = auth.currentUser;

@@ -18,6 +18,7 @@ async function getAdminToken(): Promise<string> {
   }
 
   const { auth } = await import('@/lib/config/firebase');
+  if (!auth) throw new Error('Admin not authenticated. Please login.');
   const { onAuthStateChanged } = await import('firebase/auth');
   
   // Get current user immediately

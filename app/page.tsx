@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, ShieldCheck, Zap, Users } from 'lucide-react';
 
@@ -17,7 +17,8 @@ const features = [
 
 export default function LandingPage() {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAdminAuth();
+  const { user, loading } = useJWTAuth();
+  const isAuthenticated = !!user;
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
