@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useState } from 'react';
@@ -21,6 +21,7 @@ const navigation: Array<{
   { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Contacted & Not Interested', href: '/leads/not-interested', icon: UserX, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'lead_access_manager'] },
+  { name: 'Certificate Verification', href: '/certificates/verification', icon: ShieldCheck, roles: ['onboarder', 'lead_access_manager', 'support'] },
   { name: 'Upload Leads (CSV)', href: '/leads/bulk-import', icon: Upload, roles: ['qualifier', 'lead_access_manager'] },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
@@ -69,7 +70,7 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
         "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-gray-200 bg-white shadow-lg transition-transform duration-300 lg:relative lg:translate-x-0 lg:shadow-sm",
         isMobileOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-      <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6 bg-gradient-to-r from-amber-50 to-yellow-50">
+      <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6 bg-linear-to-r from-amber-50 to-yellow-50">
         <div className="flex items-center gap-3">
           <Image
             src="/logo.png"
