@@ -58,6 +58,20 @@ function getItemKey(item: { uid: string; skillIndex: number; certificateIndex: n
   return `${item.uid}-${item.skillIndex}-${item.certificateIndex}`;
 }
 
+/** Best-effort reviewer id from JWT for optimistic UI (refetch replaces with server data). */
+function getAdminUserIdFromToken(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const t = localStorage.getItem('accessToken');
+    if (!t) return undefined;
+    const payload = JSON.parse(atob(t.split('.')[1])) as Record<string, unknown>;
+    const id = payload.userId ?? payload.uid ?? payload.sub;
+    return typeof id === 'string' && id.trim() ? id.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function isPdfUrl(url: string): boolean {
   const normalized = url.toLowerCase().split('?')[0];
   return normalized.endsWith('.pdf');
@@ -123,7 +137,7 @@ export default function CertificateVerificationPage() {
   const updateQueueItemOptimistically = (
     target: ActionTarget,
     nextStatus: CertificateStatus,
-    patch: { reviewNotes?: string; rejectionReason?: string }
+    patch: { reviewNotes?: string; rejectionReason?: string; reviewedByUserId?: string }
   ) => {
     queryClient.setQueriesData<CertificateQueueResponse>(
       { queryKey: ['certificate-review-queue'] },
@@ -147,6 +161,7 @@ export default function CertificateVerificationPage() {
                     status: nextStatus,
                     reviewedAt: nowIso,
                     reviewedBy: 'You',
+                    reviewedByUserId: patch.reviewedByUserId ?? item.certificate.reviewedByUserId,
                     reviewNotes: patch.reviewNotes ?? item.certificate.reviewNotes,
                     rejectionReason: patch.rejectionReason,
                   },
@@ -175,6 +190,7 @@ export default function CertificateVerificationPage() {
       });
       updateQueueItemOptimistically(target, 'verified', {
         reviewNotes: reviewNotes.trim() || undefined,
+        reviewedByUserId: getAdminUserIdFromToken(),
       });
       return { previousQueue };
     },
@@ -209,6 +225,7 @@ export default function CertificateVerificationPage() {
       updateQueueItemOptimistically(target, 'rejected', {
         rejectionReason: rejectionReason.trim(),
         reviewNotes: reviewNotes.trim() || undefined,
+        reviewedByUserId: getAdminUserIdFromToken(),
       });
       return { previousQueue };
     },
@@ -426,10 +443,16 @@ export default function CertificateVerificationPage() {
                           <tr key={`${itemKey}-review`}>
                             <td colSpan={5} className="px-3 pb-3">
                               <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                                   <div>
                                     <p className="text-gray-500">Reviewed By</p>
                                     <p className="font-medium text-gray-900">{item.certificate.reviewedBy || '-'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Reviewer ID</p>
+                                    <p className="font-medium text-gray-900 break-all">
+                                      {item.certificate.reviewedByUserId || '-'}
+                                    </p>
                                   </div>
                                   <div>
                                     <p className="text-gray-500">Reviewed At</p>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX, ShieldCheck, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useState } from 'react';
@@ -31,6 +31,7 @@ const adminSectionItems = [
   { name: 'Invite User', href: '/admin-management', icon: UserPlus },
   { name: 'User Management', href: '/admin/users', icon: UserCog },
   { name: 'Import History', href: '/admin/import-history', icon: Upload },
+  { name: 'Certificate Analytics', href: '/certificates/analytics', icon: BarChart3 },
 ];
 
 interface SidebarProps {
@@ -42,7 +43,9 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { role } = useJWTAuth();
   const [adminSectionOpen, setAdminSectionOpen] = useState(
-    pathname?.startsWith('/admin') || pathname === '/admin-management'
+    pathname?.startsWith('/admin') ||
+      pathname === '/admin-management' ||
+      pathname?.startsWith('/certificates/analytics')
   );
 
   const handleLinkClick = () => {
@@ -53,7 +56,10 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
   };
 
   const isLeadAccessManager = role === 'lead_access_manager';
-  const isAdminPath = pathname?.startsWith('/admin') || pathname === '/admin-management';
+  const isAdminPath =
+    pathname?.startsWith('/admin') ||
+    pathname === '/admin-management' ||
+    pathname?.startsWith('/certificates/analytics');
 
   return (
     <>

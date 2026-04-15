@@ -105,6 +105,8 @@ export interface CertificateQueueItem {
     expiryDate?: string;
     status?: CertificateStatus;
     reviewedBy?: string;
+    /** Stable admin id (e.g. ADM-... or Firebase uid) */
+    reviewedByUserId?: string;
     reviewedAt?: string;
     rejectionReason?: string;
     reviewNotes?: string;
@@ -122,6 +124,31 @@ export interface CertificateQueueResponse {
       totalPages: number;
     };
   };
+}
+
+export interface CertificateAnalyticsData {
+  period: { from: string; to: string };
+  snapshot: { pendingCount: number };
+  decisionsInPeriod: {
+    verified: number;
+    rejected: number;
+    total: number;
+    rejectRate: number | null;
+  };
+  queueTimeHours: {
+    median: number | null;
+    average: number | null;
+    sampleSize: number;
+  };
+  byReviewer: Array<{
+    reviewerKey: string;
+    reviewerDisplayName: string | null;
+    verified: number;
+    rejected: number;
+    total: number;
+  }>;
+  daily: Array<{ date: string; verified: number; rejected: number }>;
+  topRejectionReasons: Array<{ reason: string; count: number }>;
 }
 
 export const certificateReviewApi = {
@@ -154,6 +181,32 @@ export const certificateReviewApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to fetch certificate queue' }));
       throw new Error(error.error || error.message || 'Failed to fetch certificate queue');
+    }
+
+    return response.json();
+  },
+
+  async getAnalytics(params: {
+    from?: string;
+    to?: string;
+  }): Promise<{ success: boolean; data: CertificateAnalyticsData }> {
+    const token = await getAdminToken();
+    const query = new URLSearchParams();
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/certificates/analytics?${query.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch analytics' }));
+      throw new Error(error.error || error.message || 'Failed to fetch analytics');
     }
 
     return response.json();
