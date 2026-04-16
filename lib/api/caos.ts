@@ -276,6 +276,68 @@ export interface SearchLeadsResponse {
   };
 }
 
+export interface CallbackQueueResponse {
+  success: boolean;
+  data: Lead[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface CallbackQueueStatsResponse {
+  success: boolean;
+  data: {
+    totalScheduled: number;
+    overdue: number;
+    dueToday: number;
+  };
+}
+
+export interface FollowUpQueueItem extends Lead {
+  dueType: 'callback' | 'onboarding';
+  dueAt: string;
+}
+
+export interface FollowUpQueueResponse {
+  success: boolean;
+  data: FollowUpQueueItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface FollowUpQueueStatsResponse {
+  success: boolean;
+  data: {
+    callbackTotal: number;
+    onboardingTotal: number;
+    callbackDueToday: number;
+    callbackOverdue: number;
+    onboardingDueToday: number;
+    onboardingOverdue: number;
+    totalFollowUps: number;
+  };
+}
+
+export interface StatusAnalyticsResponse {
+  success: boolean;
+  data: {
+    touchedLeads: number;
+    interested: number;
+    notInterested: number;
+    callbackScheduled: number;
+    callbackOverdue: number;
+    statusCounts: Array<{ status: string; count: number }>;
+    qualifierBreakdown: Array<{ qualifierId: string; qualifierName: string; touchedLeads: number }>;
+  };
+}
+
 export interface DuplicateCheckResponse {
   success: boolean;
   data: {
@@ -347,6 +409,186 @@ export const caosApi = {
     }
 
     return response.json();
+  },
+
+  async getCallbackQueue(params: {
+    city?: string;
+    primarySkill?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<CallbackQueueResponse> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/callback-queue?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch callback queue' }));
+      throw new Error(error.error || error.message || 'Failed to fetch callback queue');
+    }
+
+    return response.json();
+  },
+
+  async getCallbackQueueStats(): Promise<CallbackQueueStatsResponse> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/callback-queue/stats`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch callback queue stats' }));
+      throw new Error(error.error || error.message || 'Failed to fetch callback queue stats');
+    }
+
+    return response.json();
+  },
+
+  async getFollowUpQueue(params: {
+    city?: string;
+    primarySkill?: string;
+    startDate?: string;
+    endDate?: string;
+    dueType?: 'all' | 'callback' | 'onboarding';
+    bucket?: 'all' | 'today' | 'overdue' | 'upcoming' | 'range';
+    page?: number;
+    limit?: number;
+  } = {}): Promise<FollowUpQueueResponse> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/follow-up-queue?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch follow-up queue' }));
+      throw new Error(error.error || error.message || 'Failed to fetch follow-up queue');
+    }
+
+    return response.json();
+  },
+
+  async getFollowUpQueueStats(): Promise<FollowUpQueueStatsResponse> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/follow-up-queue/stats`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch follow-up queue stats' }));
+      throw new Error(error.error || error.message || 'Failed to fetch follow-up queue stats');
+    }
+
+    return response.json();
+  },
+
+  async getStatusAnalytics(params: {
+    from?: string;
+    to?: string;
+    qualifierId?: string;
+  } = {}): Promise<StatusAnalyticsResponse> {
+    const token = await getAdminToken();
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/status-analytics?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch status analytics' }));
+      throw new Error(error.error || error.message || 'Failed to fetch status analytics');
+    }
+
+    return response.json();
+  },
+
+  async downloadStatusReport(params: {
+    format: 'csv' | 'xlsx';
+    template: 'eod' | 'detailed';
+    from?: string;
+    to?: string;
+    qualifierId?: string;
+    includeNotes?: boolean;
+  }): Promise<{ blob: Blob; filename: string }> {
+    const token = await getAdminToken();
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/status-reports/export?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to export status report' }));
+      throw new Error(error.error || error.message || 'Failed to export status report');
+    }
+
+    const disposition = response.headers.get('content-disposition') || '';
+    const filenameMatch = disposition.match(/filename="([^"]+)"/);
+    const filename = filenameMatch?.[1] || `lead-status-report.${params.format}`;
+
+    return {
+      blob: await response.blob(),
+      filename,
+    };
   },
 
   /**

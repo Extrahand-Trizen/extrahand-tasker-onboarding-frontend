@@ -3,7 +3,7 @@
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { caosApi } from "@/lib/api/caos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus } from "lucide-react";
+import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus, PhoneCall, AlertTriangle, CalendarClock } from "lucide-react";
 import { useJWTAuth } from "@/lib/hooks/useJWTAuth";
 
 export default function DashboardPage() {
@@ -19,14 +19,18 @@ export default function DashboardPage() {
     queryFn: () => caosApi.searchLeads({ status: "approved", limit: 1 }),
     enabled: role !== "qualifier",
   });
+  const { data: followUpStatsData } = useQuery({
+    queryKey: ["leads", "dashboard", "callback-stats"],
+    queryFn: () => caosApi.getFollowUpQueueStats(),
+  });
 
   const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
 
   // Counts only for onboarder & lead_access_manager (enabled: false for other roles)
   const countQueries = useQueries({
     queries: [
-      { queryKey: ["interested-count", isOnboarderOrManager], queryFn: () => caosApi.getInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
-      { queryKey: ["not-interested-count", isOnboarderOrManager], queryFn: () => caosApi.getNotInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
+      { queryKey: ["interested-count", role], queryFn: () => caosApi.getInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: !!role },
+      { queryKey: ["not-interested-count", role], queryFn: () => caosApi.getNotInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: !!role },
       { queryKey: ["count-not-registered", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "not_registered", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
       { queryKey: ["count-registered", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
       { queryKey: ["count-registered-verified", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered_verified", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
@@ -47,10 +51,42 @@ export default function DashboardPage() {
     role === "qualifier"
       ? [
           { title: "My Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
+          { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50" },
+          { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50" },
+          { title: "My Total Follow-ups", value: followUpStatsData?.data?.totalFollowUps ?? 0, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
+          {
+            title: "My Overdue Follow-ups",
+            value: (followUpStatsData?.data?.callbackOverdue ?? 0) + (followUpStatsData?.data?.onboardingOverdue ?? 0),
+            icon: AlertTriangle,
+            color: "text-red-600",
+            bg: "bg-red-50",
+          },
+          {
+            title: "My Follow-ups Due Today",
+            value: (followUpStatsData?.data?.callbackDueToday ?? 0) + (followUpStatsData?.data?.onboardingDueToday ?? 0),
+            icon: PhoneCall,
+            color: "text-indigo-600",
+            bg: "bg-indigo-50",
+          },
         ]
       : [
           { title: "Total Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
           { title: "Ready to Invite", value: stats.approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
+          { title: "Total Follow-ups", value: followUpStatsData?.data?.totalFollowUps ?? 0, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
+          {
+            title: "Overdue Follow-ups",
+            value: (followUpStatsData?.data?.callbackOverdue ?? 0) + (followUpStatsData?.data?.onboardingOverdue ?? 0),
+            icon: AlertTriangle,
+            color: "text-red-600",
+            bg: "bg-red-50",
+          },
+          {
+            title: "Follow-ups Due Today",
+            value: (followUpStatsData?.data?.callbackDueToday ?? 0) + (followUpStatsData?.data?.onboardingDueToday ?? 0),
+            icon: PhoneCall,
+            color: "text-indigo-600",
+            bg: "bg-indigo-50",
+          },
           ...(isOnboarderOrManager
             ? [
                 { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50" },

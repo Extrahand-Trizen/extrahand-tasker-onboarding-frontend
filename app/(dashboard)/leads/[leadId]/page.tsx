@@ -41,6 +41,11 @@ const reasonCodeLabelMap: Record<string, string> = {
   other: 'Other',
 };
 
+const statusReasonCodeMap: Partial<Record<LeadStatus, string[]>> = {
+  contacted_interested: ['callback_requested', 'interested_onboarding_later', 'other'],
+  contacted_not_interested: ['not_interested', 'wrong_number', 'other'],
+};
+
 /** Card showing whether lead has registered on main website and verified Aadhaar */
 function ConversionStatusCard({
   leadId,
@@ -202,7 +207,6 @@ function LeadDetailContent() {
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
   const [statusNotes, setStatusNotes] = useState('');
   const [statusReasonCode, setStatusReasonCode] = useState('');
-  const [statusReasonText, setStatusReasonText] = useState('');
   const [callbackAt, setCallbackAt] = useState('');
   const [expectedOnboardingAt, setExpectedOnboardingAt] = useState('');
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -280,6 +284,14 @@ function LeadDetailContent() {
 
   const lead = leadData?.data;
   const statusReasonOptions = statusReasonCodesData?.data || [];
+  const allowedReasonCodesForStatus = statusReasonCodeMap[newStatus] || [];
+  const filteredStatusReasonOptions = statusReasonOptions.filter((code) =>
+    allowedReasonCodesForStatus.includes(code)
+  );
+  const showReasonFields = filteredStatusReasonOptions.length > 0;
+  const showCallbackDateField = newStatus === 'contacted_interested' && statusReasonCode === 'callback_requested';
+  const showExpectedOnboardingField =
+    newStatus === 'contacted_interested' && statusReasonCode === 'interested_onboarding_later';
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
 
   // Update newStatus when lead loads
@@ -288,6 +300,23 @@ function LeadDetailContent() {
       setNewStatus(lead.status);
     }
   }, [lead]);
+
+  useEffect(() => {
+    if (!filteredStatusReasonOptions.includes(statusReasonCode)) {
+      setStatusReasonCode('');
+    }
+    if (!showCallbackDateField) {
+      setCallbackAt('');
+    }
+    if (!showExpectedOnboardingField) {
+      setExpectedOnboardingAt('');
+    }
+  }, [
+    statusReasonCode,
+    filteredStatusReasonOptions,
+    showCallbackDateField,
+    showExpectedOnboardingField,
+  ]);
 
   // Initialize edit form data when lead loads or edit modal opens
   useEffect(() => {
@@ -312,14 +341,12 @@ function LeadDetailContent() {
       status,
       notes,
       statusReasonCode,
-      statusReasonText,
       callbackAt,
       expectedOnboardingAt,
     }: {
       status: LeadStatus;
       notes?: string;
       statusReasonCode?: string;
-      statusReasonText?: string;
       callbackAt?: string;
       expectedOnboardingAt?: string;
     }) => {
@@ -343,9 +370,9 @@ function LeadDetailContent() {
       // No auto-transition needed since qualifier cannot set documents_submitted
       return caosApi.updateStatus(leadId, status, notes, {
         statusReasonCode: statusReasonCode || undefined,
-        statusReasonText: statusReasonText || undefined,
-        callbackAt: callbackAt || undefined,
-        expectedOnboardingAt: expectedOnboardingAt || undefined,
+        statusReasonText: undefined,
+        callbackAt: showCallbackDateField ? callbackAt || undefined : undefined,
+        expectedOnboardingAt: showExpectedOnboardingField ? expectedOnboardingAt || undefined : undefined,
       });
     },
     onSuccess: (data, variables) => {
@@ -353,7 +380,6 @@ function LeadDetailContent() {
       setShowStatusModal(false);
       setStatusNotes('');
       setStatusReasonCode('');
-      setStatusReasonText('');
       setCallbackAt('');
       setExpectedOnboardingAt('');
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
@@ -744,7 +770,6 @@ function LeadDetailContent() {
               setShowStatusModal(false);
               setStatusNotes('');
               setStatusReasonCode('');
-              setStatusReasonText('');
               setCallbackAt('');
               setExpectedOnboardingAt('');
             }
@@ -777,6 +802,9 @@ function LeadDetailContent() {
                       return;
                     }
                     setNewStatus(selectedStatus);
+                    setStatusReasonCode('');
+                    setCallbackAt('');
+                    setExpectedOnboardingAt('');
                   }}
                 >
                   <SelectTrigger id="status-select">
@@ -811,54 +839,51 @@ function LeadDetailContent() {
                   className="resize-none"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="status-reason-code">Reason</Label>
-                <Select
-                  value={statusReasonCode || '__none__'}
-                  onValueChange={(value) => setStatusReasonCode(value === '__none__' ? '' : value)}
-                >
-                  <SelectTrigger id="status-reason-code">
-                    <SelectValue placeholder="Select reason (optional)" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="__none__">None</SelectItem>
-                    {statusReasonOptions.map((code) => (
-                      <SelectItem key={code} value={code}>
-                        {reasonCodeLabelMap[code] || code.replace(/_/g, ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status-reason-text">Reason Details (Optional)</Label>
-                <Input
-                  id="status-reason-text"
-                  value={statusReasonText}
-                  onChange={(e) => setStatusReasonText(e.target.value)}
-                  placeholder="Add context for status update..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="callback-at">
-                  Callback Date {statusReasonCode === 'callback_requested' ? '*' : '(Optional)'}
-                </Label>
-                <Input
-                  id="callback-at"
-                  type="datetime-local"
-                  value={callbackAt}
-                  onChange={(e) => setCallbackAt(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="expected-onboarding-at">Expected Onboarding Date (Optional)</Label>
-                <Input
-                  id="expected-onboarding-at"
-                  type="datetime-local"
-                  value={expectedOnboardingAt}
-                  onChange={(e) => setExpectedOnboardingAt(e.target.value)}
-                />
-              </div>
+              {showReasonFields && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="status-reason-code">Reason</Label>
+                    <Select
+                      value={statusReasonCode || '__none__'}
+                      onValueChange={(value) => setStatusReasonCode(value === '__none__' ? '' : value)}
+                    >
+                      <SelectTrigger id="status-reason-code">
+                        <SelectValue placeholder="Select reason (optional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="__none__">None</SelectItem>
+                        {filteredStatusReasonOptions.map((code) => (
+                          <SelectItem key={code} value={code}>
+                            {reasonCodeLabelMap[code] || code.replace(/_/g, ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              {showCallbackDateField && (
+                <div className="space-y-2">
+                  <Label htmlFor="callback-at">Callback Date *</Label>
+                  <Input
+                    id="callback-at"
+                    type="datetime-local"
+                    value={callbackAt}
+                    onChange={(e) => setCallbackAt(e.target.value)}
+                  />
+                </div>
+              )}
+              {showExpectedOnboardingField && (
+                <div className="space-y-2">
+                  <Label htmlFor="expected-onboarding-at">Expected Onboarding Date (Optional)</Label>
+                  <Input
+                    id="expected-onboarding-at"
+                    type="datetime-local"
+                    value={expectedOnboardingAt}
+                    onChange={(e) => setExpectedOnboardingAt(e.target.value)}
+                  />
+                </div>
+              )}
               <div className="flex gap-2 pt-2">
                 <Button
                   onClick={() => {
@@ -866,7 +891,6 @@ function LeadDetailContent() {
                       status: newStatus,
                       notes: statusNotes,
                       statusReasonCode,
-                      statusReasonText,
                       callbackAt,
                       expectedOnboardingAt,
                     });
@@ -882,7 +906,6 @@ function LeadDetailContent() {
                     setShowStatusModal(false);
                     setStatusNotes('');
                     setStatusReasonCode('');
-                    setStatusReasonText('');
                     setCallbackAt('');
                     setExpectedOnboardingAt('');
                   }}
