@@ -24,6 +24,7 @@ import { leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
+  contacted_not_lifted: 'bg-slate-100 text-slate-800',
   contacted_not_interested: 'bg-blue-100 text-blue-800',
   contacted_interested: 'bg-yellow-100 text-yellow-800',
   documents_submitted: 'bg-purple-100 text-purple-800',
@@ -33,7 +34,6 @@ const statusColors: Record<LeadStatus, string> = {
 };
 
 const reasonCodeLabelMap: Record<string, string> = {
-  not_lifted: 'Not lifted',
   callback_requested: 'Callback requested',
   interested_onboarding_later: 'Interested - onboarding later',
   not_interested: 'Not interested',
@@ -251,6 +251,7 @@ function LeadDetailContent() {
   // ✅ Qualifier team can only move stages up to "Contacted & Interested"
   const qualifierAllowedStatuses: LeadStatus[] = [
     'lead_added',
+    'contacted_not_lifted',
     'contacted_not_interested',
     'contacted_interested'
   ];
@@ -258,6 +259,7 @@ function LeadDetailContent() {
   // ✅ All available statuses (for admin and onboarder) — no documents/verification stages
   const allStatuses: LeadStatus[] = [
     'lead_added',
+    'contacted_not_lifted',
     'contacted_not_interested',
     'contacted_interested',
     'approved'
@@ -288,12 +290,13 @@ function LeadDetailContent() {
     allowedReasonCodesForStatus.includes(code)
   );
   const showReasonFields = filteredStatusReasonOptions.length > 0;
-  const showCallbackDateField = newStatus === 'contacted_interested' && statusReasonCode === 'callback_requested';
+  const showCallbackDateField =
+    (newStatus === 'contacted_interested' && statusReasonCode === 'callback_requested') ||
+    newStatus === 'contacted_not_lifted';
   const showExpectedOnboardingField =
     newStatus === 'contacted_interested' && statusReasonCode === 'interested_onboarding_later';
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
-  const isQualifierOwnLead = !!lead && isQualifier && !!user?.userId && lead.addedBy === user.userId;
-  const canUpdateLead = !authLoading && (isLeadAccessManager || isOnboarder || isQualifierOwnLead);
+  const canUpdateLead = !authLoading && (isLeadAccessManager || isOnboarder || isQualifier);
 
   // Update newStatus when lead loads
   useEffect(() => {
@@ -363,9 +366,9 @@ function LeadDetailContent() {
         throw new Error('Invalid status: Qualifier team cannot set this status');
       }
 
-      if (statusReasonCode === 'callback_requested' && !callbackAt) {
+      if ((statusReasonCode === 'callback_requested' || newStatus === 'contacted_not_lifted') && !callbackAt) {
         toast.error('Callback date is required when reason is callback requested.');
-        throw new Error('callbackAt is required for callback_requested');
+        throw new Error('callbackAt is required');
       }
 
       // No auto-transition needed since qualifier cannot set documents_submitted
@@ -406,9 +409,6 @@ function LeadDetailContent() {
 
   const updateLeadMutation = useMutation({
     mutationFn: (data: typeof editFormData) => {
-      if (!canUpdateLead) {
-        throw new Error('You can only edit leads that you have added.');
-      }
       // Map primaryCategory to primarySkill for API compatibility
       const updateData: any = {
         name: data.name.trim(),
@@ -817,12 +817,14 @@ function LeadDetailContent() {
                     {isQualifier ? (
                       <>
                         <SelectItem value="lead_added">{leadStatusLabel('lead_added')}</SelectItem>
+                        <SelectItem value="contacted_not_lifted">{leadStatusLabel('contacted_not_lifted')}</SelectItem>
                         <SelectItem value="contacted_not_interested">{leadStatusLabel('contacted_not_interested')}</SelectItem>
                         <SelectItem value="contacted_interested">{leadStatusLabel('contacted_interested')}</SelectItem>
                       </>
                     ) : (
                       <>
                         <SelectItem value="lead_added">{leadStatusLabel('lead_added')}</SelectItem>
+                        <SelectItem value="contacted_not_lifted">{leadStatusLabel('contacted_not_lifted')}</SelectItem>
                         <SelectItem value="contacted_not_interested">{leadStatusLabel('contacted_not_interested')}</SelectItem>
                         <SelectItem value="contacted_interested">{leadStatusLabel('contacted_interested')}</SelectItem>
                         <SelectItem value="approved">{leadStatusLabel('approved')}</SelectItem>

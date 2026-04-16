@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 
 const statusColors: Record<Lead['status'], string> = {
   lead_added: 'bg-gray-100 text-gray-800',
+  contacted_not_lifted: 'bg-slate-100 text-slate-800',
   contacted_not_interested: 'bg-blue-100 text-blue-800',
   contacted_interested: 'bg-yellow-100 text-yellow-800',
   documents_submitted: 'bg-purple-100 text-purple-800',
@@ -26,9 +27,29 @@ const statusColors: Record<Lead['status'], string> = {
   inactive: 'bg-gray-100 text-gray-500',
 };
 
+function getLatestStatusTransition(
+  lead: Lead,
+  targetStatus: Lead['status']
+): { changedBy?: string; changedByName?: string; changedAt?: string } | undefined {
+  const history = lead.statusHistory || [];
+  const match = [...history]
+    .filter((entry) => entry.status === targetStatus)
+    .sort(
+      (a, b) =>
+        new Date(b.changedAt || 0).getTime() - new Date(a.changedAt || 0).getTime()
+    )[0];
+
+  if (!match) return undefined;
+  return {
+    changedBy: match.changedBy,
+    changedByName: match.changedByName,
+    changedAt: match.changedAt,
+  };
+}
+
 export default function NotInterestedCandidatesPage() {
   const router = useRouter();
-  const { role, user, loading: authLoading } = useJWTAuth();
+  const { role, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [page, setPage] = useState(1);
@@ -44,16 +65,15 @@ export default function NotInterestedCandidatesPage() {
   }, [authLoading, canAccess, router]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['not-interested-candidates', role, user?.userId, page, searchCity, searchSkill],
+    queryKey: ['not-interested-candidates', role, page, searchCity, searchSkill],
     queryFn: () =>
       caosApi.getNotInterestedCandidates({
         city: searchCity,
         primarySkill: searchSkill,
         page,
         limit,
-        addedBy: role === 'qualifier' ? user?.userId : undefined,
       }),
-    enabled: canAccess && (role !== 'qualifier' || !!user?.userId),
+    enabled: canAccess,
   });
 
   if (authLoading) {
@@ -169,11 +189,15 @@ export default function NotInterestedCandidatesPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Primary Skill</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Moved By</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {leads.map((lead) => (
+                    {leads.map((lead) => {
+                      const moved = getLatestStatusTransition(lead, 'contacted_not_interested');
+                      const contact = [lead.phone, (lead as any).landline].filter(Boolean).join(', ');
+                      return (
                       <tr key={lead.leadId} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <div className="font-medium text-gray-900">{lead.name}</div>
@@ -182,7 +206,7 @@ export default function NotInterestedCandidatesPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          <div>{lead.phone}</div>
+                          <div>{contact}</div>
                           {lead.email && <div className="text-xs text-gray-500">{lead.email}</div>}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
@@ -194,6 +218,14 @@ export default function NotInterestedCandidatesPage() {
                             {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </Badge>
                         </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          <div>{moved?.changedByName || moved?.changedBy || '-'}</div>
+                          {moved?.changedAt && (
+                            <div className="text-xs text-gray-500">
+                              {format(new Date(moved.changedAt), 'MMM dd, yyyy p')}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <Link href={`/leads/${lead.leadId}`}>
                             <Button variant="outline" size="sm">
@@ -203,13 +235,16 @@ export default function NotInterestedCandidatesPage() {
                           </Link>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
 
               <div className="md:hidden space-y-4">
-                {leads.map((lead) => (
+                {leads.map((lead) => {
+                  const moved = getLatestStatusTransition(lead, 'contacted_not_interested');
+                  const contact = [lead.phone, (lead as any).landline].filter(Boolean).join(', ');
+                  return (
                   <Card key={lead.leadId} className="border-gray-200">
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between mb-3">
@@ -224,7 +259,7 @@ export default function NotInterestedCandidatesPage() {
                         </Badge>
                       </div>
                       <div className="space-y-2 text-sm">
-                        <div><span className="text-gray-500">Phone:</span> <span className="text-gray-900">{lead.phone}</span></div>
+                        <div><span className="text-gray-500">Phone:</span> <span className="text-gray-900">{contact}</span></div>
                         {lead.email && <div><span className="text-gray-500">Email:</span> <span className="text-gray-900">{lead.email}</span></div>}
                         <div><span className="text-gray-500">Location:</span> <span className="text-gray-900">{lead.city}{lead.state ? `, ${lead.state}` : ''}</span></div>
                         <div>
@@ -233,6 +268,20 @@ export default function NotInterestedCandidatesPage() {
                             {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </Badge>
                         </div>
+                        <div>
+                          <span className="text-gray-500">Moved By:</span>{' '}
+                          <span className="text-gray-900">
+                            {moved?.changedByName || moved?.changedBy || '-'}
+                          </span>
+                        </div>
+                        {moved?.changedAt && (
+                          <div>
+                            <span className="text-gray-500">Moved At:</span>{' '}
+                            <span className="text-gray-900">
+                              {format(new Date(moved.changedAt), 'MMM dd, yyyy p')}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="mt-4">
                         <Link href={`/leads/${lead.leadId}`}>
@@ -244,7 +293,7 @@ export default function NotInterestedCandidatesPage() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                );})}
               </div>
 
               {total > limit && (

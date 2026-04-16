@@ -2,6 +2,7 @@ import type { LeadStatus, AccountStatus } from '@/lib/api/caos';
 
 const STATUS_LABELS: Record<LeadStatus, string> = {
   lead_added: 'New Lead',
+  contacted_not_lifted: 'Contacted & Not Lifted',
   contacted_not_interested: 'Contacted & Not Interested',
   contacted_interested: 'Contacted & Interested',
   documents_submitted: 'Documents Received',

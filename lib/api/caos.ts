@@ -101,6 +101,7 @@ async function getAdminToken(): Promise<string> {
 // ✅ LEAD STATUS - CRM/Onboarding concern (ends at approved)
 export type LeadStatus = 
   | 'lead_added'
+  | 'contacted_not_lifted'
   | 'contacted_not_interested'
   | 'contacted_interested'
   | 'documents_submitted'
@@ -1209,6 +1210,53 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to fetch not interested candidates' }));
       throw new Error(error.error || error.message || 'Failed to fetch not interested candidates');
+    }
+
+    const result = await response.json();
+    return {
+      success: result.success,
+      data: {
+        leads: result.data || [],
+        total: result.pagination?.total || 0,
+        page: result.pagination?.page || 1,
+        limit: result.pagination?.limit || 20,
+      },
+    };
+  },
+
+  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string }): Promise<{
+    success: boolean;
+    data: {
+      leads: Lead[];
+      total: number;
+      page: number;
+      limit: number;
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const queryParams = new URLSearchParams();
+    queryParams.append('status', 'contacted_not_lifted');
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads?${queryParams.toString()}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch not lifted candidates' }));
+      throw new Error(error.error || error.message || 'Failed to fetch not lifted candidates');
     }
 
     const result = await response.json();

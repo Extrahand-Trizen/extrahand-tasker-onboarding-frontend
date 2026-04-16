@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX, ShieldCheck, BarChart3, PhoneCall, FileSpreadsheet } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX, ShieldCheck, BarChart3, PhoneCall, FileSpreadsheet, PhoneOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ const navigation: Array<{
   { name: 'All Leads', href: '/leads/all', icon: UsersRound, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Add Lead', href: '/leads/new', icon: FileText, roles: ['qualifier', 'lead_access_manager'] },
   { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
+  { name: 'Contacted & Not Lifted', href: '/leads/not-lifted', icon: PhoneOff, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Contacted & Not Interested', href: '/leads/not-interested', icon: UserX, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Follow-up Queue', href: '/leads/callbacks', icon: PhoneCall, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Lead Reports', href: '/leads/reports', icon: FileSpreadsheet, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },

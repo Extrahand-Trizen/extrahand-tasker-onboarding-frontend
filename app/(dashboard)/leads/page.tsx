@@ -28,6 +28,7 @@ import {
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
+  contacted_not_lifted: 'bg-slate-100 text-slate-800',
   contacted_not_interested: 'bg-blue-100 text-blue-800',
   contacted_interested: 'bg-yellow-100 text-yellow-800',
   documents_submitted: 'bg-purple-100 text-purple-800',
@@ -190,6 +191,7 @@ export default function LeadsPage() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="lead_added">New Lead</SelectItem>
+                <SelectItem value="contacted_not_lifted">Contacted &amp; Not Lifted</SelectItem>
                 <SelectItem value="contacted_not_interested">Contacted &amp; Not Interested</SelectItem>
                 <SelectItem value="contacted_interested">Contacted &amp; Interested</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
