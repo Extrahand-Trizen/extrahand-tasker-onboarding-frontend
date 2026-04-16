@@ -39,33 +39,33 @@ function getRegistrationLabel(lead: Lead): { label: string; className: string } 
 export default function InterestedCandidatesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { role, loading: authLoading } = useJWTAuth();
+  const { role, user, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [registrationFilter, setRegistrationFilter] = useState<'all' | 'not_registered' | 'registered' | 'registered_verified'>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  // ✅ Role-based access: Only onboarder and lead_access_manager can access interested candidates queue
-  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
+  const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
-      toast.error('You do not have permission to access the interested candidates queue. Only onboarder and admin teams can view this.');
+      toast.error('You do not have permission to access the interested candidates queue.');
       router.push('/leads');
     }
   }, [authLoading, canAccess, router]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['interested-candidates', page, searchCity, searchSkill, registrationFilter],
+    queryKey: ['interested-candidates', role, user?.userId, page, searchCity, searchSkill, registrationFilter],
     queryFn: () => caosApi.getInterestedCandidates({
       city: searchCity,
       primarySkill: searchSkill,
       page,
       limit,
       registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
+      addedBy: role === 'qualifier' ? user?.userId : undefined,
     }),
-    enabled: canAccess,
+    enabled: canAccess && (role !== 'qualifier' || !!user?.userId),
   });
 
   // Show loading while checking auth
@@ -84,7 +84,7 @@ export default function InterestedCandidatesPage() {
         <ShieldAlert className="h-16 w-16 text-red-500" />
         <h2 className="text-2xl font-bold text-gray-900">Access Denied</h2>
         <p className="text-gray-600">You do not have permission to access the interested candidates queue.</p>
-        <p className="text-sm text-gray-500">Only onboarder and admin teams can view interested candidates.</p>
+        <p className="text-sm text-gray-500">Only authorized roles can view interested candidates.</p>
         <Link href="/leads">
           <Button variant="outline">Go to Partner List</Button>
         </Link>

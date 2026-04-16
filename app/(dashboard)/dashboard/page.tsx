@@ -7,11 +7,16 @@ import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus, Ph
 import { useJWTAuth } from "@/lib/hooks/useJWTAuth";
 
 export default function DashboardPage() {
-  const { role } = useJWTAuth();
+  const { role, user } = useJWTAuth();
 
   const { data: leadsData, isLoading } = useQuery({
-    queryKey: ["leads", "dashboard"],
-    queryFn: () => caosApi.searchLeads({ limit: 1 }),
+    queryKey: ["leads", "dashboard", role, user?.userId],
+    queryFn: () =>
+      caosApi.searchLeads({
+        limit: 1,
+        addedBy: role === "qualifier" ? user?.userId : undefined,
+      }),
+    enabled: role !== "qualifier" || !!user?.userId,
   });
 
   const { data: approvedData } = useQuery({

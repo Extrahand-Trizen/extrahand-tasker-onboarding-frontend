@@ -201,7 +201,7 @@ function LeadDetailContent() {
   const searchParams = useSearchParams();
   const leadId = params.leadId as string;
   const queryClient = useQueryClient();
-  const { role, loading: authLoading } = useJWTAuth();
+  const { role, user, loading: authLoading } = useJWTAuth();
   const fromVerification = searchParams?.get('from') === 'verification';
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
@@ -246,7 +246,6 @@ function LeadDetailContent() {
   const isQualifier = !authLoading && role === 'qualifier';
   const isOnboarder = !authLoading && role === 'onboarder';
   const canMoveStage = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
-  const canUpdateLead = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
   const canDeleteLead = !authLoading && isLeadAccessManager;
   
   // ✅ Qualifier team can only move stages up to "Contacted & Interested"
@@ -293,6 +292,8 @@ function LeadDetailContent() {
   const showExpectedOnboardingField =
     newStatus === 'contacted_interested' && statusReasonCode === 'interested_onboarding_later';
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
+  const isQualifierOwnLead = !!lead && isQualifier && !!user?.userId && lead.addedBy === user.userId;
+  const canUpdateLead = !authLoading && (isLeadAccessManager || isOnboarder || isQualifierOwnLead);
 
   // Update newStatus when lead loads
   useEffect(() => {
@@ -405,6 +406,9 @@ function LeadDetailContent() {
 
   const updateLeadMutation = useMutation({
     mutationFn: (data: typeof editFormData) => {
+      if (!canUpdateLead) {
+        throw new Error('You can only edit leads that you have added.');
+      }
       // Map primaryCategory to primarySkill for API compatibility
       const updateData: any = {
         name: data.name.trim(),
@@ -495,8 +499,7 @@ function LeadDetailContent() {
           </div>
         </div>
         <div className="flex gap-2">
-          {/* ✅ Edit Lead button - visible to users with canUpdateLead permission (qualifier, onboarder, lead_access_manager) */}
-          {/* ✅ Qualifiers can now edit ALL leads, including bulk upload leads */}
+          {/* Edit Lead: qualifier can edit only own leads; onboarder/admin can edit all */}
           {canUpdateLead && (
             <Button
               variant="outline"

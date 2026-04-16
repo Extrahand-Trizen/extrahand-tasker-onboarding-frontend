@@ -1126,7 +1126,7 @@ export const caosApi = {
    * Get interested candidates queue
    * registrationStatus: not_registered | registered | registered_verified
    */
-  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified' }): Promise<{
+  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1176,7 +1176,7 @@ export const caosApi = {
   /**
    * Get contacted & not interested candidates queue
    */
-  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number }): Promise<{
+  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];

@@ -28,25 +28,32 @@ const statusColors: Record<Lead['status'], string> = {
 
 export default function NotInterestedCandidatesPage() {
   const router = useRouter();
-  const { role, loading: authLoading } = useJWTAuth();
+  const { role, user, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
+  const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
-      toast.error('You do not have permission to access this queue. Only onboarder and admin teams can view this.');
+      toast.error('You do not have permission to access this queue.');
       router.push('/leads');
     }
   }, [authLoading, canAccess, router]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['not-interested-candidates', page, searchCity, searchSkill],
-    queryFn: () => caosApi.getNotInterestedCandidates({ city: searchCity, primarySkill: searchSkill, page, limit }),
-    enabled: canAccess,
+    queryKey: ['not-interested-candidates', role, user?.userId, page, searchCity, searchSkill],
+    queryFn: () =>
+      caosApi.getNotInterestedCandidates({
+        city: searchCity,
+        primarySkill: searchSkill,
+        page,
+        limit,
+        addedBy: role === 'qualifier' ? user?.userId : undefined,
+      }),
+    enabled: canAccess && (role !== 'qualifier' || !!user?.userId),
   });
 
   if (authLoading) {
@@ -63,7 +70,7 @@ export default function NotInterestedCandidatesPage() {
         <ShieldAlert className="h-16 w-16 text-red-500" />
         <h2 className="text-2xl font-bold text-gray-900">Access Denied</h2>
         <p className="text-gray-600">You do not have permission to access the contacted & not interested queue.</p>
-        <p className="text-sm text-gray-500">Only onboarder and admin teams can view this.</p>
+        <p className="text-sm text-gray-500">Only authorized roles can view this queue.</p>
         <Link href="/leads">
           <Button variant="outline">Go to Partner List</Button>
         </Link>
