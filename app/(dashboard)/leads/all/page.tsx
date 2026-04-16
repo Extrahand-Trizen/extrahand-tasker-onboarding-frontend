@@ -47,8 +47,8 @@ export default function AllLeadsPage() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Allow onboarder and lead_access_manager to view All Leads (delete only for lead_access_manager)
-  const canViewAllLeads = role === 'onboarder' || role === 'lead_access_manager';
+  // Allow qualifier, onboarder and lead_access_manager to view All Leads (delete only for lead_access_manager)
+  const canViewAllLeads = role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager';
   if (!authLoading && !canViewAllLeads) {
     router.replace('/leads');
     return null;

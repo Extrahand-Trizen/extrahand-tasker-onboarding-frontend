@@ -50,7 +50,7 @@ type LeadFormData = {
 
 const leadSchema = z.object({
   name: z.string().min(2, 'Full Name must be at least 2 characters'),
-  phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number (10 digits, starting with 6-9)').optional().or(z.literal('')),
+  phone: z.string().regex(/^\d{10}$/, 'Invalid phone number (must be exactly 10 digits)').optional().or(z.literal('')),
   landline: z.string().regex(/^[0-9]{6,15}$/, 'Invalid landline number (6-15 digits)').optional().or(z.literal('')),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
@@ -356,8 +356,13 @@ export default function AddLeadPage() {
       return;
     }
 
+    const normalizedPhone = data.phone?.trim() || '';
+    const normalizedLandline = data.landline?.trim() || '';
+
     const payload: Parameters<typeof caosApi.createLead>[0] = {
       ...data,
+      phone: normalizedPhone || undefined,
+      landline: normalizedLandline || undefined,
       city: data.city?.trim() || undefined,
       address: data.address?.trim() || undefined,
       pincode: data.pincode?.trim() || undefined,
