@@ -288,8 +288,12 @@ export default function AddLeadPage() {
     }
   };
 
-  const createLeadMutation = useMutation({
-    mutationFn: (data: LeadFormData) => caosApi.createLead(data),
+  const createLeadMutation = useMutation<
+    Awaited<ReturnType<typeof caosApi.createLead>>,
+    Error,
+    Parameters<typeof caosApi.createLead>[0]
+  >({
+    mutationFn: (data: Parameters<typeof caosApi.createLead>[0]) => caosApi.createLead(data),
     onSuccess: (response) => {
       toast.success('Tasker created successfully!');
       router.push(`/leads/${response.data.leadId}`);
@@ -352,7 +356,7 @@ export default function AddLeadPage() {
       return;
     }
 
-    const payload = {
+    const payload: Parameters<typeof caosApi.createLead>[0] = {
       ...data,
       city: data.city?.trim() || undefined,
       address: data.address?.trim() || undefined,
