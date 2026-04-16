@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { 
   Phone, Mail, MapPin, Briefcase, Calendar, User, 
   MessageSquare, Clock, CheckCircle, XCircle,
-  ArrowLeft, Edit, Trash2, RefreshCw, UserCheck
+  ArrowLeft, Edit, Trash2, RefreshCw, UserCheck, Award
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
@@ -30,6 +30,15 @@ const statusColors: Record<LeadStatus, string> = {
   under_verification: 'bg-orange-100 text-orange-800',
   approved: 'bg-green-100 text-green-800',
   inactive: 'bg-gray-100 text-gray-500',
+};
+
+const reasonCodeLabelMap: Record<string, string> = {
+  not_lifted: 'Not lifted',
+  callback_requested: 'Callback requested',
+  interested_onboarding_later: 'Interested - onboarding later',
+  not_interested: 'Not interested',
+  wrong_number: 'Wrong number',
+  other: 'Other',
 };
 
 /** Card showing whether lead has registered on main website and verified Aadhaar */
@@ -123,6 +132,65 @@ function ConversionStatusCard({
   );
 }
 
+function VerifiedCertificatesCard({ leadId }: { leadId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['lead', leadId, 'verified-certificates'],
+    queryFn: () => caosApi.getVerifiedCertificates(leadId),
+    enabled: !!leadId,
+  });
+
+  const certificates = data?.data?.certificates || [];
+
+  return (
+    <Card className="border-gray-200 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Award className="h-5 w-5 text-gray-500" />
+          Verified skill certificates
+        </CardTitle>
+        <CardDescription className="text-sm text-gray-500">
+          Skill certificates verified for this tasker on ExtraHand platform
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-gray-500">Loading verified certificates...</p>
+        ) : certificates.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            No verified skill certificates found.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {certificates.map((certificate, index) => (
+              <div key={`${certificate.skillName}-${index}`} className="rounded-md border border-gray-100 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-900">{certificate.skillName}</p>
+                  <Badge className="bg-green-100 text-green-800">Verified</Badge>
+                </div>
+                {certificate.certificateType && (
+                  <p className="mt-1 text-xs text-gray-600">
+                    Certificate: {certificate.certificateType}
+                  </p>
+                )}
+                {certificate.issuingAuthority && (
+                  <p className="text-xs text-gray-600">
+                    Issued by: {certificate.issuingAuthority}
+                  </p>
+                )}
+                {certificate.reviewedAt && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Verified on: {new Date(certificate.reviewedAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function LeadDetailContent() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -133,6 +201,10 @@ function LeadDetailContent() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
   const [statusNotes, setStatusNotes] = useState('');
+  const [statusReasonCode, setStatusReasonCode] = useState('');
+  const [statusReasonText, setStatusReasonText] = useState('');
+  const [callbackAt, setCallbackAt] = useState('');
+  const [expectedOnboardingAt, setExpectedOnboardingAt] = useState('');
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -146,7 +218,7 @@ function LeadDetailContent() {
     pincode: string;
     primaryCategory: string;
     secondaryCategory: string;
-    source: LeadSource;
+    source: LeadSource | '';
     sourceDetails: string;
   }>({
     name: '',
@@ -157,7 +229,7 @@ function LeadDetailContent() {
     pincode: '',
     primaryCategory: '',
     secondaryCategory: '',
-    source: 'referral',
+    source: '',
     sourceDetails: '',
   });
 
@@ -201,8 +273,13 @@ function LeadDetailContent() {
     queryFn: () => caosApi.getLead(leadId),
     enabled: !!leadId,
   });
+  const { data: statusReasonCodesData } = useQuery({
+    queryKey: ['lead-status-reason-codes'],
+    queryFn: () => caosApi.getStatusReasonCodes(),
+  });
 
   const lead = leadData?.data;
+  const statusReasonOptions = statusReasonCodesData?.data || [];
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
 
   // Update newStatus when lead loads
@@ -224,14 +301,28 @@ function LeadDetailContent() {
         pincode: (lead as any).pincode || '',
         primaryCategory: lead.primaryCategory || (lead as any).primarySkill || '',
         secondaryCategory: lead.secondaryCategory || (lead as any).secondarySkill || '',
-        source: lead.source || 'referral',
+        source: lead.source || '',
         sourceDetails: lead.sourceDetails || '',
       });
     }
   }, [lead, showEditModal]);
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ status, notes }: { status: LeadStatus; notes?: string }) => {
+    mutationFn: async ({
+      status,
+      notes,
+      statusReasonCode,
+      statusReasonText,
+      callbackAt,
+      expectedOnboardingAt,
+    }: {
+      status: LeadStatus;
+      notes?: string;
+      statusReasonCode?: string;
+      statusReasonText?: string;
+      callbackAt?: string;
+      expectedOnboardingAt?: string;
+    }) => {
       // ✅ Double-check permission before making API call
       if (!canMoveStage) {
         toast.error('You do not have permission to move stages. Only qualifier team can update lead status.');
@@ -243,14 +334,28 @@ function LeadDetailContent() {
         toast.error(`Qualifier team can only move stages up to "Contacted & Interested". After that, the verification team takes over.`);
         throw new Error('Invalid status: Qualifier team cannot set this status');
       }
-      
+
+      if (statusReasonCode === 'callback_requested' && !callbackAt) {
+        toast.error('Callback date is required when reason is callback requested.');
+        throw new Error('callbackAt is required for callback_requested');
+      }
+
       // No auto-transition needed since qualifier cannot set documents_submitted
-      return caosApi.updateStatus(leadId, status, notes);
+      return caosApi.updateStatus(leadId, status, notes, {
+        statusReasonCode: statusReasonCode || undefined,
+        statusReasonText: statusReasonText || undefined,
+        callbackAt: callbackAt || undefined,
+        expectedOnboardingAt: expectedOnboardingAt || undefined,
+      });
     },
     onSuccess: (data, variables) => {
       toast.success('Status updated successfully');
       setShowStatusModal(false);
       setStatusNotes('');
+      setStatusReasonCode('');
+      setStatusReasonText('');
+      setCallbackAt('');
+      setExpectedOnboardingAt('');
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
@@ -276,23 +381,17 @@ function LeadDetailContent() {
     mutationFn: (data: typeof editFormData) => {
       // Map primaryCategory to primarySkill for API compatibility
       const updateData: any = {
-        name: data.name,
-        email: data.email || undefined,
-        city: data.city,
-        state: data.state || undefined,
-        address: data.address || undefined,
-        pincode: data.pincode || undefined,
-        primarySkill: data.primaryCategory || undefined,
-        secondarySkill: data.secondaryCategory || undefined,
-        source: data.source,
-        sourceDetails: data.sourceDetails || undefined,
+        name: data.name.trim(),
+        email: data.email.trim() || null,
+        city: data.city.trim() || null,
+        state: data.state.trim() || null,
+        address: data.address.trim() || null,
+        pincode: data.pincode.trim() || null,
+        primarySkill: data.primaryCategory.trim() || null,
+        secondarySkill: data.secondaryCategory.trim() || null,
+        source: data.source || null,
+        sourceDetails: data.sourceDetails.trim() || null,
       };
-      // Remove undefined fields
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key] === undefined || updateData[key] === '') {
-          delete updateData[key];
-        }
-      });
       return caosApi.updateLead(leadId, updateData);
     },
     onSuccess: () => {
@@ -513,6 +612,9 @@ function LeadDetailContent() {
 
         {/* Platform status (converted & verified on main website) */}
         <ConversionStatusCard leadId={leadId} lead={lead} queryClient={queryClient} />
+
+        {/* Verified skill certificates (from mobile/website profile) */}
+        <VerifiedCertificatesCard leadId={leadId} />
       </div>
 
       {/* Onboarding Checklist - Hidden for bulk upload taskers */}
@@ -641,6 +743,10 @@ function LeadDetailContent() {
             if (e.target === e.currentTarget) {
               setShowStatusModal(false);
               setStatusNotes('');
+              setStatusReasonCode('');
+              setStatusReasonText('');
+              setCallbackAt('');
+              setExpectedOnboardingAt('');
             }
           }}
         >
@@ -705,10 +811,65 @@ function LeadDetailContent() {
                   className="resize-none"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="status-reason-code">Reason</Label>
+                <Select
+                  value={statusReasonCode || '__none__'}
+                  onValueChange={(value) => setStatusReasonCode(value === '__none__' ? '' : value)}
+                >
+                  <SelectTrigger id="status-reason-code">
+                    <SelectValue placeholder="Select reason (optional)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="__none__">None</SelectItem>
+                    {statusReasonOptions.map((code) => (
+                      <SelectItem key={code} value={code}>
+                        {reasonCodeLabelMap[code] || code.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status-reason-text">Reason Details (Optional)</Label>
+                <Input
+                  id="status-reason-text"
+                  value={statusReasonText}
+                  onChange={(e) => setStatusReasonText(e.target.value)}
+                  placeholder="Add context for status update..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="callback-at">
+                  Callback Date {statusReasonCode === 'callback_requested' ? '*' : '(Optional)'}
+                </Label>
+                <Input
+                  id="callback-at"
+                  type="datetime-local"
+                  value={callbackAt}
+                  onChange={(e) => setCallbackAt(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expected-onboarding-at">Expected Onboarding Date (Optional)</Label>
+                <Input
+                  id="expected-onboarding-at"
+                  type="datetime-local"
+                  value={expectedOnboardingAt}
+                  onChange={(e) => setExpectedOnboardingAt(e.target.value)}
+                />
+              </div>
               <div className="flex gap-2 pt-2">
                 <Button
                   onClick={() => {
-                    updateStatusMutation.mutate({ status: newStatus, notes: statusNotes });
+                    updateStatusMutation.mutate({
+                      status: newStatus,
+                      notes: statusNotes,
+                      statusReasonCode,
+                      statusReasonText,
+                      callbackAt,
+                      expectedOnboardingAt,
+                    });
                   }}
                   disabled={updateStatusMutation.isPending}
                   className="flex-1"
@@ -720,6 +881,10 @@ function LeadDetailContent() {
                   onClick={() => {
                     setShowStatusModal(false);
                     setStatusNotes('');
+                    setStatusReasonCode('');
+                    setStatusReasonText('');
+                    setCallbackAt('');
+                    setExpectedOnboardingAt('');
                   }}
                   disabled={updateStatusMutation.isPending}
                 >
@@ -771,13 +936,12 @@ function LeadDetailContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-city">City *</Label>
+                  <Label htmlFor="edit-city">City</Label>
                   <Input
                     id="edit-city"
                     value={editFormData.city}
                     onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
                     placeholder="City"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -827,15 +991,16 @@ function LeadDetailContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-source">Source *</Label>
+                  <Label htmlFor="edit-source">Source</Label>
                   <Select
-                    value={editFormData.source}
-                    onValueChange={(value) => setEditFormData({ ...editFormData, source: value as LeadSource })}
+                    value={editFormData.source || '__none__'}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, source: value === '__none__' ? '' : (value as LeadSource) })}
                   >
                     <SelectTrigger id="edit-source">
-                      <SelectValue placeholder="Select source" />
+                      <SelectValue placeholder="Select source (optional)" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       <SelectItem value="referral">Referral</SelectItem>
                       <SelectItem value="campaign">Campaign</SelectItem>
                       <SelectItem value="walk-in">Walk-in</SelectItem>
@@ -857,8 +1022,8 @@ function LeadDetailContent() {
               <div className="flex gap-2 pt-4 border-t">
                 <Button
                   onClick={() => {
-                    if (!editFormData.name || !editFormData.city) {
-                      toast.error('Name and City are required');
+                    if (!editFormData.name.trim()) {
+                      toast.error('Name is required');
                       return;
                     }
                     updateLeadMutation.mutate(editFormData);

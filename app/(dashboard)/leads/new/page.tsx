@@ -22,10 +22,10 @@ type LeadFormData = {
   phone: string;
   landline: string;
   email: string;
-  city: string;
-  address: string;
-  pincode: string;
-  primaryCategory:
+  city?: string;
+  address?: string;
+  pincode?: string;
+  primaryCategory?:
     | 'cleaning'
     | 'handyperson'
     | 'moving'
@@ -40,11 +40,11 @@ type LeadFormData = {
     | 'events'
     | 'water-tanker'
     | 'other';
-  secondaryCategory: string;
-  experienceLevel: 'beginner' | 'intermediate' | 'experienced';
+  secondaryCategory?: string;
+  experienceLevel?: 'beginner' | 'intermediate' | 'experienced';
   workingDays?: string;
   preferredTimeSlot?: string;
-  source: LeadSource;
+  source?: LeadSource;
 };
 
 const leadSchema = z.object({
@@ -52,9 +52,9 @@ const leadSchema = z.object({
   phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number (10 digits, starting with 6-9)').optional().or(z.literal('')),
   landline: z.string().regex(/^[0-9]{6,15}$/, 'Invalid landline number (6-15 digits)').optional().or(z.literal('')),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  city: z.string().min(2, 'City is required'),
-  address: z.string().min(2, 'Local Area is required'),
-  pincode: z.string().regex(/^\d{6}$/, 'Pincode must be 6 digits'),
+  city: z.string().optional().or(z.literal('')),
+  address: z.string().optional().or(z.literal('')),
+  pincode: z.string().regex(/^\d{6}$/, 'Pincode must be 6 digits').optional().or(z.literal('')),
   primaryCategory: z.enum([
     'cleaning',
     'handyperson',
@@ -70,16 +70,12 @@ const leadSchema = z.object({
     'events',
     'water-tanker',
     'other'
-  ], {
-    message: 'Please select a primary category',
-  }),
+  ]).optional(),
   secondaryCategory: z.string().default(''),
-  experienceLevel: z.enum(['beginner', 'intermediate', 'experienced'], {
-    message: 'Please select an experience level',
-  }),
+  experienceLevel: z.enum(['beginner', 'intermediate', 'experienced']).optional(),
   workingDays: z.string().optional(),
   preferredTimeSlot: z.string().optional(),
-  source: z.enum(['referral', 'campaign', 'walk-in', 'agent', 'other']),
+  source: z.enum(['referral', 'campaign', 'walk-in', 'agent', 'other']).optional(),
 })
   .refine(
     (data) => {
@@ -93,13 +89,7 @@ const leadSchema = z.object({
     }
   )
   .superRefine((data, ctx) => {
-    // Secondary category required for all primary categories except water-tanker (generalized service)
-    if (data.primaryCategory === 'water-tanker') return;
     const trimmed = (data.secondaryCategory ?? '').trim();
-    if (trimmed.length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Secondary category is required', path: ['secondaryCategory'] });
-      return;
-    }
     if (trimmed === 'other') {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please specify the secondary category', path: ['secondaryCategory'] });
     }
@@ -131,7 +121,7 @@ export default function AddLeadPage() {
     // @ts-expect-error Resolver type mismatch is safe to ignore here
     resolver: zodResolver(leadSchema),
     defaultValues: {
-      source: 'referral',
+      source: undefined,
     },
   });
 
@@ -337,7 +327,15 @@ export default function AddLeadPage() {
       return;
     }
 
-    const payload = { ...data, secondaryCategory: data.secondaryCategory === '__general__' ? '' : (data.secondaryCategory ?? '') };
+    const payload = {
+      ...data,
+      city: data.city?.trim() || undefined,
+      address: data.address?.trim() || undefined,
+      pincode: data.pincode?.trim() || undefined,
+      source: data.source || undefined,
+      experienceLevel: data.experienceLevel || undefined,
+      secondaryCategory: data.secondaryCategory === '__general__' ? '' : (data.secondaryCategory ?? ''),
+    };
     createLeadMutation.mutate(payload);
   };
 
@@ -452,7 +450,7 @@ export default function AddLeadPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="city">City *</Label>
+                <Label htmlFor="city">City</Label>
                 <Input
                   id="city"
                   {...register('city')}
@@ -467,7 +465,7 @@ export default function AddLeadPage() {
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="address">Local Area *</Label>
+                <Label htmlFor="address">Local Area</Label>
                 <Input
                   id="address"
                   {...register('address')}
@@ -480,7 +478,7 @@ export default function AddLeadPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="pincode">Pincode *</Label>
+                <Label htmlFor="pincode">Pincode</Label>
                 <Input
                   id="pincode"
                   {...register('pincode')}
@@ -496,7 +494,7 @@ export default function AddLeadPage() {
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2 bg-white">
-                <Label htmlFor="primaryCategory">Primary Category *</Label>
+                <Label htmlFor="primaryCategory">Primary Category</Label>
                 <Select
                   value={primaryCategoryValue}
                   onValueChange={(value) => {
@@ -533,7 +531,7 @@ export default function AddLeadPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="secondaryCategory">
-                  Secondary Category {primaryCategoryValue === 'water-tanker' ? '(optional – leave blank for general)' : '*'}
+                  Secondary Category
                 </Label>
                 {primaryCategoryValue && availableSecondaryCategories.length > 0 ? (
                   <div className="flex gap-2">
@@ -625,7 +623,7 @@ export default function AddLeadPage() {
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="experienceLevel">Experience Level *</Label>
+                <Label htmlFor="experienceLevel">Experience Level</Label>
                 <Select
                   value={watch('experienceLevel') || undefined}
                   onValueChange={(value) => {
@@ -682,10 +680,10 @@ export default function AddLeadPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="source">Source *</Label>
+                <Label htmlFor="source">Source</Label>
                 <Select
-                  onValueChange={(value) => setValue('source', value as LeadSource)}
-                  defaultValue="referral"
+                  value={watch('source') || undefined}
+                  onValueChange={(value) => setValue('source', value as LeadSource, { shouldValidate: true })}
                 >
                   <SelectTrigger id="source" className={errors.source ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select source" />

@@ -57,10 +57,9 @@ export function BulkUploadForm() {
         setPreviewData(null);
         setPreviewError(null);
 
-        // Only load preview for create operation if categories are selected (secondary optional for water-tanker)
-        if (operationType === 'create' && primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
-          await loadBackendPreview(selected, primaryCategory, secondaryCategory || undefined);
-        } else if (operationType !== 'create') {
+        if (operationType === 'create') {
+          await loadBackendPreview(selected, primaryCategory || undefined, secondaryCategory || undefined);
+        } else {
           // For update/delete, can preview without categories
           await loadBackendPreview(selected);
         }
@@ -106,12 +105,12 @@ export function BulkUploadForm() {
     }
   };
 
-  // Reload preview when categories change (for create operation; secondary optional for water-tanker)
+  // Reload preview when category filters change
   useEffect(() => {
-    if (file && operationType === 'create' && primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
+    if (file && operationType === 'create') {
       loadBackendPreview(file, primaryCategory, secondaryCategory || undefined);
     }
-  }, [primaryCategory, secondaryCategory]);
+  }, [file, operationType, primaryCategory, secondaryCategory]);
 
   // Secondary categories mapping based on primary category
   const secondaryCategoriesMap: Record<string, string[]> = {
@@ -246,19 +245,11 @@ export function BulkUploadForm() {
     : [];
 
   const handleDownloadTemplate = async () => {
-    if (operationType === 'create' && !primaryCategory) {
-      toast.error('Please select a primary category first');
-      return;
-    }
-    if (operationType === 'create' && primaryCategory !== 'water-tanker' && !secondaryCategory) {
-      toast.error('Please select a secondary category first');
-      return;
-    }
     try {
       const blob = await adminApi.downloadTemplate(
         operationType, 
-        operationType === 'create' ? primaryCategory : undefined,
-        operationType === 'create' ? (primaryCategory === 'water-tanker' ? (secondaryCategory || undefined) : secondaryCategory) : undefined
+        operationType === 'create' ? (primaryCategory || undefined) : undefined,
+        operationType === 'create' ? (secondaryCategory || undefined) : undefined
       );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -294,15 +285,6 @@ export function BulkUploadForm() {
       return;
     }
 
-    if (operationType === 'create' && !primaryCategory) {
-      toast.error('Please select a primary category first');
-      return;
-    }
-    if (operationType === 'create' && primaryCategory !== 'water-tanker' && !secondaryCategory) {
-      toast.error('Please select a secondary category first');
-      return;
-    }
-
     setUploading(true);
     setProgress(0);
     setResult(null);
@@ -315,8 +297,8 @@ export function BulkUploadForm() {
 
       const response = await adminApi.bulkUploadUsers(
         file,
-        operationType === 'create' ? primaryCategory : undefined,
-        operationType === 'create' ? (primaryCategory === 'water-tanker' ? (secondaryCategory || '') : secondaryCategory) : undefined,
+        operationType === 'create' ? (primaryCategory || undefined) : undefined,
+        operationType === 'create' ? (secondaryCategory || undefined) : undefined,
         sendEmails
       );
       
@@ -427,7 +409,7 @@ export function BulkUploadForm() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="bulk-primary-category">Primary Category *</Label>
+                <Label htmlFor="bulk-primary-category">Primary Category (optional)</Label>
                 <Select
                   value={primaryCategory}
                   onValueChange={(value) => {
@@ -459,7 +441,7 @@ export function BulkUploadForm() {
 
               <div className="space-y-2">
                 <Label htmlFor="bulk-secondary-category">
-                  Secondary Category {primaryCategory === 'water-tanker' ? '(optional)' : '*'}
+                  Secondary Category
                 </Label>
                 {primaryCategory && availableSecondaryCategories.length > 0 ? (
                   <Select
@@ -467,7 +449,7 @@ export function BulkUploadForm() {
                     onValueChange={(v) => setSecondaryCategory(v === '__general__' ? '' : v)}
                   >
                     <SelectTrigger id="bulk-secondary-category">
-                      <SelectValue placeholder={primaryCategory === 'water-tanker' ? 'Select or leave as General' : 'Select secondary category'} />
+                      <SelectValue placeholder="Select secondary category" />
                     </SelectTrigger>
                     <SelectContent>
                       {primaryCategory === 'water-tanker' && (
@@ -492,12 +474,15 @@ export function BulkUploadForm() {
                 )}
               </div>
             </div>
-            {primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker') && (
+            {(primaryCategory || secondaryCategory) && (
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  All rows in your CSV will be assigned <strong>{primaryCategory}</strong>
-                  {secondaryCategory ? <> - <strong>{secondaryCategory}</strong></> : ' (general)'}.
-                  You don't need to include category columns in your CSV.
+                  All rows in your CSV will be assigned <strong>{primaryCategory || "all categories"}</strong>
+                  {secondaryCategory ? <> - <strong>{secondaryCategory}</strong></> : ''}.
+                  You don't need to include category columns in your CSV/Excel file.
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Optional columns: City/Area, State, Address, Pincode, Experience Level, Preferred Time Slot, Source.
                 </p>
               </div>
             )}
@@ -516,11 +501,13 @@ export function BulkUploadForm() {
                 {operationType === 'delete' && 'Upload CSV/Excel to Delete Users'}
               </CardTitle>
               <CardDescription className="text-sm text-gray-500">
-                {operationType === 'create' && (primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')
+                {operationType === 'create' && ((primaryCategory || secondaryCategory)
                   ? secondaryCategory
                     ? `Template for ${primaryCategory} - ${secondaryCategory}`
-                    : `Template for ${primaryCategory} (general)`
-                  : 'Select categories above to download template')}
+                    : primaryCategory
+                      ? `Template for ${primaryCategory}`
+                      : 'Template with category columns'
+                  : 'Template with category columns')}
                 {operationType === 'update' && 'Download template for updating existing users'}
                 {operationType === 'delete' && 'Download template for deleting users'}
               </CardDescription>
@@ -528,7 +515,6 @@ export function BulkUploadForm() {
             <Button 
               variant="outline" 
               onClick={handleDownloadTemplate}
-              disabled={operationType === 'create' && (!primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory))}
             >
               <Download className="w-4 h-4 mr-2" />
               Download Template
@@ -554,7 +540,7 @@ export function BulkUploadForm() {
             </div>
           )}
           {operationType === 'create' && (
-            <p className="text-sm font-semibold text-gray-900 mb-2">Step 3: Upload CSV File</p>
+            <p className="text-sm font-semibold text-gray-900 mb-2">Step 3: Upload CSV/Excel File</p>
           )}
           {/* File Dropzone */}
           <div
@@ -735,7 +721,7 @@ export function BulkUploadForm() {
           {/* Upload Button */}
           <Button
             onClick={handleUpload}
-            disabled={!file || uploading || (operationType === 'create' && (!primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory)))}
+            disabled={!file || uploading}
             className="w-full"
           >
             {uploading ? 'Uploading...' : previewData ? `Import ${previewData.summary.valid} Valid Leads` : 'Upload & Process'}

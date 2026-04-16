@@ -142,6 +142,10 @@ export interface Lead {
     changedByName?: string;
     changedAt: string;
     notes?: string;
+    statusReasonCode?: string;
+    statusReasonText?: string;
+    callbackAt?: string;
+    expectedOnboardingAt?: string;
   }>;
   skills: Array<{
     name: string;
@@ -187,6 +191,12 @@ export interface Lead {
   }>;
   isDuplicate: boolean;
   blacklisted: boolean;
+  lastContactedAt?: string;
+  lastContactedBy?: string;
+  nextCallbackAt?: string;
+  expectedOnboardingAt?: string;
+  statusReasonCode?: string;
+  statusReasonText?: string;
   activationData?: {
     activatedAt: string;
     firebaseUid: string;
@@ -209,21 +219,35 @@ export interface ConversionStatusData {
   name?: string;
 }
 
+export interface VerifiedCertificateItem {
+  skillName: string;
+  certificateType?: string;
+  issuingAuthority?: string;
+  certificateNumber?: string;
+  uploadedAt?: string;
+  reviewedAt?: string;
+}
+
+export interface LeadStatusReasonOption {
+  code: string;
+  label: string;
+}
+
 export interface CreateLeadData {
   name: string;
   phone?: string;
   landline?: string;
   email?: string;
-  city: string;
+  city?: string;
   state?: string;
   address?: string; // Local Area
   pincode?: string;
-  primaryCategory: string;
-  secondaryCategory: string;
-  experienceLevel: 'beginner' | 'intermediate' | 'experienced';
+  primaryCategory?: string;
+  secondaryCategory?: string;
+  experienceLevel?: 'beginner' | 'intermediate' | 'experienced';
   workingDays?: string;
   preferredTimeSlot?: string;
-  source: LeadSource;
+  source?: LeadSource;
   sourceDetails?: string;
 }
 
@@ -386,6 +410,49 @@ export const caosApi = {
   },
 
   /**
+   * Get verified skill certificates for a lead
+   */
+  async getVerifiedCertificates(leadId: string): Promise<{
+    success: boolean;
+    data: {
+      platformUid?: string;
+      certificates: VerifiedCertificateItem[];
+    };
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/verified-certificates`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to get verified certificates' }));
+      throw new Error(error.error || error.message || 'Failed to get verified certificates');
+    }
+
+    return response.json();
+  },
+
+  async getStatusReasonCodes(): Promise<{ success: boolean; data: string[] }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/status-reason-codes`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to get status reason codes' }));
+      throw new Error(error.error || error.message || 'Failed to get status reason codes');
+    }
+
+    return response.json();
+  },
+
+  /**
    * Update lead
    */
   async updateLead(leadId: string, data: Partial<CreateLeadData>): Promise<{ success: boolean; data: Lead; message: string }> {
@@ -411,7 +478,17 @@ export const caosApi = {
   /**
    * Update lead status
    */
-  async updateStatus(leadId: string, status: LeadStatus, notes?: string): Promise<{ success: boolean; data: Lead; message: string }> {
+  async updateStatus(
+    leadId: string,
+    status: LeadStatus,
+    notes?: string,
+    extras?: {
+      statusReasonCode?: string;
+      statusReasonText?: string;
+      callbackAt?: string;
+      expectedOnboardingAt?: string;
+    }
+  ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
 
     const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/status`, {
@@ -420,7 +497,7 @@ export const caosApi = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ status, notes }),
+      body: JSON.stringify({ status, notes, ...extras }),
     });
 
     if (!response.ok) {

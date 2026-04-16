@@ -83,31 +83,20 @@ export function BulkLeadImportForm() {
         setPreviewData(null);
         setPreviewError(null);
 
-        // Load preview if categories are selected (secondary optional for water-tanker)
-        if (primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
-          await loadBackendPreview(selected, primaryCategory, secondaryCategory || undefined);
-        }
+        await loadBackendPreview(selected, primaryCategory || undefined, secondaryCategory || undefined);
       }
     },
   });
 
-  // Reload preview when categories change (secondary optional for water-tanker)
+  // Reload preview when category filters change
   useEffect(() => {
-    if (file && primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')) {
+    if (file) {
       loadBackendPreview(file, primaryCategory, secondaryCategory || undefined);
     }
-  }, [primaryCategory, secondaryCategory]);
+  }, [file, primaryCategory, secondaryCategory]);
 
   const downloadTemplateMutation = useMutation({
-    mutationFn: () => {
-      if (!primaryCategory) {
-        throw new Error('Please select a primary category first');
-      }
-      if (primaryCategory !== 'water-tanker' && !secondaryCategory) {
-        throw new Error('Please select a secondary category first');
-      }
-      return caosBulkApi.downloadTemplate(primaryCategory, primaryCategory === 'water-tanker' ? (secondaryCategory || undefined) : secondaryCategory);
-    },
+    mutationFn: () => caosBulkApi.downloadTemplate(primaryCategory || undefined, secondaryCategory || undefined),
     onSuccess: (blob) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -282,16 +271,6 @@ export function BulkLeadImportForm() {
       return;
     }
 
-    if (!primaryCategory) {
-      toast.error('Please select a primary category');
-      return;
-    }
-
-    if (primaryCategory !== 'water-tanker' && !secondaryCategory) {
-      toast.error('Please select a secondary category');
-      return;
-    }
-
     // Check if there are leads with different categories
     const differentCategoryLeads = previewData?.rows?.filter((row: any) => row.isDifferentCategory) || [];
     
@@ -311,8 +290,8 @@ export function BulkLeadImportForm() {
     setShowConfirmModal(false);
     uploadMutation.mutate({
       file,
-      primaryCategory,
-      secondaryCategory: primaryCategory === 'water-tanker' ? (secondaryCategory || '') : secondaryCategory
+      primaryCategory: primaryCategory || undefined,
+      secondaryCategory: secondaryCategory || undefined,
     });
   };
 
@@ -322,18 +301,18 @@ export function BulkLeadImportForm() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-gray-900">Bulk Import Leads</CardTitle>
           <CardDescription className="text-sm text-gray-500">
-            Upload CSV file to import multiple unverified leads
+            Upload CSV/Excel file to import multiple unverified leads
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Category Selection - Required First */}
+          {/* Optional category defaults */}
           <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
             <p className="text-sm font-semibold text-blue-900 mb-3">
               Step 1: Select Categories
             </p>
             <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="bulk-primary-category">Primary Category *</Label>
+              <Label htmlFor="bulk-primary-category">Primary Category (optional)</Label>
               <Select
                 value={primaryCategory}
                 onValueChange={(value) => {
@@ -365,7 +344,7 @@ export function BulkLeadImportForm() {
 
             <div className="space-y-2">
               <Label htmlFor="bulk-secondary-category">
-                Secondary Category {primaryCategory === 'water-tanker' ? '(optional)' : '*'}
+                Secondary Category
               </Label>
               {primaryCategory && availableSecondaryCategories.length > 0 ? (
                 <Select
@@ -373,7 +352,7 @@ export function BulkLeadImportForm() {
                   onValueChange={(v) => setSecondaryCategory(v === '__general__' ? '' : v)}
                 >
                   <SelectTrigger id="bulk-secondary-category">
-                    <SelectValue placeholder={primaryCategory === 'water-tanker' ? 'Select or leave as General' : 'Select secondary category'} />
+                    <SelectValue placeholder="Select secondary category" />
                   </SelectTrigger>
                   <SelectContent>
                     {primaryCategory === 'water-tanker' && (
@@ -409,11 +388,13 @@ export function BulkLeadImportForm() {
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Download CSV Template</p>
                   <p className="text-xs text-gray-500">
-                    {primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker')
+                    {primaryCategory || secondaryCategory
                       ? secondaryCategory
                         ? `Template for ${primaryCategory} - ${secondaryCategory}`
-                        : `Template for ${primaryCategory} (general)`
-                      : 'Select categories above to download template'}
+                        : primaryCategory
+                          ? `Template for ${primaryCategory}`
+                          : 'Template with category columns'
+                      : 'Template with category columns'}
                   </p>
                 </div>
               </div>
@@ -421,7 +402,7 @@ export function BulkLeadImportForm() {
                 variant="outline"
                 size="sm"
                 onClick={() => downloadTemplateMutation.mutate()}
-                disabled={!primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory) || downloadTemplateMutation.isPending}
+                disabled={downloadTemplateMutation.isPending}
               >
                 {downloadTemplateMutation.isPending ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -431,19 +412,24 @@ export function BulkLeadImportForm() {
                 Download Template
               </Button>
             </div>
-            {primaryCategory && (secondaryCategory || primaryCategory === 'water-tanker') && (
-              <p className="text-xs text-gray-600 mt-2">
-                The template will be pre-configured for <strong>{primaryCategory}</strong>
-                {secondaryCategory ? <> - <strong>{secondaryCategory}</strong></> : ' (general)'}.
-                You don't need to include category columns in your CSV.
-              </p>
+            {(primaryCategory || secondaryCategory) && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-gray-600">
+                  The template will be pre-configured for <strong>{primaryCategory || "all categories"}</strong>
+                  {secondaryCategory ? <> - <strong>{secondaryCategory}</strong></> : ''}.
+                  You don't need to include category columns in your CSV/Excel file.
+                </p>
+                <p className="text-xs text-gray-600">
+                  Optional columns: City/Area, State, Address, Pincode, Experience Level, Preferred Time Slot, Source.
+                </p>
+              </div>
             )}
           </div>
 
           {/* File Upload - Step 3 */}
           <div className="p-4 border border-gray-200 rounded-lg">
             <p className="text-sm font-semibold text-gray-900 mb-3">
-              Step 3: Upload CSV File
+              Step 3: Upload CSV/Excel File
             </p>
             <div
               {...getRootProps()}
@@ -480,7 +466,7 @@ export function BulkLeadImportForm() {
               ) : (
                 <div>
                   <p className="text-sm text-gray-600 mb-1">
-                    Drag and drop a CSV file here, or click to select
+                    Drag and drop a CSV/Excel file here, or click to select
                   </p>
                   <p className="text-xs text-gray-500">
                     Supports CSV, XLS, XLSX files (max 10MB)
@@ -595,7 +581,7 @@ export function BulkLeadImportForm() {
             {/* Upload Button */}
             <Button
               onClick={handleUpload}
-              disabled={!file || !primaryCategory || (primaryCategory !== 'water-tanker' && !secondaryCategory) || uploadMutation.isPending}
+              disabled={!file || uploadMutation.isPending}
               className="w-full mt-4"
             >
               {uploadMutation.isPending ? (
