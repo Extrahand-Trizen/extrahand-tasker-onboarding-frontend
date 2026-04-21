@@ -8,15 +8,21 @@ import { useJWTAuth } from "@/lib/hooks/useJWTAuth";
 
 export default function DashboardPage() {
   const { role, user } = useJWTAuth();
+  const currentUserId =
+    user?.userId ||
+    (user && typeof user === "object" && "uid" in user && typeof user.uid === "string"
+      ? user.uid
+      : undefined);
+  const isQualifier = role === "qualifier";
 
   const { data: leadsData, isLoading } = useQuery({
-    queryKey: ["leads", "dashboard", role, user?.userId],
+    queryKey: ["leads", "dashboard", role, currentUserId],
     queryFn: () =>
       caosApi.searchLeads({
         limit: 1,
-        addedBy: role === "qualifier" ? user?.userId : undefined,
+        addedBy: isQualifier ? currentUserId : undefined,
       }),
-    enabled: role !== "qualifier" || !!user?.userId,
+    enabled: role !== "qualifier" || !!currentUserId,
   });
 
   const { data: approvedData } = useQuery({
@@ -35,15 +41,49 @@ export default function DashboardPage() {
   });
 
   const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
+  const canViewRegistrationMetrics = isOnboarderOrManager || (isQualifier && !!currentUserId);
 
-  // Counts only for onboarder & lead_access_manager (enabled: false for other roles)
+  // Registration metrics are shown for onboarder/manager and qualifier.
   const countQueries = useQueries({
     queries: [
       { queryKey: ["interested-count", role], queryFn: () => caosApi.getInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: !!role },
       { queryKey: ["not-interested-count", role], queryFn: () => caosApi.getNotInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: !!role },
-      { queryKey: ["count-not-registered", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "not_registered", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
-      { queryKey: ["count-registered", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
-      { queryKey: ["count-registered-verified", isOnboarderOrManager], queryFn: () => caosApi.searchLeads({ registrationStatus: "registered_verified", page: 1, limit: 1 }), staleTime: 60_000, enabled: isOnboarderOrManager },
+      {
+        queryKey: ["count-not-registered", role, currentUserId],
+        queryFn: () =>
+          caosApi.searchLeads({
+            registrationStatus: "not_registered",
+            addedBy: isQualifier ? currentUserId : undefined,
+            page: 1,
+            limit: 1,
+          }),
+        staleTime: 60_000,
+        enabled: canViewRegistrationMetrics,
+      },
+      {
+        queryKey: ["count-registered", role, currentUserId],
+        queryFn: () =>
+          caosApi.searchLeads({
+            registrationStatus: "registered",
+            addedBy: isQualifier ? currentUserId : undefined,
+            page: 1,
+            limit: 1,
+          }),
+        staleTime: 60_000,
+        enabled: canViewRegistrationMetrics,
+      },
+      {
+        queryKey: ["count-registered-verified", role, currentUserId],
+        queryFn: () =>
+          caosApi.searchLeads({
+            registrationStatus: "registered_verified",
+            addedBy: isQualifier ? currentUserId : undefined,
+            page: 1,
+            limit: 1,
+          }),
+        staleTime: 60_000,
+        enabled: canViewRegistrationMetrics,
+      },
     ],
   });
 
@@ -64,6 +104,9 @@ export default function DashboardPage() {
           { title: "My Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
           { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50" },
           { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50" },
+          { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
+          { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50" },
+          { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" },
           { title: "My Total Follow-ups", value: followUpStatsData?.data?.totalFollowUps ?? 0, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
           {
             title: "My Overdue Follow-ups",
