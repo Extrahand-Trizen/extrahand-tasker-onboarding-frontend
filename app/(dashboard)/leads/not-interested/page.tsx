@@ -49,11 +49,16 @@ function getLatestStatusTransition(
 
 export default function NotInterestedCandidatesPage() {
   const router = useRouter();
-  const { role, loading: authLoading } = useJWTAuth();
+  const { role, user, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [page, setPage] = useState(1);
   const limit = 20;
+  const currentUserId =
+    user?.userId ||
+    (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
+      ? user.uid
+      : undefined);
 
   const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
 
@@ -65,15 +70,16 @@ export default function NotInterestedCandidatesPage() {
   }, [authLoading, canAccess, router]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['not-interested-candidates', role, page, searchCity, searchSkill],
+    queryKey: ['not-interested-candidates', role, currentUserId, page, searchCity, searchSkill],
     queryFn: () =>
       caosApi.getNotInterestedCandidates({
         city: searchCity,
         primarySkill: searchSkill,
+        addedBy: role === 'qualifier' ? currentUserId : undefined,
         page,
         limit,
       }),
-    enabled: canAccess,
+    enabled: canAccess && (role !== 'qualifier' || !!currentUserId),
   });
 
   if (authLoading) {
