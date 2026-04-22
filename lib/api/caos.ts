@@ -478,6 +478,7 @@ export const caosApi = {
     primarySkill?: string;
     startDate?: string;
     endDate?: string;
+    addedBy?: string;
     dueType?: 'all' | 'callback' | 'onboarding';
     bucket?: 'all' | 'today' | 'overdue' | 'upcoming' | 'range';
     page?: number;
@@ -509,11 +510,17 @@ export const caosApi = {
     return response.json();
   },
 
-  async getFollowUpQueueStats(): Promise<FollowUpQueueStatsResponse> {
+  async getFollowUpQueueStats(params: { addedBy?: string } = {}): Promise<FollowUpQueueStatsResponse> {
     const token = await getAdminToken();
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
 
     const response = await fetch(
-      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/follow-up-queue/stats`,
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/follow-up-queue/stats?${queryParams.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

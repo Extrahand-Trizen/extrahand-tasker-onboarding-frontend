@@ -230,7 +230,12 @@ export default function RegisteredCandidatesPage() {
                           </td>
                           <td className="px-4 py-3">
                             <Badge variant="secondary" className="text-xs">
-                              {primaryCategoryLabel(lead.primaryCategory || lead.primarySkill)}
+                              {primaryCategoryLabel(
+                                lead.primaryCategory ||
+                                  (typeof (lead as { primarySkill?: unknown }).primarySkill === 'string'
+                                    ? ((lead as { primarySkill?: string }).primarySkill || undefined)
+                                    : undefined)
+                              )}
                             </Badge>
                           </td>
                           <td className="px-4 py-3">

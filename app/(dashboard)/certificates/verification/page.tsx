@@ -94,7 +94,8 @@ export default function CertificateVerificationPage() {
   const queryClient = useQueryClient();
   const { role, loading: authLoading } = useJWTAuth();
 
-  const canReviewCertificates = role === 'onboarder' || role === 'lead_access_manager' || role === 'support';
+  const canReviewCertificates =
+    role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager' || role === 'support';
 
   const [q, setQ] = useState('');
   const [uid, setUid] = useState('');

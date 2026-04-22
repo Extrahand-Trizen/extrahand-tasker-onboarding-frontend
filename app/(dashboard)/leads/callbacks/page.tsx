@@ -13,6 +13,7 @@ import { Loader2, Eye, CalendarClock } from 'lucide-react';
 import Link from 'next/link';
 import { leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 
 const statusColors: Record<string, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -26,8 +27,10 @@ const statusColors: Record<string, string> = {
 };
 
 export default function CallbackQueuePage() {
+  const { role, user } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
+  const [addedByFilter, setAddedByFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [dueType, setDueType] = useState<'all' | 'callback' | 'onboarding'>('all');
@@ -35,12 +38,27 @@ export default function CallbackQueuePage() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
+  const currentUserId =
+    user?.userId ||
+    (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
+      ? user.uid
+      : undefined);
+  const isQualifier = role === 'qualifier';
+
+  const { data: creatorsData } = useQuery({
+    queryKey: ['follow-up-creators'],
+    queryFn: () => caosApi.getLeadCreators(),
+    enabled: !isQualifier,
+  });
+  const leadCreators = creatorsData?.data || [];
+
   const { data, isLoading } = useQuery({
-    queryKey: ['follow-up-queue', page, searchCity, searchSkill, startDate, endDate, dueType, bucket],
+    queryKey: ['follow-up-queue', page, searchCity, searchSkill, addedByFilter, currentUserId, startDate, endDate, dueType, bucket],
     queryFn: () =>
       caosApi.getFollowUpQueue({
         city: searchCity || undefined,
         primarySkill: searchSkill || undefined,
+        addedBy: isQualifier ? currentUserId : (addedByFilter !== 'all' ? addedByFilter : undefined),
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         dueType,
@@ -48,10 +66,15 @@ export default function CallbackQueuePage() {
         page,
         limit,
       }),
+    enabled: !isQualifier || !!currentUserId,
   });
   const { data: statsData } = useQuery({
-    queryKey: ['follow-up-queue-stats'],
-    queryFn: () => caosApi.getFollowUpQueueStats(),
+    queryKey: ['follow-up-queue-stats', addedByFilter, currentUserId],
+    queryFn: () =>
+      caosApi.getFollowUpQueueStats({
+        addedBy: isQualifier ? currentUserId : (addedByFilter !== 'all' ? addedByFilter : undefined),
+      }),
+    enabled: !isQualifier || !!currentUserId,
   });
 
   if (isLoading) {
@@ -110,7 +133,7 @@ export default function CallbackQueuePage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-8 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
@@ -163,6 +186,30 @@ export default function CallbackQueuePage() {
                 className="mt-1.5"
               />
             </div>
+            {!isQualifier && (
+              <div>
+                <Label htmlFor="added-by-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Select
+                  value={addedByFilter}
+                  onValueChange={(value) => {
+                    setAddedByFilter(value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger id="added-by-filter" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all">All</SelectItem>
+                    {leadCreators.map((creator) => (
+                      <SelectItem key={creator.userId} value={creator.userId}>
+                        {creator.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label htmlFor="due-type-filter" className="text-sm font-medium text-gray-700">Due Type</Label>
               <Select value={dueType} onValueChange={(value: 'all' | 'callback' | 'onboarding') => {
@@ -203,6 +250,7 @@ export default function CallbackQueuePage() {
                 onClick={() => {
                   setSearchCity('');
                   setSearchSkill('');
+                  setAddedByFilter('all');
                   setStartDate('');
                   setEndDate('');
                   setDueType('all');
@@ -276,7 +324,12 @@ export default function CallbackQueuePage() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
+                          {primaryCategoryLabel(
+                            lead.primaryCategory ||
+                              (typeof (lead as { primarySkill?: unknown }).primarySkill === 'string'
+                                ? ((lead as { primarySkill?: string }).primarySkill || undefined)
+                                : undefined)
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {lead.statusReasonText || lead.statusReasonCode || '-'}

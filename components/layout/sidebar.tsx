@@ -25,7 +25,7 @@ const navigation: Array<{
   { name: 'Lead Reports', href: '/leads/reports', icon: FileSpreadsheet, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Registered Candidates', href: '/leads/registered', icon: UserCheck, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'lead_access_manager'] },
-  { name: 'Certificate Verification', href: '/certificates/verification', icon: ShieldCheck, roles: ['onboarder', 'lead_access_manager', 'support'] },
+  { name: 'Certificate Verification', href: '/certificates/verification', icon: ShieldCheck, roles: ['qualifier', 'onboarder', 'lead_access_manager', 'support'] },
   { name: 'Upload Leads (CSV)', href: '/leads/bulk-import', icon: Upload, roles: ['qualifier', 'lead_access_manager'] },
   // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
