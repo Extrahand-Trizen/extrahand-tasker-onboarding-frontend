@@ -53,7 +53,14 @@ function ConversionStatusCard({
   queryClient,
 }: {
   leadId: string;
-  lead: { phone?: string; landline?: string; conversionData?: { platformUid?: string; isAadhaarVerified?: boolean; lastCheckedAt?: string } };
+  lead: {
+    phone?: string;
+    landline?: string;
+    accountStatus?: 'not_created' | 'invited' | 'activated' | 'suspended';
+    activationData?: { firebaseUid?: string };
+    verificationStatus?: { aadhaar?: { status?: 'pending' | 'verified' | 'failed' } };
+    conversionData?: { platformUid?: string; isAadhaarVerified?: boolean; lastCheckedAt?: string };
+  };
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const hasPhone = !!(lead?.phone || (lead as any)?.landline);
@@ -69,8 +76,11 @@ function ConversionStatusCard({
   });
 
   const cd = lead?.conversionData;
-  const converted = !!cd?.platformUid;
-  const verified = !!cd?.isAadhaarVerified;
+  const converted =
+    !!cd?.platformUid ||
+    !!lead?.activationData?.firebaseUid ||
+    ['invited', 'activated', 'suspended'].includes(lead?.accountStatus || 'not_created');
+  const verified = !!cd?.isAadhaarVerified || lead?.verificationStatus?.aadhaar?.status === 'verified';
 
   let statusLabel: string;
   let statusBadgeClass: string;
