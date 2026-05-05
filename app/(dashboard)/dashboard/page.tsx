@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueries } from "@tanstack/react-query";
 import { caosApi } from "@/lib/api/caos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus, PhoneCall, AlertTriangle, CalendarClock } from "lucide-react";
@@ -35,7 +35,7 @@ export default function DashboardPage() {
     queryKey: ["leads", "dashboard", "callback-stats", role, currentUserId],
     queryFn: () => caosApi.getFollowUpQueueStats(),
     enabled: isReady,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: 2,
   });

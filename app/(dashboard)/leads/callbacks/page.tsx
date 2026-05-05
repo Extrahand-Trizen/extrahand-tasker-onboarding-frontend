@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,7 +68,7 @@ export default function CallbackQueuePage() {
         limit,
       }),
     enabled: isReady,
-    keepPreviousData: true,
+      placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: 2,
   });
@@ -79,7 +79,7 @@ export default function CallbackQueuePage() {
         addedBy: isQualifier ? currentUserId : (addedByFilter !== 'all' ? addedByFilter : undefined),
       }),
     enabled: isReady,
-    keepPreviousData: true,
+      placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: 2,
   });

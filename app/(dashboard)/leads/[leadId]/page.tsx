@@ -64,14 +64,17 @@ function ConversionStatusCard({
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const hasPhone = !!(lead?.phone || (lead as any)?.landline);
-  const cd = lead?.conversionData;
-  const converted = !!cd?.platformUid;
-  const verified = !!cd?.isAadhaarVerified;
+  const conversionDataSnapshot = lead?.conversionData;
+  const isRegisteredOnPlatform =
+    !!conversionDataSnapshot?.platformUid ||
+    !!lead?.activationData?.firebaseUid ||
+    ['invited', 'activated', 'suspended'].includes(lead?.accountStatus || 'not_created');
+  const isVerified = !!conversionDataSnapshot?.isAadhaarVerified || lead?.verificationStatus?.aadhaar?.status === 'verified';
 
   const autoRefreshQuery = useQuery({
-    queryKey: ['lead', leadId, 'conversion-status-auto', cd?.lastCheckedAt, converted, verified],
+    queryKey: ['lead', leadId, 'conversion-status-auto', conversionDataSnapshot?.lastCheckedAt, isRegisteredOnPlatform, isVerified],
     queryFn: () => caosApi.getConversionStatus(leadId),
-    enabled: hasPhone && converted && !verified,
+    enabled: hasPhone && isRegisteredOnPlatform && !isVerified,
     refetchInterval: 30000,
     refetchIntervalInBackground: true,
     retry: 1,
@@ -112,19 +115,12 @@ function ConversionStatusCard({
     },
   });
 
-  const cd = lead?.conversionData;
-  const converted =
-    !!cd?.platformUid ||
-    !!lead?.activationData?.firebaseUid ||
-    ['invited', 'activated', 'suspended'].includes(lead?.accountStatus || 'not_created');
-  const verified = !!cd?.isAadhaarVerified || lead?.verificationStatus?.aadhaar?.status === 'verified';
-
   let statusLabel: string;
   let statusBadgeClass: string;
-  if (!converted) {
+  if (!isRegisteredOnPlatform) {
     statusLabel = 'Not registered';
     statusBadgeClass = 'bg-gray-100 text-gray-800';
-  } else if (!verified) {
+  } else if (!isVerified) {
     statusLabel = 'Registered';
     statusBadgeClass = 'bg-amber-100 text-amber-800';
   } else {
@@ -148,15 +144,15 @@ function ConversionStatusCard({
           <p className="text-sm text-gray-600 mb-1">Status</p>
           <Badge className={statusBadgeClass}>{statusLabel}</Badge>
         </div>
-        {cd?.platformUid && (
+        {conversionDataSnapshot?.platformUid && (
           <div>
             <p className="text-sm text-gray-600 mb-1">Platform user ID</p>
-            <p className="font-mono text-xs text-gray-700 break-all">{cd.platformUid}</p>
+            <p className="font-mono text-xs text-gray-700 break-all">{conversionDataSnapshot.platformUid}</p>
           </div>
         )}
-        {cd?.lastCheckedAt && (
+        {conversionDataSnapshot?.lastCheckedAt && (
           <p className="text-xs text-gray-500">
-            Last checked: {new Date(cd.lastCheckedAt).toLocaleString()}
+            Last checked: {new Date(conversionDataSnapshot.lastCheckedAt).toLocaleString()}
           </p>
         )}
         {hasPhone && (
