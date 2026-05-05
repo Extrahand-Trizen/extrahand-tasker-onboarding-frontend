@@ -57,20 +57,53 @@ function ConversionStatusCard({
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const hasPhone = !!(lead?.phone || (lead as any)?.landline);
+  const cd = lead?.conversionData;
+  const converted = !!cd?.platformUid;
+  const verified = !!cd?.isAadhaarVerified;
+
+  const autoRefreshQuery = useQuery({
+    queryKey: ['lead', leadId, 'conversion-status-auto', cd?.lastCheckedAt, converted, verified],
+    queryFn: () => caosApi.getConversionStatus(leadId),
+    enabled: hasPhone && converted && !verified,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (!autoRefreshQuery.dataUpdatedAt) {
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+
+    if (autoRefreshQuery.data?.data?.isAadhaarVerified) {
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId, 'verified-certificates'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['interested-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['registered-candidates'] });
+    }
+  }, [
+    autoRefreshQuery.data,
+    autoRefreshQuery.dataUpdatedAt,
+    leadId,
+    queryClient,
+  ]);
+
   const checkMutation = useMutation({
     mutationFn: () => caosApi.getConversionStatus(leadId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId, 'verified-certificates'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['interested-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['registered-candidates'] });
       toast.success('Status updated');
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Failed to check status');
     },
   });
-
-  const cd = lead?.conversionData;
-  const converted = !!cd?.platformUid;
-  const verified = !!cd?.isAadhaarVerified;
 
   let statusLabel: string;
   let statusBadgeClass: string;

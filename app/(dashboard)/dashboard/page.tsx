@@ -7,13 +7,14 @@ import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus, Ph
 import { useJWTAuth } from "@/lib/hooks/useJWTAuth";
 
 export default function DashboardPage() {
-  const { role, user } = useJWTAuth();
+  const { role, user, loading: authLoading } = useJWTAuth();
   const currentUserId =
     user?.userId ||
     (user && typeof user === "object" && "uid" in user && typeof user.uid === "string"
       ? user.uid
       : undefined);
   const isQualifier = role === "qualifier";
+  const isReady = !!role && (!isQualifier || !!currentUserId);
 
   const { data: leadsData, isLoading } = useQuery({
     queryKey: ["leads", "dashboard", role, currentUserId],
@@ -22,22 +23,26 @@ export default function DashboardPage() {
         limit: 1,
         addedBy: isQualifier ? currentUserId : undefined,
       }),
-    enabled: role !== "qualifier" || !!currentUserId,
+    enabled: isReady,
   });
 
   const { data: approvedData } = useQuery({
     queryKey: ["leads", "dashboard", "approved"],
     queryFn: () => caosApi.searchLeads({ status: "approved", limit: 1 }),
-    enabled: role !== "qualifier",
+    enabled: !!role && role !== "qualifier",
   });
-  const { data: followUpStatsData } = useQuery({
-    queryKey: ["leads", "dashboard", "callback-stats"],
+  const { data: followUpStatsData, isError: followUpStatsError } = useQuery({
+    queryKey: ["leads", "dashboard", "callback-stats", role, currentUserId],
     queryFn: () => caosApi.getFollowUpQueueStats(),
+    enabled: isReady,
+    keepPreviousData: true,
+    refetchInterval: 60_000,
+    retry: 2,
   });
   const { data: dashboardMetricsData } = useQuery({
     queryKey: ["leads", "dashboard", "metrics"],
     queryFn: () => caosApi.getDashboardMetrics(),
-    enabled: role !== "qualifier",
+    enabled: !!role && role !== "qualifier",
   });
 
   const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
@@ -98,6 +103,8 @@ export default function DashboardPage() {
   const registeredTotal = countQueries[3]?.data?.pagination?.total ?? 0;
   const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
   const taskersAadhaarVerifiedTotal = dashboardMetricsData?.data?.taskersAadhaarVerified ?? 0;
+  const followUpStats = followUpStatsData?.data;
+  const followUpAvailable = !!followUpStats && !followUpStatsError;
   const statCards =
     role === "qualifier"
       ? [
@@ -107,17 +114,21 @@ export default function DashboardPage() {
           { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
           { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50" },
           { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" },
-          { title: "My Total Follow-ups", value: followUpStatsData?.data?.totalFollowUps ?? 0, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
+          { title: "My Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
           {
             title: "My Overdue Follow-ups",
-            value: (followUpStatsData?.data?.callbackOverdue ?? 0) + (followUpStatsData?.data?.onboardingOverdue ?? 0),
+            value: followUpAvailable
+              ? (followUpStats?.callbackOverdue ?? 0) + (followUpStats?.onboardingOverdue ?? 0)
+              : null,
             icon: AlertTriangle,
             color: "text-red-600",
             bg: "bg-red-50",
           },
           {
             title: "My Follow-ups Due Today",
-            value: (followUpStatsData?.data?.callbackDueToday ?? 0) + (followUpStatsData?.data?.onboardingDueToday ?? 0),
+            value: followUpAvailable
+              ? (followUpStats?.callbackDueToday ?? 0) + (followUpStats?.onboardingDueToday ?? 0)
+              : null,
             icon: PhoneCall,
             color: "text-indigo-600",
             bg: "bg-indigo-50",
@@ -126,17 +137,21 @@ export default function DashboardPage() {
       : [
           { title: "Total Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
           { title: "Ready to Invite", value: stats.approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
-          { title: "Total Follow-ups", value: followUpStatsData?.data?.totalFollowUps ?? 0, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
+          { title: "Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
           {
             title: "Overdue Follow-ups",
-            value: (followUpStatsData?.data?.callbackOverdue ?? 0) + (followUpStatsData?.data?.onboardingOverdue ?? 0),
+            value: followUpAvailable
+              ? (followUpStats?.callbackOverdue ?? 0) + (followUpStats?.onboardingOverdue ?? 0)
+              : null,
             icon: AlertTriangle,
             color: "text-red-600",
             bg: "bg-red-50",
           },
           {
             title: "Follow-ups Due Today",
-            value: (followUpStatsData?.data?.callbackDueToday ?? 0) + (followUpStatsData?.data?.onboardingDueToday ?? 0),
+            value: followUpAvailable
+              ? (followUpStats?.callbackDueToday ?? 0) + (followUpStats?.onboardingDueToday ?? 0)
+              : null,
             icon: PhoneCall,
             color: "text-indigo-600",
             bg: "bg-indigo-50",
@@ -164,7 +179,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {isLoading ? (
+      {authLoading || !isReady || isLoading ? (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {[1, 2, 3, 4, 5].map((i) => (
             <Card key={i} className="animate-pulse border-gray-200">
@@ -194,7 +209,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-                  {stat.value.toLocaleString()}
+                  {stat.value === null ? '—' : stat.value.toLocaleString()}
                 </div>
               </CardContent>
             </Card>

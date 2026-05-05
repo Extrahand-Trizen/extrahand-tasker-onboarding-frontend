@@ -27,7 +27,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function CallbackQueuePage() {
-  const { role, user } = useJWTAuth();
+  const { role, user, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [addedByFilter, setAddedByFilter] = useState('all');
@@ -44,6 +44,7 @@ export default function CallbackQueuePage() {
       ? user.uid
       : undefined);
   const isQualifier = role === 'qualifier';
+  const isReady = !isQualifier || !!currentUserId;
 
   const { data: creatorsData } = useQuery({
     queryKey: ['follow-up-creators'],
@@ -52,7 +53,7 @@ export default function CallbackQueuePage() {
   });
   const leadCreators = creatorsData?.data || [];
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['follow-up-queue', page, searchCity, searchSkill, addedByFilter, currentUserId, startDate, endDate, dueType, bucket],
     queryFn: () =>
       caosApi.getFollowUpQueue({
@@ -66,21 +67,42 @@ export default function CallbackQueuePage() {
         page,
         limit,
       }),
-    enabled: !isQualifier || !!currentUserId,
+    enabled: isReady,
+    keepPreviousData: true,
+    refetchInterval: 60_000,
+    retry: 2,
   });
-  const { data: statsData } = useQuery({
+  const { data: statsData, isError: statsError, error: statsErrorObj } = useQuery({
     queryKey: ['follow-up-queue-stats', addedByFilter, currentUserId],
     queryFn: () =>
       caosApi.getFollowUpQueueStats({
         addedBy: isQualifier ? currentUserId : (addedByFilter !== 'all' ? addedByFilter : undefined),
       }),
-    enabled: !isQualifier || !!currentUserId,
+    enabled: isReady,
+    keepPreviousData: true,
+    refetchInterval: 60_000,
+    retry: 2,
   });
 
-  if (isLoading) {
+  if (authLoading || !isReady || isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (isError || statsError) {
+    const message =
+      (error as Error | undefined)?.message ||
+      (statsErrorObj as Error | undefined)?.message ||
+      'Failed to load follow-ups.';
+
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <p className="text-sm text-gray-600">{message}</p>
+        </div>
       </div>
     );
   }
