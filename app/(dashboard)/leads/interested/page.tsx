@@ -66,6 +66,7 @@ export default function InterestedCandidatesPage() {
   const { role, user, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
+  const [searchPhone, setSearchPhone] = useState('');
   const [registrationFilter, setRegistrationFilter] = useState<'all' | 'not_registered' | 'registered' | 'registered_verified'>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -80,10 +81,11 @@ export default function InterestedCandidatesPage() {
   }, [authLoading, canAccess, router]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['interested-candidates', role, user?.userId, page, searchCity, searchSkill, registrationFilter],
+    queryKey: ['interested-candidates', role, user?.userId, page, searchCity, searchSkill, searchPhone, registrationFilter],
     queryFn: () => caosApi.getInterestedCandidates({
       city: searchCity,
       primarySkill: searchSkill,
+      search: searchPhone,
       page,
       limit,
       registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
@@ -139,7 +141,7 @@ export default function InterestedCandidatesPage() {
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
@@ -186,12 +188,26 @@ export default function InterestedCandidatesPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="phone-filter" className="text-sm font-medium text-gray-700">Phone Number</Label>
+              <Input
+                id="phone-filter"
+                value={searchPhone}
+                onChange={(e) => {
+                  setSearchPhone(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Filter by phone..."
+                className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
+              />
+            </div>
             <div className="flex items-end sm:col-span-2 md:col-span-1">
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchCity('');
                   setSearchSkill('');
+                  setSearchPhone('');
                   setRegistrationFilter('all');
                   setPage(1);
                 }}
@@ -215,7 +231,7 @@ export default function InterestedCandidatesPage() {
               <Heart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 font-medium">No interested candidates found</p>
               <p className="text-sm text-gray-500 mt-2">
-                {searchCity || searchSkill
+                {searchCity || searchSkill || searchPhone
                   ? 'Try adjusting your filters'
                   : 'Qualifier team will move leads to "Interested" status when candidates show interest'}
               </p>

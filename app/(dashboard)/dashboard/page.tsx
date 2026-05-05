@@ -5,6 +5,7 @@ import { caosApi } from "@/lib/api/caos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus, PhoneCall, AlertTriangle, CalendarClock } from "lucide-react";
 import { useJWTAuth } from "@/lib/hooks/useJWTAuth";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const { role, user, loading: authLoading } = useJWTAuth();
@@ -51,10 +52,32 @@ export default function DashboardPage() {
   // Registration metrics are shown for onboarder/manager and qualifier.
   const countQueries = useQueries({
     queries: [
-      { queryKey: ["interested-count", role], queryFn: () => caosApi.getInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: !!role },
-      { queryKey: ["not-interested-count", role], queryFn: () => caosApi.getNotInterestedCandidates({ page: 1, limit: 1 }), staleTime: 60_000, enabled: !!role },
       {
-        queryKey: ["count-not-registered", role, currentUserId],
+        queryKey: ["leads", "counts", "interested", role, currentUserId],
+        queryFn: () =>
+          caosApi.searchLeads({
+            status: "contacted_interested",
+            page: 1,
+            limit: 1,
+            statusChangedBy: isQualifier ? currentUserId : undefined,
+          }),
+        staleTime: 60_000,
+        enabled: isReady,
+      },
+      {
+        queryKey: ["leads", "counts", "not-interested", role, currentUserId],
+        queryFn: () =>
+          caosApi.searchLeads({
+            status: "contacted_not_interested",
+            page: 1,
+            limit: 1,
+            statusChangedBy: isQualifier ? currentUserId : undefined,
+          }),
+        staleTime: 60_000,
+        enabled: isReady,
+      },
+      {
+        queryKey: ["leads", "counts", "not-registered", role, currentUserId],
         queryFn: () =>
           caosApi.searchLeads({
             registrationStatus: "not_registered",
@@ -66,7 +89,7 @@ export default function DashboardPage() {
         enabled: canViewRegistrationMetrics,
       },
       {
-        queryKey: ["count-registered", role, currentUserId],
+        queryKey: ["leads", "counts", "registered", role, currentUserId],
         queryFn: () =>
           caosApi.searchLeads({
             registrationStatus: "registered",
@@ -78,7 +101,7 @@ export default function DashboardPage() {
         enabled: canViewRegistrationMetrics,
       },
       {
-        queryKey: ["count-registered-verified", role, currentUserId],
+        queryKey: ["leads", "counts", "registered-verified", role, currentUserId],
         queryFn: () =>
           caosApi.searchLeads({
             registrationStatus: "registered_verified",
@@ -97,8 +120,8 @@ export default function DashboardPage() {
     approved: approvedData?.pagination?.total ?? 0,
   };
 
-  const interestedTotal = countQueries[0]?.data?.data?.total ?? 0;
-  const notInterestedTotal = countQueries[1]?.data?.data?.total ?? 0;
+  const interestedTotal = countQueries[0]?.data?.pagination?.total ?? 0;
+  const notInterestedTotal = countQueries[1]?.data?.pagination?.total ?? 0;
   const notRegisteredTotal = countQueries[2]?.data?.pagination?.total ?? 0;
   const registeredTotal = countQueries[3]?.data?.pagination?.total ?? 0;
   const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
@@ -108,13 +131,13 @@ export default function DashboardPage() {
   const statCards =
     role === "qualifier"
       ? [
-          { title: "My Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
-          { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50" },
-          { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50" },
+          { title: "My Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads" },
+          { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50", href: "/leads/interested" },
+          { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50", href: "/leads/not-interested" },
           { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
-          { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50" },
-          { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" },
-          { title: "My Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
+          { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/registered" },
+          { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
+          { title: "My Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
           {
             title: "My Overdue Follow-ups",
             value: followUpAvailable
@@ -123,6 +146,7 @@ export default function DashboardPage() {
             icon: AlertTriangle,
             color: "text-red-600",
             bg: "bg-red-50",
+            href: "/leads/callbacks",
           },
           {
             title: "My Follow-ups Due Today",
@@ -132,12 +156,13 @@ export default function DashboardPage() {
             icon: PhoneCall,
             color: "text-indigo-600",
             bg: "bg-indigo-50",
+            href: "/leads/callbacks",
           },
         ]
       : [
-          { title: "Total Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50" },
-          { title: "Ready to Invite", value: stats.approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
-          { title: "Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50" },
+          { title: "Total Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/all" },
+          { title: "Ready to Invite", value: stats.approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50", href: "/leads/activation" },
+          { title: "Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
           {
             title: "Overdue Follow-ups",
             value: followUpAvailable
@@ -146,6 +171,7 @@ export default function DashboardPage() {
             icon: AlertTriangle,
             color: "text-red-600",
             bg: "bg-red-50",
+            href: "/leads/callbacks",
           },
           {
             title: "Follow-ups Due Today",
@@ -155,14 +181,15 @@ export default function DashboardPage() {
             icon: PhoneCall,
             color: "text-indigo-600",
             bg: "bg-indigo-50",
+            href: "/leads/callbacks",
           },
           ...(isOnboarderOrManager
             ? [
-                { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50" },
-                { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50" },
+                { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50", href: "/leads/interested" },
+                { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50", href: "/leads/not-interested" },
                 { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
-                { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50" },
-                { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" },
+                { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/registered" },
+                { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
                 { title: "Taskers Aadhaar Verified", value: taskersAadhaarVerifiedTotal, icon: ShieldCheck, color: "text-emerald-700", bg: "bg-emerald-50" },
               ]
             : []),
@@ -194,26 +221,36 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {statCards.map((stat) => (
-            <Card
-              key={stat.title}
-              className="border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-semibold text-gray-700">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.bg}`}>
-                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-                  {stat.value === null ? '—' : stat.value.toLocaleString()}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {statCards.map((stat) => {
+            const card = (
+              <Card
+                key={stat.title}
+                className={`border-gray-200 shadow-sm hover:shadow-md transition-shadow ${stat.href ? "cursor-pointer" : ""}`}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <CardTitle className="text-sm font-semibold text-gray-700">
+                    {stat.title}
+                  </CardTitle>
+                  <div className={`p-2 rounded-lg ${stat.bg}`}>
+                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    {stat.value === null ? '—' : stat.value.toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+
+            return stat.href ? (
+              <Link key={stat.title} href={stat.href}>
+                {card}
+              </Link>
+            ) : (
+              card
+            );
+          })}
         </div>
       )}
     </div>

@@ -264,6 +264,7 @@ export interface SearchLeadsParams {
   page?: number;
   limit?: number;
   registrationStatus?: 'not_registered' | 'registered' | 'registered_verified';
+  statusChangedBy?: string;
 }
 
 export interface SearchLeadsResponse {
@@ -1161,7 +1162,7 @@ export const caosApi = {
    * Get interested candidates queue
    * registrationStatus: not_registered | registered | registered_verified
    */
-  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string }): Promise<{
+  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; search?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
