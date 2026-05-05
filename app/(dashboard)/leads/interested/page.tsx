@@ -31,8 +31,11 @@ const statusColors: Record<Lead['status'], string> = {
 function getRegistrationLabel(lead: Lead): { label: string; className: string } {
   const cd = lead.conversionData;
   const hasUid = !!(cd?.platformUid);
-  const verified = !!cd?.isAadhaarVerified;
-  if (!hasUid) return { label: 'Not registered', className: 'bg-gray-100 text-gray-800' };
+  const hasActivationUid = !!(lead.activationData?.firebaseUid);
+  const hasAccount = ['invited', 'activated', 'suspended'].includes(lead.accountStatus);
+  const isRegistered = hasUid || hasActivationUid || hasAccount;
+  const verified = !!cd?.isAadhaarVerified || lead.verificationStatus?.aadhaar?.status === 'verified';
+  if (!isRegistered) return { label: 'Not registered', className: 'bg-gray-100 text-gray-800' };
   if (!verified) return { label: 'Registered', className: 'bg-amber-100 text-amber-800' };
   return { label: 'Registered and verified', className: 'bg-green-100 text-green-800' };
 }
