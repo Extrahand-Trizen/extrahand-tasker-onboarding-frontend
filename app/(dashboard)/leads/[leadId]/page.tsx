@@ -197,7 +197,7 @@ function VerifiedCertificatesCard({ leadId }: { leadId: string }) {
           Verified skill certificates
         </CardTitle>
         <CardDescription className="text-sm text-gray-500">
-          Skill certificates verified for this tasker on ExtraHand platform
+          Skill certificates verified for this helper on ExtraHand platform
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -496,7 +496,7 @@ function LeadDetailContent() {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">Loading tasker details...</p>
+          <p className="mt-4 text-sm text-gray-600">Loading helper details...</p>
         </div>
       </div>
     );
@@ -505,7 +505,7 @@ function LeadDetailContent() {
   if (!lead) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Tasker not found</p>
+        <p className="text-gray-600">Helper not found</p>
         <Link href="/leads">
           <Button variant="outline" className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -538,7 +538,7 @@ function LeadDetailContent() {
           )}
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{lead.name}</h1>
-            <p className="text-sm text-gray-500">Tasker ID: {lead.leadId}</p>
+            <p className="text-sm text-gray-500">Helper ID: {lead.leadId}</p>
           </div>
         </div>
         <div className="flex gap-2">

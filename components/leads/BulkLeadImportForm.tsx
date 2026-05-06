@@ -102,8 +102,8 @@ export function BulkLeadImportForm() {
       const a = document.createElement('a');
       a.href = url;
       a.download = secondaryCategory
-        ? `tasker-import-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
-        : `tasker-import-${primaryCategory}-template.csv`;
+        ? `helper-import-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
+        : `helper-import-${primaryCategory}-template.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -252,7 +252,7 @@ export function BulkLeadImportForm() {
       caosBulkApi.bulkImportLeads(data.file, undefined, data.primaryCategory, data.secondaryCategory),
     onSuccess: (response) => {
       toast.success(
-        `Import completed! ${response.data.successCount} taskers imported, ${response.data.failedCount} failed`
+        `Import completed! ${response.data.successCount} helpers imported, ${response.data.failedCount} failed`
       );
       setFile(null);
       setPrimaryCategory('');

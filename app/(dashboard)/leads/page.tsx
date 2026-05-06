@@ -224,11 +224,11 @@ export default function LeadsPage() {
           {isLoading ? (
             <div className="text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent"></div>
-              <p className="mt-4 text-sm text-gray-600">Loading taskers...</p>
+              <p className="mt-4 text-sm text-gray-600">Loading helpers...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
-              <p className="text-red-600 font-medium">Error loading taskers</p>
+              <p className="text-red-600 font-medium">Error loading helpers</p>
               <p className="text-sm text-gray-600 mt-2">
                 {error instanceof Error ? error.message : 'Failed to fetch leads'}
               </p>
@@ -247,11 +247,11 @@ export default function LeadsPage() {
             </div>
           ) : leads.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">No taskers found</p>
+              <p className="text-gray-600">No helpers found</p>
               <Link href="/leads/new">
                 <Button variant="outline" className="mt-4">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create First Tasker
+                  Create First Helper
                 </Button>
               </Link>
             </div>

@@ -340,6 +340,12 @@ export interface StatusAnalyticsResponse {
   };
 }
 
+export type StatusReportCategory =
+  | 'touched_leads'
+  | 'interested'
+  | 'callback_scheduled'
+  | 'callback_overdue';
+
 export interface DuplicateCheckResponse {
   success: boolean;
   data: {
@@ -590,6 +596,7 @@ export const caosApi = {
   async downloadStatusReport(params: {
     format: 'csv' | 'xlsx';
     template: 'eod' | 'detailed';
+    reportCategory: StatusReportCategory;
     from?: string;
     to?: string;
     qualifierId?: string;
