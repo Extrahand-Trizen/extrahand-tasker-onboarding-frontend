@@ -40,7 +40,7 @@ const reasonCodeLabelMap: Record<string, string> = {
   wrong_number: 'Wrong number',
   other: 'Other',
 };
-
+  
 const statusReasonCodeMap: Partial<Record<LeadStatus, string[]>> = {
   contacted_interested: ['callback_requested', 'interested_onboarding_later', 'other'],
   contacted_not_interested: ['not_interested', 'wrong_number', 'other'],
