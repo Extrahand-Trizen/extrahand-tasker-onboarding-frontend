@@ -64,10 +64,50 @@ function ConversionStatusCard({
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const hasPhone = !!(lead?.phone || (lead as any)?.landline);
+  const conversionDataSnapshot = lead?.conversionData;
+  const isRegisteredOnPlatform =
+    !!conversionDataSnapshot?.platformUid ||
+    !!lead?.activationData?.firebaseUid ||
+    ['invited', 'activated', 'suspended'].includes(lead?.accountStatus || 'not_created');
+  const isVerified = !!conversionDataSnapshot?.isAadhaarVerified || lead?.verificationStatus?.aadhaar?.status === 'verified';
+
+  const autoRefreshQuery = useQuery({
+    queryKey: ['lead', leadId, 'conversion-status-auto', conversionDataSnapshot?.lastCheckedAt, isRegisteredOnPlatform, isVerified],
+    queryFn: () => caosApi.getConversionStatus(leadId),
+    enabled: hasPhone && isRegisteredOnPlatform && !isVerified,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (!autoRefreshQuery.dataUpdatedAt) {
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+
+    if (autoRefreshQuery.data?.data?.isAadhaarVerified) {
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId, 'verified-certificates'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['interested-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['registered-candidates'] });
+    }
+  }, [
+    autoRefreshQuery.data,
+    autoRefreshQuery.dataUpdatedAt,
+    leadId,
+    queryClient,
+  ]);
+
   const checkMutation = useMutation({
     mutationFn: () => caosApi.getConversionStatus(leadId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId, 'verified-certificates'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['interested-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['registered-candidates'] });
       toast.success('Status updated');
     },
     onError: (err: Error) => {
@@ -75,19 +115,12 @@ function ConversionStatusCard({
     },
   });
 
-  const cd = lead?.conversionData;
-  const converted =
-    !!cd?.platformUid ||
-    !!lead?.activationData?.firebaseUid ||
-    ['invited', 'activated', 'suspended'].includes(lead?.accountStatus || 'not_created');
-  const verified = !!cd?.isAadhaarVerified || lead?.verificationStatus?.aadhaar?.status === 'verified';
-
   let statusLabel: string;
   let statusBadgeClass: string;
-  if (!converted) {
+  if (!isRegisteredOnPlatform) {
     statusLabel = 'Not registered';
     statusBadgeClass = 'bg-gray-100 text-gray-800';
-  } else if (!verified) {
+  } else if (!isVerified) {
     statusLabel = 'Registered';
     statusBadgeClass = 'bg-amber-100 text-amber-800';
   } else {
@@ -111,15 +144,15 @@ function ConversionStatusCard({
           <p className="text-sm text-gray-600 mb-1">Status</p>
           <Badge className={statusBadgeClass}>{statusLabel}</Badge>
         </div>
-        {cd?.platformUid && (
+        {conversionDataSnapshot?.platformUid && (
           <div>
             <p className="text-sm text-gray-600 mb-1">Platform user ID</p>
-            <p className="font-mono text-xs text-gray-700 break-all">{cd.platformUid}</p>
+            <p className="font-mono text-xs text-gray-700 break-all">{conversionDataSnapshot.platformUid}</p>
           </div>
         )}
-        {cd?.lastCheckedAt && (
+        {conversionDataSnapshot?.lastCheckedAt && (
           <p className="text-xs text-gray-500">
-            Last checked: {new Date(cd.lastCheckedAt).toLocaleString()}
+            Last checked: {new Date(conversionDataSnapshot.lastCheckedAt).toLocaleString()}
           </p>
         )}
         {hasPhone && (
@@ -164,7 +197,7 @@ function VerifiedCertificatesCard({ leadId }: { leadId: string }) {
           Verified skill certificates
         </CardTitle>
         <CardDescription className="text-sm text-gray-500">
-          Skill certificates verified for this tasker on ExtraHand platform
+          Skill certificates verified for this helper on ExtraHand platform
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -463,7 +496,7 @@ function LeadDetailContent() {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">Loading tasker details...</p>
+          <p className="mt-4 text-sm text-gray-600">Loading helper details...</p>
         </div>
       </div>
     );
@@ -472,7 +505,7 @@ function LeadDetailContent() {
   if (!lead) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Tasker not found</p>
+        <p className="text-gray-600">Helper not found</p>
         <Link href="/leads">
           <Button variant="outline" className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -505,7 +538,7 @@ function LeadDetailContent() {
           )}
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{lead.name}</h1>
-            <p className="text-sm text-gray-500">Tasker ID: {lead.leadId}</p>
+            <p className="text-sm text-gray-500">Helper ID: {lead.leadId}</p>
           </div>
         </div>
         <div className="flex gap-2">

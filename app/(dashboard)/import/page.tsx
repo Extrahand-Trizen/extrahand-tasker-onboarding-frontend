@@ -10,7 +10,7 @@ export default function ImportPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Upload Leads (Bulk)</h1>
         <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
-          Bulk upload taskers that will appear in the taskers list with status "Account Created"
+          Bulk upload helpers that will appear in the helpers list with status "Account Created"
         </p>
       </div>
 

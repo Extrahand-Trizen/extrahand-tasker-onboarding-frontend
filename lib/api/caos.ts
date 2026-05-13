@@ -264,6 +264,7 @@ export interface SearchLeadsParams {
   page?: number;
   limit?: number;
   registrationStatus?: 'not_registered' | 'registered' | 'registered_verified';
+  statusChangedBy?: string;
 }
 
 export interface SearchLeadsResponse {
@@ -338,6 +339,12 @@ export interface StatusAnalyticsResponse {
     qualifierBreakdown: Array<{ qualifierId: string; qualifierName: string; touchedLeads: number }>;
   };
 }
+
+export type StatusReportCategory =
+  | 'touched_leads'
+  | 'interested'
+  | 'callback_scheduled'
+  | 'callback_overdue';
 
 export interface DuplicateCheckResponse {
   success: boolean;
@@ -589,6 +596,7 @@ export const caosApi = {
   async downloadStatusReport(params: {
     format: 'csv' | 'xlsx';
     template: 'eod' | 'detailed';
+    reportCategory: StatusReportCategory;
     from?: string;
     to?: string;
     qualifierId?: string;
@@ -1161,7 +1169,7 @@ export const caosApi = {
    * Get interested candidates queue
    * registrationStatus: not_registered | registered | registered_verified
    */
-  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string }): Promise<{
+  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; search?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];

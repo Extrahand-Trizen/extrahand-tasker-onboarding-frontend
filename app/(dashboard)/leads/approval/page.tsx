@@ -52,12 +52,12 @@ export default function ApprovalQueuePage() {
     mutationFn: ({ leadId, notes }: { leadId: string; notes?: string }) =>
       caosApi.approveLead(leadId, notes),
     onSuccess: () => {
-      toast.success('Tasker approved successfully');
+      toast.success('Helper approved successfully');
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to approve tasker');
+      toast.error(error.message || 'Failed to approve helper');
     },
   });
 
@@ -65,7 +65,7 @@ export default function ApprovalQueuePage() {
     mutationFn: ({ leadIds, notes }: { leadIds: string[]; notes?: string }) =>
       caosApi.bulkApproveLeads(leadIds, notes),
     onSuccess: (data) => {
-      toast.success(`Approved ${data.data.success} of ${data.data.total} taskers`);
+      toast.success(`Approved ${data.data.success} of ${data.data.total} helpers`);
       setSelectedLeads(new Set());
       setShowBulkApproveModal(false);
       setApprovalNotes('');
@@ -73,7 +73,7 @@ export default function ApprovalQueuePage() {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to bulk approve taskers');
+      toast.error(error.message || 'Failed to bulk approve helpers');
     },
   });
 
@@ -97,7 +97,7 @@ export default function ApprovalQueuePage() {
 
   const handleBulkApprove = () => {
     if (selectedLeads.size === 0) {
-      toast.error('Please select at least one tasker');
+      toast.error('Please select at least one helper');
       return;
     }
     bulkApproveMutation.mutate({
@@ -121,9 +121,9 @@ export default function ApprovalQueuePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Approve Taskers</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Approve Helpers</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Taskers that are ready to be approved ({total} total)
+            Helpers that are ready to be approved ({total} total)
           </p>
         </div>
         {selectedLeads.size > 0 && (
@@ -201,7 +201,7 @@ export default function ApprovalQueuePage() {
         <CardContent>
           {leads.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">No taskers in approval queue</p>
+              <p className="text-gray-600">No helpers in approval queue</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -273,7 +273,7 @@ export default function ApprovalQueuePage() {
                             <span className="text-gray-600">Skill:</span> {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </div>
                           <div>
-                            <span className="text-gray-600">Tasker ID:</span> {lead.leadId}
+                            <span className="text-gray-600">Helper ID:</span> {lead.leadId}
                           </div>
                         </div>
 
@@ -360,9 +360,9 @@ export default function ApprovalQueuePage() {
       <Dialog open={showBulkApproveModal} onOpenChange={setShowBulkApproveModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve selected taskers</DialogTitle>
+            <DialogTitle>Approve selected helpers</DialogTitle>
             <DialogDescription>
-              {selectedLeads.size} tasker{selectedLeads.size === 1 ? '' : 's'} will be approved. Add an optional note for the activity log.
+              {selectedLeads.size} helper{selectedLeads.size === 1 ? '' : 's'} will be approved. Add an optional note for the activity log.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -396,7 +396,7 @@ export default function ApprovalQueuePage() {
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve {selectedLeads.size} tasker{selectedLeads.size === 1 ? '' : 's'}
+                  Approve {selectedLeads.size} helper{selectedLeads.size === 1 ? '' : 's'}
                 </>
               )}
             </Button>

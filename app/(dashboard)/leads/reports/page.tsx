@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { caosApi } from '@/lib/api/caos';
+import { caosApi, type StatusReportCategory } from '@/lib/api/caos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,13 @@ import { Loader2, Download } from 'lucide-react';
 
 type ExportTemplate = 'eod' | 'detailed';
 type DatePreset = 'today' | 'last_7_days' | 'custom';
+
+const REPORT_CATEGORY_OPTIONS: Array<{ label: string; value: StatusReportCategory }> = [
+  { label: 'Touched Leads', value: 'touched_leads' },
+  { label: 'Interested', value: 'interested' },
+  { label: 'Callback Scheduled', value: 'callback_scheduled' },
+  { label: 'Callback Overdue', value: 'callback_overdue' },
+];
 
 function formatDateInputValue(date: Date): string {
   const year = date.getFullYear();
@@ -54,6 +61,7 @@ export default function LeadReportsPage() {
   const [toDate, setToDate] = useState(getDateRangeFromPreset('last_7_days').to);
   const [qualifierId, setQualifierId] = useState<string>('all');
   const [template, setTemplate] = useState<ExportTemplate>('eod');
+  const [reportCategory, setReportCategory] = useState<StatusReportCategory>('touched_leads');
   const [includeNotes, setIncludeNotes] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -90,6 +98,7 @@ export default function LeadReportsPage() {
       const report = await caosApi.downloadStatusReport({
         format,
         template,
+        reportCategory,
         from: fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
         to: toDate ? `${toDate}T23:59:59.999Z` : undefined,
         qualifierId: qualifierId !== 'all' ? qualifierId : undefined,
@@ -118,7 +127,7 @@ export default function LeadReportsPage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
             <div>
               <Label>Date Range</Label>
               <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
@@ -187,6 +196,19 @@ export default function LeadReportsPage() {
                 <SelectContent>
                   <SelectItem value="eod">EOD</SelectItem>
                   <SelectItem value="detailed">Detailed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label title="Select which lead status category to include in the download">Lead Category</Label>
+              <Select value={reportCategory} onValueChange={(value) => setReportCategory(value as StatusReportCategory)}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REPORT_CATEGORY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

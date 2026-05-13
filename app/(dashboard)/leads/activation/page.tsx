@@ -72,12 +72,12 @@ export default function ActivationQueuePage() {
   const activateMutation = useMutation({
     mutationFn: (leadId: string) => caosApi.activateLead(leadId),
     onSuccess: () => {
-      toast.success('Tasker activated successfully');
+      toast.success('Helper activated successfully');
       queryClient.invalidateQueries({ queryKey: ['activation-queue'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to activate tasker');
+      toast.error(error.message || 'Failed to activate helper');
     },
   });
 
@@ -89,7 +89,7 @@ export default function ActivationQueuePage() {
         leadId: f.leadId,
         reason: f.reason || f.error,
       }));
-      toast.success(`Activated ${successArr.length} of ${successArr.length + failedArr.length} taskers`);
+      toast.success(`Activated ${successArr.length} of ${successArr.length + failedArr.length} helpers`);
       setBulkResult({ success: successArr, failed: failedArr });
       setShowResultModal(true);
       setSelectedLeads(new Set());
@@ -98,7 +98,7 @@ export default function ActivationQueuePage() {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to bulk activate taskers');
+      toast.error(error.message || 'Failed to bulk activate helpers');
     },
   });
 
@@ -122,7 +122,7 @@ export default function ActivationQueuePage() {
 
   const handleBulkActivate = () => {
     if (selectedLeads.size === 0) {
-      toast.error('Please select at least one tasker');
+      toast.error('Please select at least one helper');
       return;
     }
     bulkActivateMutation.mutate(Array.from(selectedLeads));
@@ -177,7 +177,7 @@ export default function ActivationQueuePage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Ready for Invitation</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-1.5">
-            {total} approved taskers ready to create accounts
+            {total} approved helpers ready to create accounts
           </p>
         </div>
         {selectedLeads.size > 0 && (
@@ -243,7 +243,7 @@ export default function ActivationQueuePage() {
       <Card className="border-gray-200 shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-gray-900">Taskers Ready for Invitation</CardTitle>
+            <CardTitle className="text-lg font-semibold text-gray-900">Helpers Ready for Invitation</CardTitle>
             {leads.length > 0 && (
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -258,7 +258,7 @@ export default function ActivationQueuePage() {
         <CardContent>
           {leads.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">No taskers in activation queue</p>
+              <p className="text-gray-600">No helpers in activation queue</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -320,7 +320,7 @@ export default function ActivationQueuePage() {
                             <span className="text-gray-600">Category:</span> {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </div>
                           <div>
-                            <span className="text-gray-600">Tasker ID:</span> {lead.leadId}
+                            <span className="text-gray-600">Helper ID:</span> {lead.leadId}
                           </div>
                         </div>
                       </div>
@@ -361,10 +361,10 @@ export default function ActivationQueuePage() {
       <Dialog open={showBulkActivateModal} onOpenChange={setShowBulkActivateModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create accounts for selected taskers</DialogTitle>
+            <DialogTitle>Create accounts for selected helpers</DialogTitle>
             <DialogDescription>
               This will create Firebase accounts and user profiles for {selectedLeads.size}{' '}
-              tasker{selectedLeads.size === 1 ? '' : 's'}. This action cannot be undone.
+              helper{selectedLeads.size === 1 ? '' : 's'}. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-gray-700">

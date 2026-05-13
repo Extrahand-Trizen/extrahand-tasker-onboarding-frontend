@@ -19,7 +19,7 @@ export function BulkUploadForm() {
   const [operationType, setOperationType] = useState<'create' | 'update' | 'delete'>('create');
   
   // ✅ Role-based permissions
-  // Qualifier team can only create taskers, not update or delete
+  // Qualifier team can only create helpers, not update or delete
   const canCreate = true; // All roles can create
   const canUpdate = role === 'onboarder' || role === 'lead_access_manager';
   const canDelete = role === 'onboarder' || role === 'lead_access_manager';
@@ -28,7 +28,7 @@ export function BulkUploadForm() {
   useEffect(() => {
     if (!authLoading && role === 'qualifier' && operationType !== 'create') {
       setOperationType('create');
-      toast.error('Qualifier team can only create taskers. Update and delete onboarder are restricted to onboarder and admin teams.');
+      toast.error('Qualifier team can only create helpers. Update and delete onboarder are restricted to onboarder and admin teams.');
     }
   }, [role, authLoading, operationType]);
   const [file, setFile] = useState<File | null>(null);
@@ -256,9 +256,9 @@ export function BulkUploadForm() {
       a.href = url;
       const filename = operationType === 'create' && primaryCategory
         ? secondaryCategory
-          ? `tasker-${operationType}-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
-          : `tasker-${operationType}-${primaryCategory}-template.csv`
-        : `tasker-${operationType}-template.csv`;
+          ? `helper-${operationType}-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
+          : `helper-${operationType}-${primaryCategory}-template.csv`
+        : `helper-${operationType}-template.csv`;
       a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
@@ -276,12 +276,12 @@ export function BulkUploadForm() {
 
     // ✅ Validate permissions before upload
     if (operationType === 'update' && !canUpdate) {
-      toast.error('You do not have permission to update taskers. Only onboarder and admin teams can update.');
+      toast.error('You do not have permission to update helpers. Only onboarder and admin teams can update.');
       return;
     }
 
     if (operationType === 'delete' && !canDelete) {
-      toast.error('You do not have permission to delete taskers. Only onboarder and admin teams can delete.');
+      toast.error('You do not have permission to delete helpers. Only onboarder and admin teams can delete.');
       return;
     }
 
@@ -329,7 +329,7 @@ export function BulkUploadForm() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-gray-900">Bulk Upload Leads</CardTitle>
           <CardDescription className="text-sm text-gray-500">
-            Upload CSV to create taskers that will appear in the taskers list with status "Account Created"
+            Upload CSV to create helpers that will appear in the helpers list with status "Account Created"
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -353,7 +353,7 @@ export function BulkUploadForm() {
               <button
                 onClick={() => {
                   if (!canUpdate) {
-                    toast.error('You do not have permission to update taskers. Only onboarder and admin teams can update.');
+                    toast.error('You do not have permission to update helpers. Only onboarder and admin teams can update.');
                     return;
                   }
                   setOperationType('update');
@@ -376,7 +376,7 @@ export function BulkUploadForm() {
               <button
                 onClick={() => {
                   if (!canDelete) {
-                    toast.error('You do not have permission to delete taskers. Only onboarder and admin teams can delete.');
+                    toast.error('You do not have permission to delete helpers. Only onboarder and admin teams can delete.');
                     return;
                   }
                   setOperationType('delete');
@@ -403,7 +403,7 @@ export function BulkUploadForm() {
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-gray-900">Step 1: Select Categories</CardTitle>
             <CardDescription className="text-sm text-gray-500">
-              Select the primary and secondary categories for all taskers in this upload
+              Select the primary and secondary categories for all helpers in this upload
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -535,7 +535,7 @@ export function BulkUploadForm() {
                 className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2"
               >
                 <Mail className="w-4 h-4" />
-                Send confirmation emails to taskers
+                Send confirmation emails to helpers
               </Label>
             </div>
           )}
@@ -713,7 +713,7 @@ export function BulkUploadForm() {
                 className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2"
               >
                 <Mail className="w-4 h-4" />
-                Send confirmation emails to taskers after upload
+                Send confirmation emails to helpers after upload
               </Label>
             </div>
           )}

@@ -278,7 +278,7 @@ export default function AddLeadPage() {
       const result = await caosApi.checkDuplicate(value, type);
       if (result.data.isDuplicate && result.data.existingLead) {
         setDuplicateWarning(
-          `Duplicate found: Tasker ${result.data.existingLead.leadId} (${result.data.existingLead.status})`
+          `Duplicate found: Helper ${result.data.existingLead.leadId} (${result.data.existingLead.status})`
         );
       } else {
         setDuplicateWarning(null);
@@ -295,14 +295,14 @@ export default function AddLeadPage() {
   >({
     mutationFn: (data: Parameters<typeof caosApi.createLead>[0]) => caosApi.createLead(data),
     onSuccess: (response) => {
-      toast.success('Tasker created successfully!');
+      toast.success('Helper created successfully!');
       router.push(`/leads/${response.data.leadId}`);
     },
     onError: (error: any) => {
       if (error.message.includes('Duplicate')) {
-        toast.error('Duplicate tasker found. Please check existing taskers.');
+        toast.error('Duplicate helper found. Please check existing helpers.');
       } else {
-        toast.error(error.message || 'Failed to create tasker');
+        toast.error(error.message || 'Failed to create helper');
       }
     },
     onSettled: () => {
@@ -324,7 +324,7 @@ export default function AddLeadPage() {
     }
     
     if (duplicateWarning) {
-      toast.warning('Please resolve duplicate before creating tasker');
+      toast.warning('Please resolve duplicate before creating helper');
       submittingRef.current = false;
       return;
     }
@@ -755,7 +755,7 @@ export default function AddLeadPage() {
                 disabled={createLeadMutation.isPending}
                 className="flex-1 w-full sm:w-auto"
               >
-                {createLeadMutation.isPending ? 'Creating...' : 'Create Tasker'}
+                {createLeadMutation.isPending ? 'Creating...' : 'Create Helper'}
               </Button>
               <Button
                 type="button"
