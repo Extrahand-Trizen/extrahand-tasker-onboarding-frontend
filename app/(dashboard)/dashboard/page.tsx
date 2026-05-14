@@ -125,7 +125,7 @@ export default function DashboardPage() {
   const notRegisteredTotal = countQueries[2]?.data?.pagination?.total ?? 0;
   const registeredTotal = countQueries[3]?.data?.pagination?.total ?? 0;
   const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
-  const taskersAadhaarVerifiedTotal = dashboardMetricsData?.data?.taskersAadhaarVerified ?? 0;
+  const workersAadhaarVerifiedTotal = dashboardMetricsData?.data?.taskersAadhaarVerified ?? 0;
   const followUpStats = followUpStatsData?.data;
   const followUpAvailable = !!followUpStats && !followUpStatsError;
   const statCards =
@@ -190,7 +190,7 @@ export default function DashboardPage() {
                 { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
                 { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/registered" },
                 { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
-                { title: "Helpers Aadhaar Verified", value: taskersAadhaarVerifiedTotal, icon: ShieldCheck, color: "text-emerald-700", bg: "bg-emerald-50" },
+                { title: "Helpers Aadhaar Verified", value: workersAadhaarVerifiedTotal, icon: ShieldCheck, color: "text-emerald-700", bg: "bg-emerald-50" },
               ]
             : []),
         ];

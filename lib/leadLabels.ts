@@ -40,6 +40,12 @@ const PRIMARY_CATEGORY_LABELS: Record<string, string> = {
   'pet-care': 'Pet Care',
   events: 'Events & Entertainment',
   'water-tanker': 'Water & Tanker Services',
+  'ac-repair-service': 'AC Repair & Service',
+  'security-services': 'Security Services',
+  'senior-care': 'Senior Care / Elder Care',
+  'driver-chauffeur': 'Driver / Chauffeur Services',
+  'cooking-home-chef': 'Cooking / Home Chef',
+  'laundry-ironing': 'Laundry & Ironing',
   other: 'Other',
 };
 

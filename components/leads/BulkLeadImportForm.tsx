@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Upload, Download, FileText, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import {
@@ -22,7 +23,9 @@ import {
 export function BulkLeadImportForm() {
   const [file, setFile] = useState<File | null>(null);
   const [primaryCategory, setPrimaryCategory] = useState<string>('');
+  const [primaryCategoryOther, setPrimaryCategoryOther] = useState<string>('');
   const [secondaryCategory, setSecondaryCategory] = useState<string>('');
+  const [secondaryCategoryOther, setSecondaryCategoryOther] = useState<string>('');
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -40,10 +43,13 @@ export function BulkLeadImportForm() {
     setPreviewError(null);
     
     try {
+      const resolvedPrimary = primary === 'other' ? primaryCategoryOther : primary;
+      const resolvedSecondary = secondary === 'other' ? secondaryCategoryOther : secondary;
+
       const preview = await caosBulkApi.previewBulkImportLeads(
         selectedFile,
-        primary || primaryCategory,
-        secondary || secondaryCategory
+        resolvedPrimary || primaryCategory,
+        resolvedSecondary || secondaryCategory
       );
       
       setPreviewData(preview.data);
@@ -93,17 +99,24 @@ export function BulkLeadImportForm() {
     if (file) {
       loadBackendPreview(file, primaryCategory, secondaryCategory || undefined);
     }
-  }, [file, primaryCategory, secondaryCategory]);
+  }, [file, primaryCategory, primaryCategoryOther, secondaryCategory, secondaryCategoryOther]);
 
   const downloadTemplateMutation = useMutation({
-    mutationFn: () => caosBulkApi.downloadTemplate(primaryCategory || undefined, secondaryCategory || undefined),
+    mutationFn: () => {
+      const resolvedPrimary = primaryCategory === 'other' ? primaryCategoryOther : primaryCategory;
+      const resolvedSecondary = secondaryCategory === 'other' ? secondaryCategoryOther : secondaryCategory;
+      return caosBulkApi.downloadTemplate(resolvedPrimary || undefined, resolvedSecondary || undefined);
+    },
     onSuccess: (blob) => {
+      const resolvedPrimary = primaryCategory === 'other' ? primaryCategoryOther : primaryCategory;
+      const resolvedSecondary = secondaryCategory === 'other' ? secondaryCategoryOther : secondaryCategory;
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = secondaryCategory
-        ? `helper-import-${primaryCategory}-${secondaryCategory.replace(/\s+/g, '-')}-template.csv`
-        : `helper-import-${primaryCategory}-template.csv`;
+      a.download = resolvedSecondary
+        ? `helper-import-${resolvedPrimary}-${resolvedSecondary.replace(/\s+/g, '-')}-template.csv`
+        : `helper-import-${resolvedPrimary}-template.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -126,7 +139,8 @@ export function BulkLeadImportForm() {
       'Window Cleaning',
       'Carpet Cleaning',
       'Bathroom Cleaning',
-      'Kitchen Cleaning'
+      'Kitchen Cleaning',
+      'Sofa / Upholstery Cleaning'
     ],
     handyperson: [
       'Plumbing',
@@ -138,7 +152,9 @@ export function BulkLeadImportForm() {
       'Furniture Assembly',
       'Wall Mounting',
       'Door/Window Repair',
-      'Lock Repair'
+      'Lock Repair',
+      'Inverter / UPS Setup',
+      'Curtain / Rod Fitting'
     ],
     moving: [
       'Food Delivery',
@@ -147,7 +163,10 @@ export function BulkLeadImportForm() {
       'Courier Services',
       'Furniture Moving',
       'Local Transport',
-      'Intercity Transport'
+      'Intercity Transport',
+      'Grocery Pickup',
+      'Document Delivery',
+      'Loading / Unloading'
     ],
     gardening: [
       'Lawn Mowing',
@@ -156,7 +175,9 @@ export function BulkLeadImportForm() {
       'Planting',
       'Landscaping',
       'Pest Control',
-      'Irrigation Setup'
+      'Irrigation Setup',
+      'Plant Care',
+      'Garden Cleanup'
     ],
     business: [
       'Data Entry',
@@ -165,7 +186,11 @@ export function BulkLeadImportForm() {
       'Legal Services',
       'Consulting',
       'Business Setup',
-      'Documentation'
+      'Documentation',
+      'GST Filing',
+      'Income Tax Filing',
+      'Payroll Support',
+      'Bookkeeping'
     ],
     marketing: [
       'Graphic Design',
@@ -184,7 +209,10 @@ export function BulkLeadImportForm() {
       'IT Support',
       'Network Setup',
       'Data Recovery',
-      'App Development'
+      'App Development',
+      'Laptop Repair',
+      'Desktop Setup',
+      'Wi-Fi / Router Setup'
     ],
     tutoring: [
       'Math Tutor',
@@ -194,7 +222,9 @@ export function BulkLeadImportForm() {
       'Yoga Classes',
       'Fitness Training',
       'Language Classes',
-      'Exam Preparation'
+      'Exam Preparation',
+      'Spoken English',
+      'Computer Basics'
     ],
     photography: [
       'Event Photography',
@@ -203,7 +233,8 @@ export function BulkLeadImportForm() {
       'Wedding Photography',
       'Video Shooting',
       'Photo Editing',
-      'Drone Photography'
+      'Drone Photography',
+      'Video Recording'
     ],
     beauty: [
       'Hair Styling',
@@ -213,7 +244,10 @@ export function BulkLeadImportForm() {
       'Spa Services',
       'Haircut',
       'Facial',
-      'Manicure/Pedicure'
+      'Manicure/Pedicure',
+      'Head / Neck Massage',
+      'Therapy Session',
+      'Nail Services'
     ],
     'pet-care': [
       'Pet Grooming',
@@ -221,7 +255,8 @@ export function BulkLeadImportForm() {
       'Pet Sitting',
       'Pet Training',
       'Veterinary Assistance',
-      'Pet Boarding'
+      'Pet Boarding',
+      'Vet Visit Assistance'
     ],
     events: [
       'Event Planning',
@@ -230,12 +265,53 @@ export function BulkLeadImportForm() {
       'DJ Services',
       'Photography/Videography',
       'Event Management',
-      'Party Planning'
+      'Party Planning',
+      'DJ / Music Setup',
+      'Catering Support'
     ],
     'water-tanker': [
       'Residential Water Tankers',
       'Commercial / Construction Tankers',
-      'Emergency Water Supply'
+      'Emergency Water Supply',
+      'Water Can Delivery',
+      'Tank Refilling'
+    ],
+    'ac-repair-service': [
+      'AC Service',
+      'AC Repair',
+      'AC Installation',
+      'Gas Refill',
+      'AC Not Cooling'
+    ],
+    'security-services': [
+      'Residential Guard',
+      'Night Patrol',
+      'Event Security',
+      'Gate Watchman'
+    ],
+    'senior-care': [
+      'Companionship',
+      'Daily Assistance',
+      'Medication Reminders',
+      'Hospital Visit Support'
+    ],
+    'driver-chauffeur': [
+      'Personal Driver',
+      'Outstation Trip Driver',
+      'Pickup & Drop',
+      'Temporary Driver'
+    ],
+    'cooking-home-chef': [
+      'Daily Meal Cooking',
+      'Party Cooking',
+      'Regional Cuisine',
+      'Meal Prep'
+    ],
+    'laundry-ironing': [
+      'Clothes Washing',
+      'Ironing',
+      'Dry Cleaning Pickup',
+      'Bulk Laundry'
     ],
     other: [
       'Custom Service',
@@ -248,15 +324,20 @@ export function BulkLeadImportForm() {
     : [];
 
   const uploadMutation = useMutation({
-    mutationFn: (data: { file: File; primaryCategory?: string; secondaryCategory?: string }) => 
-      caosBulkApi.bulkImportLeads(data.file, undefined, data.primaryCategory, data.secondaryCategory),
+    mutationFn: (data: { file: File; primaryCategory?: string; secondaryCategory?: string }) => {
+      const resolvedPrimary = data.primaryCategory === 'other' ? primaryCategoryOther : data.primaryCategory;
+      const resolvedSecondary = data.secondaryCategory === 'other' ? secondaryCategoryOther : data.secondaryCategory;
+      return caosBulkApi.bulkImportLeads(data.file, undefined, resolvedPrimary, resolvedSecondary);
+    },
     onSuccess: (response) => {
       toast.success(
         `Import completed! ${response.data.successCount} helpers imported, ${response.data.failedCount} failed`
       );
       setFile(null);
       setPrimaryCategory('');
+      setPrimaryCategoryOther('');
       setSecondaryCategory('');
+      setSecondaryCategoryOther('');
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['import-history'] });
     },
@@ -268,6 +349,15 @@ export function BulkLeadImportForm() {
   const handleUpload = () => {
     if (!file) {
       toast.error('Please select a file');
+      return;
+    }
+
+    if (primaryCategory === 'other' && !primaryCategoryOther.trim()) {
+      toast.error('Please specify the primary category');
+      return;
+    }
+    if (secondaryCategory === 'other' && !secondaryCategoryOther.trim()) {
+      toast.error('Please specify the secondary category');
       return;
     }
 
@@ -317,7 +407,9 @@ export function BulkLeadImportForm() {
                 value={primaryCategory}
                 onValueChange={(value) => {
                   setPrimaryCategory(value);
+                  setPrimaryCategoryOther('');
                   setSecondaryCategory(''); // Reset secondary when primary changes
+                  setSecondaryCategoryOther('');
                 }}
               >
                 <SelectTrigger id="bulk-primary-category">
@@ -337,9 +429,23 @@ export function BulkLeadImportForm() {
                   <SelectItem value="pet-care">Pet Care</SelectItem>
                   <SelectItem value="events">Events & Entertainment</SelectItem>
                   <SelectItem value="water-tanker">Water & Tanker Services</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="ac-repair-service">AC Repair & Service</SelectItem>
+                  <SelectItem value="security-services">Security Services</SelectItem>
+                  <SelectItem value="senior-care">Senior Care / Elder Care</SelectItem>
+                  <SelectItem value="driver-chauffeur">Driver / Chauffeur Services</SelectItem>
+                  <SelectItem value="cooking-home-chef">Cooking / Home Chef</SelectItem>
+                  <SelectItem value="laundry-ironing">Laundry & Ironing</SelectItem>
+                  <SelectItem value="other">Other (Specify Below)</SelectItem>
                 </SelectContent>
               </Select>
+              {primaryCategory === 'other' && (
+                <Input
+                  className="mt-2"
+                  placeholder="Enter custom primary category"
+                  value={primaryCategoryOther}
+                  onChange={(e) => setPrimaryCategoryOther(e.target.value)}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -347,25 +453,43 @@ export function BulkLeadImportForm() {
                 Secondary Category
               </Label>
               {primaryCategory && availableSecondaryCategories.length > 0 ? (
-                <Select
-                  value={secondaryCategory || (primaryCategory === 'water-tanker' ? '__general__' : undefined)}
-                  onValueChange={(v) => setSecondaryCategory(v === '__general__' ? '' : v)}
-                >
-                  <SelectTrigger id="bulk-secondary-category">
-                    <SelectValue placeholder="Select secondary category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {primaryCategory === 'water-tanker' && (
-                      <SelectItem value="__general__">General water tanker services</SelectItem>
-                    )}
-                    {availableSecondaryCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="other">Other (specify in CSV)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Select
+                    value={secondaryCategory || (primaryCategory === 'water-tanker' ? '__general__' : undefined)}
+                    onValueChange={(v) => {
+                      setSecondaryCategory(v === '__general__' ? '' : v);
+                      if (v !== 'other') setSecondaryCategoryOther('');
+                    }}
+                  >
+                    <SelectTrigger id="bulk-secondary-category">
+                      <SelectValue placeholder="Select secondary category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {primaryCategory === 'water-tanker' && (
+                        <SelectItem value="__general__">General water tanker services</SelectItem>
+                      )}
+                      {availableSecondaryCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="other">Other (Specify Below)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {secondaryCategory === 'other' && (
+                    <Input
+                      placeholder="Enter custom secondary category"
+                      value={secondaryCategoryOther}
+                      onChange={(e) => setSecondaryCategoryOther(e.target.value)}
+                    />
+                  )}
+                </div>
+              ) : primaryCategory ? (
+                <Input
+                  placeholder="Enter secondary category"
+                  value={secondaryCategory}
+                  onChange={(e) => setSecondaryCategory(e.target.value)}
+                />
               ) : (
                 <Select disabled>
                   <SelectTrigger id="bulk-secondary-category">
@@ -388,11 +512,11 @@ export function BulkLeadImportForm() {
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Download CSV Template</p>
                   <p className="text-xs text-gray-500">
-                    {primaryCategory || secondaryCategory
-                      ? secondaryCategory
-                        ? `Template for ${primaryCategory} - ${secondaryCategory}`
+                    {(primaryCategory || secondaryCategory)
+                      ? (secondaryCategory === 'other' ? secondaryCategoryOther || 'custom' : secondaryCategory)
+                        ? `Template for ${primaryCategory === 'other' ? primaryCategoryOther || 'custom' : primaryCategory} - ${secondaryCategory === 'other' ? secondaryCategoryOther || 'custom' : secondaryCategory}`
                         : primaryCategory
-                          ? `Template for ${primaryCategory}`
+                          ? `Template for ${primaryCategory === 'other' ? primaryCategoryOther || 'custom' : primaryCategory}`
                           : 'Template with category columns'
                       : 'Template with category columns'}
                   </p>
@@ -415,8 +539,8 @@ export function BulkLeadImportForm() {
             {(primaryCategory || secondaryCategory) && (
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-gray-600">
-                  The template will be pre-configured for <strong>{primaryCategory || "all categories"}</strong>
-                  {secondaryCategory ? <> - <strong>{secondaryCategory}</strong></> : ''}.
+                  The template will be pre-configured for <strong>{primaryCategory === 'other' ? primaryCategoryOther || 'custom' : primaryCategory || "all categories"}</strong>
+                  {secondaryCategory ? <> - <strong>{secondaryCategory === 'other' ? secondaryCategoryOther || 'custom' : secondaryCategory}</strong></> : ''}.
                   You don't need to include category columns in your CSV/Excel file.
                 </p>
                 <p className="text-xs text-gray-600">
@@ -710,4 +834,3 @@ export function BulkLeadImportForm() {
     </div>
   );
 }
-

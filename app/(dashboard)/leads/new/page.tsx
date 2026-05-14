@@ -40,8 +40,15 @@ type LeadFormData = {
     | 'events'
     | 'water-tanker'
     | 'ac-repair-service'
+    | 'security-services'
+    | 'senior-care'
+    | 'driver-chauffeur'
+    | 'cooking-home-chef'
+    | 'laundry-ironing'
     | 'other';
+  primaryCategoryOther?: string;
   secondaryCategory?: string;
+  secondaryCategoryOther?: string;
   experienceLevel?: 'beginner' | 'intermediate' | 'experienced';
   workingDays?: string;
   preferredTimeSlot?: string;
@@ -71,9 +78,16 @@ const leadSchema = z.object({
     'events',
     'water-tanker',
     'ac-repair-service',
+    'security-services',
+    'senior-care',
+    'driver-chauffeur',
+    'cooking-home-chef',
+    'laundry-ironing',
     'other'
   ]).optional(),
+  primaryCategoryOther: z.string().optional(),
   secondaryCategory: z.string().default(''),
+  secondaryCategoryOther: z.string().optional(),
   experienceLevel: z.enum(['beginner', 'intermediate', 'experienced']).optional(),
   workingDays: z.string().optional(),
   preferredTimeSlot: z.string().optional(),
@@ -91,9 +105,19 @@ const leadSchema = z.object({
     }
   )
   .superRefine((data, ctx) => {
-    const trimmed = (data.secondaryCategory ?? '').trim();
-    if (trimmed === 'other') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please specify the secondary category', path: ['secondaryCategory'] });
+    if (data.primaryCategory === 'other' && !data.primaryCategoryOther?.trim()) {
+      ctx.addIssue({ 
+        code: z.ZodIssueCode.custom, 
+        message: 'Please specify the primary category', 
+        path: ['primaryCategoryOther'] 
+      });
+    }
+    if (data.secondaryCategory === 'other' && !data.secondaryCategoryOther?.trim()) {
+      ctx.addIssue({ 
+        code: z.ZodIssueCode.custom, 
+        message: 'Please specify the secondary category', 
+        path: ['secondaryCategoryOther'] 
+      });
     }
   });
 
@@ -101,8 +125,6 @@ export default function AddLeadPage() {
   const router = useRouter();
   const { role, loading: authLoading } = useJWTAuth();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const [primaryCategoryCustom, setPrimaryCategoryCustom] = useState('');
-  const [secondaryCategoryCustom, setSecondaryCategoryCustom] = useState('');
 
   // Onboarder cannot add leads; redirect to dashboard
   useEffect(() => {
@@ -121,18 +143,17 @@ export default function AddLeadPage() {
     trigger,
   } = useForm<LeadFormData>({
     // TS struggles to reconcile Zod's refined schema type with RHF's Resolver generics.
-    // Validation works correctly at runtime, so we suppress this one type-level mismatch.
     // @ts-expect-error Resolver type mismatch is safe to ignore here
     resolver: zodResolver(leadSchema),
     defaultValues: {
       source: undefined,
+      primaryCategory: undefined,
+      secondaryCategory: '',
     },
   });
 
   const primaryCategoryValue = watch('primaryCategory');
   const secondaryCategoryValue = watch('secondaryCategory');
-
-  const phoneValue = watch('phone');
 
   // Secondary categories mapping based on primary category
   const secondaryCategoriesMap: Record<string, string[]> = {
@@ -145,7 +166,8 @@ export default function AddLeadPage() {
       'Window Cleaning',
       'Carpet Cleaning',
       'Bathroom Cleaning',
-      'Kitchen Cleaning'
+      'Kitchen Cleaning',
+      'Sofa / Upholstery Cleaning'
     ],
     handyperson: [
       'Plumbing',
@@ -157,7 +179,9 @@ export default function AddLeadPage() {
       'Furniture Assembly',
       'Wall Mounting',
       'Door/Window Repair',
-      'Lock Repair'
+      'Lock Repair',
+      'Inverter / UPS Setup',
+      'Curtain / Rod Fitting'
     ],
     moving: [
       'Food Delivery',
@@ -166,7 +190,10 @@ export default function AddLeadPage() {
       'Courier Services',
       'Furniture Moving',
       'Local Transport',
-      'Intercity Transport'
+      'Intercity Transport',
+      'Grocery Pickup',
+      'Document Delivery',
+      'Loading / Unloading'
     ],
     gardening: [
       'Lawn Mowing',
@@ -175,7 +202,9 @@ export default function AddLeadPage() {
       'Planting',
       'Landscaping',
       'Pest Control',
-      'Irrigation Setup'
+      'Irrigation Setup',
+      'Plant Care',
+      'Garden Cleanup'
     ],
     business: [
       'Data Entry',
@@ -184,7 +213,11 @@ export default function AddLeadPage() {
       'Legal Services',
       'Consulting',
       'Business Setup',
-      'Documentation'
+      'Documentation',
+      'GST Filing',
+      'Income Tax Filing',
+      'Payroll Support',
+      'Bookkeeping'
     ],
     marketing: [
       'Graphic Design',
@@ -203,7 +236,10 @@ export default function AddLeadPage() {
       'IT Support',
       'Network Setup',
       'Data Recovery',
-      'App Development'
+      'App Development',
+      'Laptop Repair',
+      'Desktop Setup',
+      'Wi-Fi / Router Setup'
     ],
     tutoring: [
       'Math Tutor',
@@ -213,7 +249,9 @@ export default function AddLeadPage() {
       'Yoga Classes',
       'Fitness Training',
       'Language Classes',
-      'Exam Preparation'
+      'Exam Preparation',
+      'Spoken English',
+      'Computer Basics'
     ],
     photography: [
       'Event Photography',
@@ -222,7 +260,8 @@ export default function AddLeadPage() {
       'Wedding Photography',
       'Video Shooting',
       'Photo Editing',
-      'Drone Photography'
+      'Drone Photography',
+      'Video Recording'
     ],
     beauty: [
       'Hair Styling',
@@ -232,7 +271,10 @@ export default function AddLeadPage() {
       'Spa Services',
       'Haircut',
       'Facial',
-      'Manicure/Pedicure'
+      'Manicure/Pedicure',
+      'Head / Neck Massage',
+      'Therapy Session',
+      'Nail Services'
     ],
     'pet-care': [
       'Pet Grooming',
@@ -240,7 +282,8 @@ export default function AddLeadPage() {
       'Pet Sitting',
       'Pet Training',
       'Veterinary Assistance',
-      'Pet Boarding'
+      'Pet Boarding',
+      'Vet Visit Assistance'
     ],
     events: [
       'Event Planning',
@@ -249,17 +292,53 @@ export default function AddLeadPage() {
       'DJ Services',
       'Photography/Videography',
       'Event Management',
-      'Party Planning'
+      'Party Planning',
+      'DJ / Music Setup',
+      'Catering Support'
     ],
     'water-tanker': [
       'Residential Water Tankers',
       'Commercial / Construction Tankers',
-      'Emergency Water Supply'
+      'Emergency Water Supply',
+      'Water Can Delivery',
+      'Tank Refilling'
     ],
     'ac-repair-service': [
       'AC Service',
       'AC Repair',
-      'AC Installation'
+      'AC Installation',
+      'Gas Refill',
+      'AC Not Cooling'
+    ],
+    'security-services': [
+      'Residential Guard',
+      'Night Patrol',
+      'Event Security',
+      'Gate Watchman'
+    ],
+    'senior-care': [
+      'Companionship',
+      'Daily Assistance',
+      'Medication Reminders',
+      'Hospital Visit Support'
+    ],
+    'driver-chauffeur': [
+      'Personal Driver',
+      'Outstation Trip Driver',
+      'Pickup & Drop',
+      'Temporary Driver'
+    ],
+    'cooking-home-chef': [
+      'Daily Meal Cooking',
+      'Party Cooking',
+      'Regional Cuisine',
+      'Meal Prep'
+    ],
+    'laundry-ironing': [
+      'Clothes Washing',
+      'Ironing',
+      'Dry Cleaning Pickup',
+      'Bulk Laundry'
     ]
   };
 
@@ -310,12 +389,11 @@ export default function AddLeadPage() {
     },
   });
 
-  // Use a loosely-typed submit handler to avoid React Hook Form generic incompatibilities
   const onSubmit = async (data: LeadFormData) => {
     if (submittingRef.current) return;
     submittingRef.current = true;
 
-    // Check duplicate one more time before submitting
+    // Final duplicate check
     if (data.phone?.trim()) {
       await checkDuplicate(data.phone.trim(), 'phone');
     }
@@ -329,32 +407,15 @@ export default function AddLeadPage() {
       return;
     }
 
-    // Ensure at least one contact number is provided
-    if (!data.phone?.trim() && !data.landline?.trim()) {
-      toast.error('At least one contact number (Mobile or Landline) is required');
-      submittingRef.current = false;
-      return;
-    }
-
     const resolvedPrimaryCategory =
       data.primaryCategory === 'other'
-        ? primaryCategoryCustom.trim()
+        ? (data.primaryCategoryOther || '').trim()
         : (data.primaryCategory || '').trim();
-    if (data.primaryCategory === 'other' && !resolvedPrimaryCategory) {
-      toast.error('Please enter custom primary category');
-      submittingRef.current = false;
-      return;
-    }
 
     const resolvedSecondaryCategory =
       data.secondaryCategory === 'other'
-        ? secondaryCategoryCustom.trim()
+        ? (data.secondaryCategoryOther || '').trim()
         : (data.secondaryCategory || '').trim();
-    if (data.secondaryCategory === 'other' && !resolvedSecondaryCategory) {
-      toast.error('Please enter custom secondary category');
-      submittingRef.current = false;
-      return;
-    }
 
     const normalizedPhone = data.phone?.trim() || '';
     const normalizedLandline = data.landline?.trim() || '';
@@ -372,6 +433,11 @@ export default function AddLeadPage() {
       secondaryCategory:
         data.secondaryCategory === '__general__' ? '' : (resolvedSecondaryCategory || ''),
     };
+    
+    // Remove temporary internal fields from payload
+    delete (payload as any).primaryCategoryOther;
+    delete (payload as any).secondaryCategoryOther;
+
     createLeadMutation.mutate(payload);
   };
 
@@ -535,11 +601,10 @@ export default function AddLeadPage() {
                   value={primaryCategoryValue}
                   onValueChange={(value) => {
                     setValue('primaryCategory', value as any, { shouldValidate: true });
-                    setValue('secondaryCategory', '', { shouldValidate: true }); // Reset secondary category when primary changes
-                    setPrimaryCategoryCustom('');
-                    setSecondaryCategoryCustom('');
+                    setValue('secondaryCategory', '', { shouldValidate: true });
+                    setValue('primaryCategoryOther', '');
+                    setValue('secondaryCategoryOther', '');
                     trigger('primaryCategory');
-                    trigger('secondaryCategory');
                   }}
                 >
                   <SelectTrigger id="primaryCategory" className={errors.primaryCategory ? 'border-red-500' : ''}>
@@ -560,17 +625,27 @@ export default function AddLeadPage() {
                     <SelectItem value="events" className="hover:bg-gray-100 cursor-pointer">Events & Entertainment</SelectItem>
                     <SelectItem value="water-tanker" className="hover:bg-gray-100 cursor-pointer">Water & Tanker Services</SelectItem>
                     <SelectItem value="ac-repair-service" className="hover:bg-gray-100 cursor-pointer">AC Repair & Service</SelectItem>
-                    <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other</SelectItem>
+                    <SelectItem value="security-services" className="hover:bg-gray-100 cursor-pointer">Security Services</SelectItem>
+                    <SelectItem value="senior-care" className="hover:bg-gray-100 cursor-pointer">Senior Care / Elder Care</SelectItem>
+                    <SelectItem value="driver-chauffeur" className="hover:bg-gray-100 cursor-pointer">Driver / Chauffeur Services</SelectItem>
+                    <SelectItem value="cooking-home-chef" className="hover:bg-gray-100 cursor-pointer">Cooking / Home Chef</SelectItem>
+                    <SelectItem value="laundry-ironing" className="hover:bg-gray-100 cursor-pointer">Laundry & Ironing</SelectItem>
+                    <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other (Specify Below)</SelectItem>
                   </SelectContent>
                 </Select>
                 {primaryCategoryValue === 'other' && (
                   <div className="mt-2">
                     <Input
                       id="primaryCategoryOther"
-                      value={primaryCategoryCustom}
+                      {...register('primaryCategoryOther', {
+                        onChange: () => trigger('primaryCategoryOther')
+                      })}
                       placeholder="Enter custom primary category"
-                      onChange={(e) => setPrimaryCategoryCustom(e.target.value)}
+                      className={errors.primaryCategoryOther ? 'border-red-500' : ''}
                     />
+                    {errors.primaryCategoryOther && (
+                      <p className="text-xs text-red-600 mt-1">{errors.primaryCategoryOther.message}</p>
+                    )}
                   </div>
                 )}
                 {errors.primaryCategory && (
@@ -583,51 +658,68 @@ export default function AddLeadPage() {
                   Secondary Category
                 </Label>
                 {primaryCategoryValue && availableSecondaryCategories.length > 0 ? (
-                  <div className="flex gap-2">
-                    <Select
-                      value={secondaryCategoryValue || (primaryCategoryValue === 'water-tanker' ? '__general__' : undefined)}
-                      onValueChange={(value) => {
-                        setValue('secondaryCategory', value === '__general__' ? '' : value, { shouldValidate: true });
-                        trigger('secondaryCategory');
-                      }}
-                    >
-                      <SelectTrigger 
-                        id="secondaryCategory"
-                        className={`bg-white flex-1 ${errors.secondaryCategory ? 'border-red-500' : ''}`}
-                      >
-                        <SelectValue placeholder={primaryCategoryValue === 'water-tanker' ? 'Select or leave as General' : 'Select secondary category'} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        {primaryCategoryValue === 'water-tanker' && (
-                          <SelectItem value="__general__" className="hover:bg-gray-100 cursor-pointer">General water tanker services</SelectItem>
-                        )}
-                        {availableSecondaryCategories.map((category) => (
-                          <SelectItem 
-                            key={category} 
-                            value={category} 
-                            className="hover:bg-gray-100 cursor-pointer"
-                          >
-                            {category}
-                          </SelectItem>
-                        ))}
-                        {primaryCategoryValue !== 'water-tanker' && (
-                          <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other (specify below)</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {secondaryCategoryValue && secondaryCategoryValue !== 'other' && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setValue('secondaryCategory', '', { shouldValidate: true });
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Select
+                        value={secondaryCategoryValue || (primaryCategoryValue === 'water-tanker' ? '__general__' : undefined)}
+                        onValueChange={(value) => {
+                          setValue('secondaryCategory', value === '__general__' ? '' : value, { shouldValidate: true });
+                          if (value !== 'other') setValue('secondaryCategoryOther', '');
                           trigger('secondaryCategory');
                         }}
-                        className="shrink-0"
                       >
-                        Clear
-                      </Button>
+                        <SelectTrigger 
+                          id="secondaryCategory"
+                          className={`bg-white flex-1 ${errors.secondaryCategory ? 'border-red-500' : ''}`}
+                        >
+                          <SelectValue placeholder={primaryCategoryValue === 'water-tanker' ? 'Select or leave as General' : 'Select secondary category'} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          {primaryCategoryValue === 'water-tanker' && (
+                            <SelectItem value="__general__" className="hover:bg-gray-100 cursor-pointer">General water tanker services</SelectItem>
+                          )}
+                          {availableSecondaryCategories.map((category) => (
+                            <SelectItem 
+                              key={category} 
+                              value={category} 
+                              className="hover:bg-gray-100 cursor-pointer"
+                            >
+                              {category}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other (Specify Below)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {secondaryCategoryValue && secondaryCategoryValue !== 'other' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setValue('secondaryCategory', '', { shouldValidate: true });
+                            setValue('secondaryCategoryOther', '');
+                            trigger('secondaryCategory');
+                          }}
+                          className="shrink-0"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    {secondaryCategoryValue === 'other' && (
+                      <div className="mt-1">
+                        <Input
+                          id="secondaryCategoryOther"
+                          {...register('secondaryCategoryOther', {
+                            onChange: () => trigger('secondaryCategoryOther')
+                          })}
+                          placeholder="Enter custom secondary category"
+                          className={errors.secondaryCategoryOther ? 'border-red-500' : ''}
+                        />
+                        {errors.secondaryCategoryOther && (
+                          <p className="text-xs text-red-600 mt-1">{errors.secondaryCategoryOther.message}</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : primaryCategoryValue ? (
@@ -648,22 +740,6 @@ export default function AddLeadPage() {
                 )}
                 {errors.secondaryCategory && (
                   <p className="text-sm text-red-600">{errors.secondaryCategory.message}</p>
-                )}
-                {secondaryCategoryValue === 'other' && (
-                  <div className="mt-2">
-                    <Input
-                      id="secondaryCategoryOther"
-                      value={secondaryCategoryCustom}
-                      placeholder="Enter custom secondary category"
-                      className={errors.secondaryCategory ? 'border-red-500' : ''}
-                      onChange={(e) => {
-                        setSecondaryCategoryCustom(e.target.value);
-                      }}
-                    />
-                    {errors.secondaryCategory && (
-                      <p className="text-sm text-red-600 mt-1">Please enter a custom secondary category</p>
-                    )}
-                  </div>
                 )}
               </div>
             </div>
@@ -772,4 +848,3 @@ export default function AddLeadPage() {
     </div>
   );
 }
-

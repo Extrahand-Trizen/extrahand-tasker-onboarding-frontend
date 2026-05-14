@@ -27,7 +27,7 @@ const navigation: Array<{
   { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Certificate Verification', href: '/certificates/verification', icon: ShieldCheck, roles: ['qualifier', 'onboarder', 'lead_access_manager', 'support'] },
   { name: 'Upload Leads (CSV)', href: '/leads/bulk-import', icon: Upload, roles: ['qualifier', 'lead_access_manager'] },
-  // { name: 'Upload Taskers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
+  // { name: 'Upload Workers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
 ];
 
 // Lead Access Manager section items (only for lead_access_manager role)
