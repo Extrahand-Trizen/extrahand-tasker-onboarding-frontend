@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Trash2 } from 'lucide-react';
-import { leadStatusLabel } from '@/lib/leadLabels';
+import { leadStatusLabel, PRIMARY_CATEGORY_OPTIONS } from '@/lib/leadLabels';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
@@ -43,6 +43,7 @@ export default function AllLeadsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [addedByFilter, setAddedByFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
@@ -65,12 +66,13 @@ export default function AllLeadsPage() {
   const leadCreators = creatorsData?.data || [];
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['all-leads', { search, statusFilter, addedByFilter, page, limit }],
+    queryKey: ['all-leads', { search, statusFilter, addedByFilter, categoryFilter, page, limit }],
     queryFn: () =>
       caosApi.searchLeads({
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         addedBy: addedByFilter !== 'all' ? addedByFilter : undefined,
+        primarySkill: categoryFilter !== 'all' ? categoryFilter : undefined,
         page,
         limit,
       }),
@@ -97,13 +99,13 @@ export default function AllLeadsPage() {
   const pickLeadMutation = useMutation({
     mutationFn: (leadId: string) => caosApi.pickLead(leadId),
     onSuccess: () => {
-      toast.success('Lead picked successfully');
+      toast.success('Lead claimed successfully');
       queryClient.invalidateQueries({ queryKey: ['all-leads'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['my-picks'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to pick lead');
+      toast.error(error.message || 'Failed to claim lead');
     },
   });
 
@@ -184,8 +186,8 @@ export default function AllLeadsPage() {
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-            <div className="relative sm:col-span-2 md:col-span-1">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative sm:col-span-2 lg:col-span-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
                 placeholder="Search by name, phone, or city..."
@@ -234,6 +236,26 @@ export default function AllLeadsPage() {
                 {leadCreators.map((creator: { userId: string; name: string }) => (
                   <SelectItem key={creator.userId} value={creator.userId}>
                     {creator.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={categoryFilter}
+              onValueChange={(value) => {
+                setCategoryFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="border-gray-300">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {PRIMARY_CATEGORY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -359,7 +381,7 @@ export default function AllLeadsPage() {
                               disabled={pickLeadMutation.isPending}
                               className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                             >
-                              Pick
+                              Claim
                             </Button>
                           )}
                           {canDelete && (
@@ -498,7 +520,7 @@ export default function AllLeadsPage() {
                                 disabled={pickLeadMutation.isPending}
                                 className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                               >
-                                Pick
+                                Claim
                               </Button>
                             )}
                             {canDelete && (

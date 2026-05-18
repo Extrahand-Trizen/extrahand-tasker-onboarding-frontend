@@ -62,7 +62,8 @@ export default function NotLiftedCandidatesPage() {
       ? user.uid
       : undefined);
 
-  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
+  const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
+  const isManagerView = role === 'lead_access_manager';
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
@@ -74,8 +75,15 @@ export default function NotLiftedCandidatesPage() {
   const creatorsQuery = useQuery({
     queryKey: ['qualifiers'],
     queryFn: () => caosApi.getQualifiers(),
-    enabled: canAccess && (role === 'onboarder' || role === 'lead_access_manager'),
+    enabled: canAccess && isManagerView,
   });
+
+  const scopedOwnerId = isManagerView
+    ? (qualifierId !== 'all' ? qualifierId : undefined)
+    : role === 'qualifier'
+      ? currentUserId
+      : undefined;
+  const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
 
   const { data, isLoading } = useQuery({
     queryKey: ['not-lifted-candidates', role, currentUserId, page, searchCity, searchSkill, qualifierId],
@@ -83,7 +91,8 @@ export default function NotLiftedCandidatesPage() {
       caosApi.getNotLiftedCandidates({
         city: searchCity,
         primarySkill: searchSkill,
-        ownerBy: role === 'qualifier' ? currentUserId : (qualifierId !== 'all' ? qualifierId : undefined),
+        ownerBy: scopedOwnerId,
+        pickedBy: scopedPickedBy,
         page,
         limit,
       }),
@@ -161,7 +170,7 @@ export default function NotLiftedCandidatesPage() {
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
-            { (role === 'onboarder' || role === 'lead_access_manager') && (
+            {isManagerView && (
               <div>
                 <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
                 <Select
@@ -176,33 +185,18 @@ export default function NotLiftedCandidatesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All qualifiers</SelectItem>
-                    {(creatorsQuery.data?.data || []).map((creator) => (
-                      <SelectItem key={creator.userId} value={creator.userId}>
-                        {creator.name}
+                    {(creatorsQuery.data?.data || []).map((qualifier) => (
+                      <SelectItem key={qualifier.userId} value={qualifier.userId}>
+                        {qualifier.name || qualifier.email || qualifier.userId}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            <div className="flex items-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchCity('');
-                  setSearchSkill('');
-                  setQualifierId('all');
-                  setPage(1);
-                }}
-                className="w-full"
-              >
-                Clear Filters
-              </Button>
-            </div>
           </div>
         </CardContent>
       </Card>
-
       <Card className="border-gray-200 shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-gray-900">Contacted & Not Lifted</CardTitle>

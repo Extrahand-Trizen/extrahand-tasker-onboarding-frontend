@@ -72,7 +72,13 @@ export default function InterestedCandidatesPage() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
+  const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
+  const isManagerView = role === 'lead_access_manager';
+  const currentUserId =
+    user?.userId ||
+    (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
+      ? user.uid
+      : undefined);
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
@@ -84,8 +90,15 @@ export default function InterestedCandidatesPage() {
   const creatorsQuery = useQuery({
     queryKey: ['qualifiers'],
     queryFn: () => caosApi.getQualifiers(),
-    enabled: canAccess && (role === 'onboarder' || role === 'lead_access_manager'),
+    enabled: canAccess && isManagerView,
   });
+
+  const scopedOwnerId = isManagerView
+    ? (qualifierId !== 'all' ? qualifierId : undefined)
+    : role === 'qualifier'
+      ? currentUserId
+      : undefined;
+  const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['interested-candidates', role, user?.userId, page, searchCity, searchSkill, searchPhone, registrationFilter, qualifierId],
@@ -96,9 +109,10 @@ export default function InterestedCandidatesPage() {
       page,
       limit,
       registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
-      ownerBy: role === 'qualifier' ? user?.userId : (qualifierId !== 'all' ? qualifierId : undefined),
+      ownerBy: scopedOwnerId,
+      pickedBy: scopedPickedBy,
     }),
-    enabled: canAccess && !!user?.userId,
+    enabled: canAccess && !!currentUserId,
   });
 
   // Show loading while checking auth
@@ -195,20 +209,7 @@ export default function InterestedCandidatesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="phone-filter" className="text-sm font-medium text-gray-700">Phone Number</Label>
-              <Input
-                id="phone-filter"
-                value={searchPhone}
-                onChange={(e) => {
-                  setSearchPhone(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Filter by phone..."
-                className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
-              />
-            </div>
-            { (role === 'onboarder' || role === 'lead_access_manager') && (
+            {isManagerView && (
               <div>
                 <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
                 <Select
@@ -223,9 +224,9 @@ export default function InterestedCandidatesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All qualifiers</SelectItem>
-                    {(creatorsQuery.data?.data || []).map((creator) => (
-                      <SelectItem key={creator.userId} value={creator.userId}>
-                        {creator.name}
+                    {(creatorsQuery.data?.data || []).map((qualifier) => (
+                      <SelectItem key={qualifier.userId} value={qualifier.userId}>
+                        {qualifier.name || qualifier.email || qualifier.userId}
                       </SelectItem>
                     ))}
                   </SelectContent>

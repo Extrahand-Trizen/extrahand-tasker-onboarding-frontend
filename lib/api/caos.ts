@@ -367,11 +367,13 @@ export interface StatusAnalyticsResponse {
   data: {
     touchedLeads: number;
     interested: number;
+    leadsAdded: number;
     notInterested: number;
     callbackScheduled: number;
     callbackOverdue: number;
     statusCounts: Array<{ status: string; count: number }>;
     qualifierBreakdown: Array<{ qualifierId: string; qualifierName: string; touchedLeads: number }>;
+    categoryBreakdown?: Array<{ category: string; count: number }>;
   };
 }
 
@@ -521,6 +523,8 @@ export const caosApi = {
     startDate?: string;
     endDate?: string;
     addedBy?: string;
+    ownerBy?: string;
+    pickedBy?: string;
     dueType?: 'all' | 'callback' | 'onboarding';
     bucket?: 'all' | 'today' | 'overdue' | 'upcoming' | 'range';
     page?: number;
@@ -552,7 +556,7 @@ export const caosApi = {
     return response.json();
   },
 
-  async getFollowUpQueueStats(params: { addedBy?: string; ownerBy?: string } = {}): Promise<FollowUpQueueStatsResponse> {
+  async getFollowUpQueueStats(params: { addedBy?: string; ownerBy?: string; pickedBy?: string } = {}): Promise<FollowUpQueueStatsResponse> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -686,6 +690,8 @@ export const caosApi = {
     from?: string;
     to?: string;
     qualifierId?: string;
+    pickedBy?: string;
+    category?: string;
   } = {}): Promise<StatusAnalyticsResponse> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
@@ -715,11 +721,14 @@ export const caosApi = {
   async downloadStatusReport(params: {
     format: 'csv' | 'xlsx';
     template: 'eod' | 'detailed';
-    reportCategory: StatusReportCategory;
+    reportCategory?: StatusReportCategory;
     from?: string;
     to?: string;
     qualifierId?: string;
+    pickedBy?: string;
     includeNotes?: boolean;
+    category?: string;
+    exportLayout?: 'standard' | 'qualifier';
   }): Promise<{ blob: Blob; filename: string }> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
@@ -1366,7 +1375,7 @@ export const caosApi = {
    * Get interested candidates queue
    * registrationStatus: not_registered | registered | registered_verified
    */
-  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; search?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string; ownerBy?: string }): Promise<{
+  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; search?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string; ownerBy?: string; pickedBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1416,7 +1425,7 @@ export const caosApi = {
   /**
    * Get contacted & not interested candidates queue
    */
-  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string }): Promise<{
+  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1463,7 +1472,7 @@ export const caosApi = {
     };
   },
 
-  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string }): Promise<{
+  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];

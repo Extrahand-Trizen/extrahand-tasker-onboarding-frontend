@@ -47,7 +47,13 @@ export default function RegisteredCandidatesPage() {
       : undefined);
 
   const canAccess =
-    !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
+    !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
+
+  useEffect(() => {
+    if (!authLoading && role === 'qualifier') {
+      router.replace('/leads');
+    }
+  }, [authLoading, role, router]);
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
@@ -59,8 +65,15 @@ export default function RegisteredCandidatesPage() {
   const creatorsQuery = useQuery({
     queryKey: ['lead-creators'],
     queryFn: () => caosApi.getLeadCreators(),
-    enabled: canAccess && (role === 'onboarder' || role === 'lead_access_manager'),
+    enabled: canAccess && role === 'lead_access_manager',
   });
+
+  const scopedOwnerId = role === 'lead_access_manager'
+    ? (qualifierId !== 'all' ? qualifierId : undefined)
+    : role === 'qualifier'
+      ? currentUserId
+      : undefined;
+  const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
 
   const { data, isLoading } = useQuery({
     queryKey: ['registered-candidates', role, currentUserId, registrationView, page, searchCity, searchSkill, qualifierId],
@@ -69,7 +82,8 @@ export default function RegisteredCandidatesPage() {
         registrationStatus: registrationView,
         city: searchCity || undefined,
         primarySkill: searchSkill || undefined,
-        addedBy: role === 'qualifier' ? currentUserId : (qualifierId !== 'all' ? qualifierId : undefined),
+        ownerBy: scopedOwnerId,
+        pickedBy: scopedPickedBy,
         page,
         limit,
       }),

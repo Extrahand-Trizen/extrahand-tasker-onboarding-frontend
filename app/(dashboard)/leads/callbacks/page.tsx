@@ -30,8 +30,7 @@ const statusColors: Record<string, string> = {
 export default function CallbackQueuePage() {
   const { role, user, loading: authLoading } = useJWTAuth();
   const router = useRouter();
-  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
-
+  const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
   useEffect(() => {
     if (!authLoading && !canAccess) {
       router.replace('/dashboard');
@@ -53,14 +52,21 @@ export default function CallbackQueuePage() {
       ? user.uid
       : undefined);
   const isQualifier = role === 'qualifier';
-  const isReady = !isQualifier || !!currentUserId;
+  const isManagerView = role === 'lead_access_manager';
+  const isOnboarder = role === 'onboarder';
+  const isReady = isManagerView || (isQualifier ? !!currentUserId : isOnboarder ? !!currentUserId : true);
 
   const { data: creatorsData } = useQuery({
     queryKey: ['qualifiers'],
     queryFn: () => caosApi.getQualifiers(),
-    enabled: !isQualifier,
+    enabled: isManagerView,
   });
   const leadCreators = creatorsData?.data || [];
+
+  const scopedOwnerId = isManagerView
+    ? (addedByFilter !== 'all' ? addedByFilter : undefined)
+    : currentUserId;
+  const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['follow-up-queue', page, searchCity, searchSkill, addedByFilter, currentUserId, startDate, endDate, dueType, bucket],
@@ -68,7 +74,8 @@ export default function CallbackQueuePage() {
       caosApi.getFollowUpQueue({
         city: searchCity || undefined,
         primarySkill: searchSkill || undefined,
-        addedBy: isQualifier ? currentUserId : (addedByFilter !== 'all' ? addedByFilter : undefined),
+        ownerBy: role === 'qualifier' || isManagerView ? scopedOwnerId : undefined,
+        pickedBy: scopedPickedBy,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         dueType,
@@ -77,15 +84,16 @@ export default function CallbackQueuePage() {
         limit,
       }),
     enabled: isReady,
-      placeholderData: keepPreviousData,
+    placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: 2,
   });
   const { data: statsData, isError: statsError, error: statsErrorObj } = useQuery({
-    queryKey: ['follow-up-queue-stats', addedByFilter, currentUserId],
+    queryKey: ['follow-up-queue-stats', addedByFilter, currentUserId, role],
     queryFn: () =>
       caosApi.getFollowUpQueueStats({
-        addedBy: isQualifier ? currentUserId : (addedByFilter !== 'all' ? addedByFilter : undefined),
+        ownerBy: role === 'qualifier' || isManagerView ? scopedOwnerId : undefined,
+        pickedBy: scopedPickedBy,
       }),
     enabled: isReady,
       placeholderData: keepPreviousData,
@@ -217,7 +225,7 @@ export default function CallbackQueuePage() {
                 className="mt-1.5"
               />
             </div>
-            {!isQualifier && (
+            {isManagerView && (
               <div>
                 <Label htmlFor="added-by-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
                 <Select

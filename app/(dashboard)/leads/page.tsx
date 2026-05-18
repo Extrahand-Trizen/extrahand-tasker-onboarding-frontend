@@ -87,13 +87,13 @@ export default function LeadsPage() {
   const pickLeadMutation = useMutation({
     mutationFn: (leadId: string) => caosApi.pickLead(leadId),
     onSuccess: () => {
-      toast.success('Lead picked successfully');
+      toast.success('Lead claimed successfully');
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['all-leads'] });
       queryClient.invalidateQueries({ queryKey: ['my-picks'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to pick lead');
+      toast.error(error.message || 'Failed to claim lead');
     },
   });
 
@@ -319,7 +319,7 @@ export default function LeadsPage() {
                               disabled={pickLeadMutation.isPending}
                               className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                             >
-                              Pick
+                              Claim
                             </Button>
                           )}
                           {canDelete && (
@@ -454,7 +454,7 @@ export default function LeadsPage() {
                                 disabled={pickLeadMutation.isPending}
                                 className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                               >
-                                Pick
+                                Claim
                               </Button>
                             )}
                             {canDelete && (

@@ -23,7 +23,7 @@ const navigation: Array<{
   { name: 'Contacted & Not Lifted', href: '/leads/not-lifted', icon: PhoneOff, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Contacted & Not Interested', href: '/leads/not-interested', icon: UserX, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Follow-up Queue', href: '/leads/callbacks', icon: PhoneCall, roles: ['onboarder', 'lead_access_manager'] },
-  { name: 'Registered Candidates', href: '/leads/registered', icon: UserCheck, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
+  { name: 'Registered Candidates', href: '/leads/registered', icon: UserCheck, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Reports', href: '/leads/reports', icon: FileSpreadsheet, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['lead_access_manager'] },
   { name: 'Certificate Verification', href: '/certificates/verification', icon: ShieldCheck, roles: ['lead_access_manager', 'support'] },

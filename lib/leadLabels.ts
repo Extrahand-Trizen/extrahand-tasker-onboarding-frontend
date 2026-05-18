@@ -74,6 +74,10 @@ export function primaryCategoryLabel(primaryCategory?: string | null): string {
   return PRIMARY_CATEGORY_LABELS[primaryCategory] || primaryCategory;
 }
 
+export const PRIMARY_CATEGORY_OPTIONS = Object.entries(PRIMARY_CATEGORY_LABELS)
+  .map(([value, label]) => ({ value, label }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
 /** Display text for primary + optional secondary (e.g. "Water & Tanker Services (General)" when secondary empty for water-tanker) */
 export function categoryDisplay(primaryCategory?: string | null, secondaryCategory?: string | null): string {
   const primary = primaryCategoryLabel(primaryCategory);

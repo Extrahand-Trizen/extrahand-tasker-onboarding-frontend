@@ -442,13 +442,13 @@ function LeadDetailContent() {
   const pickLeadMutation = useMutation({
     mutationFn: () => caosApi.pickLead(leadId),
     onSuccess: () => {
-      toast.success('Lead picked successfully');
+      toast.success('Lead claimed successfully');
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['all-leads'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to pick lead');
+      toast.error(error.message || 'Failed to claim lead');
     },
   });
 
@@ -607,12 +607,12 @@ function LeadDetailContent() {
                 className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                 disabled={pickLeadMutation.isPending}
               >
-                {pickLeadMutation.isPending ? 'Picking...' : 'Pick Lead'}
+                {pickLeadMutation.isPending ? 'Claiming...' : 'Claim Lead'}
               </Button>
             )}
             {lead?.pickedBy && !canEditPicked && (
               <Button variant="outline" disabled>
-                Picked by {lead.pickedByName || lead.pickedBy}
+                Claimed by {lead.pickedByName || lead.pickedBy}
               </Button>
             )}
             <Button
@@ -712,7 +712,7 @@ function LeadDetailContent() {
             </div>
             {lead.pickedBy && (
               <div>
-                <p className="text-sm text-gray-600 mb-2">Picked By</p>
+                <p className="text-sm text-gray-600 mb-2">Claimed By</p>
                 <p className="font-medium">{lead.pickedByName || lead.pickedBy}</p>
               </div>
             )}

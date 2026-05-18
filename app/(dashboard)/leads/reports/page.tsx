@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { PRIMARY_CATEGORY_OPTIONS, primaryCategoryLabel } from '@/lib/leadLabels';
 import { Loader2, Download } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type ExportTemplate = 'eod' | 'detailed';
 type DatePreset = 'today' | 'last_7_days' | 'custom';
@@ -53,8 +55,14 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 export default function LeadReportsPage() {
-  const { role } = useJWTAuth();
-  const isManagerView = role === 'onboarder' || role === 'lead_access_manager';
+  const { role, user } = useJWTAuth();
+  const isManagerView = role === 'lead_access_manager';
+  const isQualifier = role === 'qualifier';
+  const currentUserId =
+    user?.userId ||
+    (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
+      ? user.uid
+      : undefined);
 
   const [datePreset, setDatePreset] = useState<DatePreset>('last_7_days');
   const [fromDate, setFromDate] = useState(getDateRangeFromPreset('last_7_days').from);
@@ -62,17 +70,28 @@ export default function LeadReportsPage() {
   const [qualifierId, setQualifierId] = useState<string>('all');
   const [template, setTemplate] = useState<ExportTemplate>('eod');
   const [reportCategory, setReportCategory] = useState<StatusReportCategory>('touched_leads');
+  const [downloadCategory, setDownloadCategory] = useState<string>('all');
   const [includeNotes, setIncludeNotes] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  const isScopedUser = role === 'qualifier' || role === 'onboarder';
+  const analyticsReady = isManagerView || (isScopedUser ? !!currentUserId : true);
+
   const analyticsQuery = useQuery({
-    queryKey: ['status-analytics', fromDate, toDate, qualifierId],
+    queryKey: ['status-analytics', fromDate, toDate, qualifierId, currentUserId, role, downloadCategory],
     queryFn: () =>
       caosApi.getStatusAnalytics({
         from: fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
         to: toDate ? `${toDate}T23:59:59.999Z` : undefined,
-        qualifierId: qualifierId !== 'all' ? qualifierId : undefined,
+        qualifierId: isManagerView
+          ? (qualifierId !== 'all' ? qualifierId : undefined)
+          : role === 'qualifier'
+            ? currentUserId
+            : undefined,
+        pickedBy: role === 'onboarder' ? currentUserId : undefined,
+        category: downloadCategory !== 'all' ? downloadCategory : undefined,
       }),
+    enabled: analyticsReady,
   });
 
   const creatorsQuery = useQuery({
@@ -81,16 +100,36 @@ export default function LeadReportsPage() {
     enabled: isManagerView,
   });
 
-  const cards = useMemo(
-    () => [
-      { label: 'Touched Leads', value: analyticsQuery.data?.data?.touchedLeads ?? 0 },
-      { label: 'Interested', value: analyticsQuery.data?.data?.interested ?? 0 },
-      { label: 'Not Interested', value: analyticsQuery.data?.data?.notInterested ?? 0 },
-      { label: 'Callback Scheduled', value: analyticsQuery.data?.data?.callbackScheduled ?? 0 },
-      { label: 'Callback Overdue', value: analyticsQuery.data?.data?.callbackOverdue ?? 0 },
-    ],
-    [analyticsQuery.data]
-  );
+  const cards = useMemo(() => {
+    const data = analyticsQuery.data?.data;
+    if (isQualifier) {
+      return [{ label: 'Leads Added', value: data?.leadsAdded ?? 0 }];
+    }
+    const base = [
+      { label: 'Touched Leads', value: data?.touchedLeads ?? 0 },
+      { label: 'Interested', value: data?.interested ?? 0 },
+      { label: 'Not Interested', value: data?.notInterested ?? 0 },
+      { label: 'Callback Scheduled', value: data?.callbackScheduled ?? 0 },
+      { label: 'Callback Overdue', value: data?.callbackOverdue ?? 0 },
+    ];
+
+    if (isManagerView) {
+      return [{ label: 'Leads Added', value: data?.leadsAdded ?? 0 }, ...base];
+    }
+
+    return base;
+  }, [analyticsQuery.data, isQualifier, isManagerView]);
+
+  const categoryBreakdownList = useMemo(() => {
+    const rawBreakdown = analyticsQuery.data?.data?.categoryBreakdown || [];
+    return rawBreakdown
+      .filter((item) => item.count > 0)
+      .map((item) => ({
+        categoryKey: item.category,
+        categoryName: primaryCategoryLabel(item.category),
+        count: item.count,
+      }));
+  }, [analyticsQuery.data?.data?.categoryBreakdown]);
 
   const handleDownload = async (format: 'csv' | 'xlsx') => {
     setDownloading(true);
@@ -98,11 +137,18 @@ export default function LeadReportsPage() {
       const report = await caosApi.downloadStatusReport({
         format,
         template,
-        reportCategory,
+        reportCategory: isQualifier ? undefined : reportCategory,
         from: fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
         to: toDate ? `${toDate}T23:59:59.999Z` : undefined,
-        qualifierId: qualifierId !== 'all' ? qualifierId : undefined,
-        includeNotes,
+        qualifierId: isManagerView
+          ? (qualifierId !== 'all' ? qualifierId : undefined)
+          : role === 'qualifier'
+            ? currentUserId
+            : undefined,
+        pickedBy: role === 'onboarder' ? currentUserId : undefined,
+        includeNotes: isQualifier ? false : includeNotes,
+        category: downloadCategory !== 'all' ? downloadCategory : undefined,
+        exportLayout: isQualifier ? 'qualifier' : 'standard',
       });
       triggerDownload(report.blob, report.filename);
     } finally {
@@ -127,7 +173,14 @@ export default function LeadReportsPage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
+          <div
+            className={cn(
+              'grid grid-cols-1 sm:grid-cols-2 gap-4',
+              isManagerView && 'lg:grid-cols-7',
+              isQualifier && 'lg:grid-cols-5',
+              !isManagerView && !isQualifier && 'lg:grid-cols-6'
+            )}
+          >
             <div>
               <Label>Date Range</Label>
               <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
@@ -167,7 +220,33 @@ export default function LeadReportsPage() {
                 className="mt-1.5"
               />
             </div>
-            {isManagerView ? (
+            {isQualifier && (
+              <div>
+                <Label>Category</Label>
+                <Select value={downloadCategory} onValueChange={setDownloadCategory}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {PRIMARY_CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {isQualifier && (
+              <div className="flex items-end">
+                <Button className="w-full" onClick={() => handleDownload('xlsx')} disabled={downloading}>
+                  {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                  Download
+                </Button>
+              </div>
+            )}
+            {isManagerView && (
               <div>
                 <Label>Qualifier</Label>
                 <Select value={qualifierId} onValueChange={setQualifierId}>
@@ -184,48 +263,62 @@ export default function LeadReportsPage() {
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
-              <div />
             )}
-            <div>
-              <Label>Template</Label>
-              <Select value={template} onValueChange={(value) => setTemplate(value as ExportTemplate)}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="eod">EOD</SelectItem>
-                  <SelectItem value="detailed">Detailed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label title="Select which lead status category to include in the download">Lead Category</Label>
-              <Select value={reportCategory} onValueChange={(value) => setReportCategory(value as StatusReportCategory)}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REPORT_CATEGORY_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end gap-2">
-              <Button
-                variant={includeNotes ? 'default' : 'outline'}
-                onClick={() => setIncludeNotes((prev) => !prev)}
-                className="w-full"
-              >
-                {includeNotes ? 'Notes: On' : 'Notes: Off'}
-              </Button>
-            </div>
+            {!isQualifier && (
+              <div>
+                <Label>Template</Label>
+                <Select value={template} onValueChange={(value) => setTemplate(value as ExportTemplate)}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="eod">EOD</SelectItem>
+                    <SelectItem value="detailed">Detailed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!isQualifier && (
+              <div>
+                <Label title="Select which lead status category to include in the download">Lead Category</Label>
+                <Select value={reportCategory} onValueChange={(value) => setReportCategory(value as StatusReportCategory)}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REPORT_CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!isQualifier && (
+              <div className="flex items-end gap-2">
+                <Button
+                  variant={includeNotes ? 'default' : 'outline'}
+                  onClick={() => setIncludeNotes((prev) => !prev)}
+                  className="w-full"
+                >
+                  {includeNotes ? 'Notes: On' : 'Notes: Off'}
+                </Button>
+              </div>
+            )}
           </div>
+          {isQualifier && (
+            <p className="mt-4 text-xs text-gray-500">
+              Export includes leads you added in the selected date range with name, phone, category, contact status, and registration status.
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      <div
+        className={cn(
+          'grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2',
+          cards.length > 5 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
+        )}
+      >
         {cards.map((card) => (
           <Card key={card.label} className="border-gray-200 shadow-sm">
             <CardContent className="pt-6">
@@ -236,21 +329,72 @@ export default function LeadReportsPage() {
         ))}
       </div>
 
-      <Card className="border-gray-200 shadow-sm">
-        <CardHeader>
-          <CardTitle>Download Report</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button onClick={() => handleDownload('csv')} disabled={downloading}>
-            {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-            Download CSV
-          </Button>
-          <Button variant="outline" onClick={() => handleDownload('xlsx')} disabled={downloading}>
-            {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-            Download XLSX
-          </Button>
-        </CardContent>
-      </Card>
+      {isQualifier && categoryBreakdownList.length > 0 && (
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle>Category Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analyticsQuery.isLoading ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {categoryBreakdownList.map((row) => (
+                  <div key={row.categoryKey} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                    <span className="text-sm font-medium text-gray-800">{row.categoryName}</span>
+                    <span className="text-sm font-semibold text-gray-900">{row.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isQualifier && (
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle>Download Report</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-xl">
+              <div>
+                <Label>Category</Label>
+                <Select value={downloadCategory} onValueChange={setDownloadCategory}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {PRIMARY_CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => handleDownload('csv')} disabled={downloading}>
+                {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Download CSV
+              </Button>
+              <Button variant="outline" onClick={() => handleDownload('xlsx')} disabled={downloading}>
+                {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Download XLSX
+              </Button>
+            </div>
+            {isQualifier && (
+              <p className="text-xs text-gray-500">
+                Export includes leads you added in the selected date range with name, phone, category, contact status, and registration status.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {isManagerView && (
         <Card className="border-gray-200 shadow-sm">
