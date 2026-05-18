@@ -98,7 +98,7 @@ export default function InterestedCandidatesPage() {
       registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
       ownerBy: role === 'qualifier' ? user?.userId : (qualifierId !== 'all' ? qualifierId : undefined),
     }),
-    enabled: canAccess && (role !== 'qualifier' || !!user?.userId),
+    enabled: canAccess && !!user?.userId,
   });
 
   // Show loading while checking auth

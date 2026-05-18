@@ -87,7 +87,7 @@ export default function NotInterestedCandidatesPage() {
         page,
         limit,
       }),
-    enabled: canAccess && (role !== 'qualifier' || !!currentUserId),
+    enabled: canAccess && !!currentUserId,
   });
 
   if (authLoading) {

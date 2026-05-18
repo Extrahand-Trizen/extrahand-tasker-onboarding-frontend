@@ -552,7 +552,7 @@ export const caosApi = {
     return response.json();
   },
 
-  async getFollowUpQueueStats(params: { addedBy?: string } = {}): Promise<FollowUpQueueStatsResponse> {
+  async getFollowUpQueueStats(params: { addedBy?: string; ownerBy?: string } = {}): Promise<FollowUpQueueStatsResponse> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

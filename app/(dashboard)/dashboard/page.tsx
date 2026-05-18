@@ -51,7 +51,7 @@ export default function DashboardPage() {
     queryKey: ["leads", "dashboard", "callback-stats", role, currentUserId],
     queryFn: () => caosApi.getFollowUpQueueStats({
       addedBy: role === "qualifier" ? currentUserId : undefined,
-      pickedBy: role === "onboarder" ? currentUserId : undefined,
+      ownerBy: role === "onboarder" ? currentUserId : undefined,
     }),
     enabled: isReady,
     placeholderData: keepPreviousData,
