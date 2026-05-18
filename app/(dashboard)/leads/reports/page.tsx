@@ -76,8 +76,8 @@ export default function LeadReportsPage() {
   });
 
   const creatorsQuery = useQuery({
-    queryKey: ['lead-creators-for-reports'],
-    queryFn: () => caosApi.getLeadCreators(),
+    queryKey: ['qualifiers'],
+    queryFn: () => caosApi.getQualifiers(),
     enabled: isManagerView,
   });
 

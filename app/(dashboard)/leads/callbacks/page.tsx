@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,14 @@ const statusColors: Record<string, string> = {
 
 export default function CallbackQueuePage() {
   const { role, user, loading: authLoading } = useJWTAuth();
+  const router = useRouter();
+  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
+
+  useEffect(() => {
+    if (!authLoading && !canAccess) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, canAccess, router]);
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [addedByFilter, setAddedByFilter] = useState('all');
@@ -47,8 +56,8 @@ export default function CallbackQueuePage() {
   const isReady = !isQualifier || !!currentUserId;
 
   const { data: creatorsData } = useQuery({
-    queryKey: ['follow-up-creators'],
-    queryFn: () => caosApi.getLeadCreators(),
+    queryKey: ['qualifiers'],
+    queryFn: () => caosApi.getQualifiers(),
     enabled: !isQualifier,
   });
   const leadCreators = creatorsData?.data || [];
@@ -84,7 +93,7 @@ export default function CallbackQueuePage() {
     retry: 2,
   });
 
-  if (authLoading || !isReady || isLoading) {
+  if (authLoading || !canAccess || isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />

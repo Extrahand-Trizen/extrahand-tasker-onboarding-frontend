@@ -245,6 +245,7 @@ function LeadDetailContent() {
   const leadId = params.leadId as string;
   const queryClient = useQueryClient();
   const { role, user, loading: authLoading } = useJWTAuth();
+  const currentUserId = user?.userId || (user as any)?.uid;
   const fromVerification = searchParams?.get('from') === 'verification';
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
@@ -340,6 +341,7 @@ function LeadDetailContent() {
     newStatus === 'contacted_interested' && statusReasonCode === 'interested_onboarding_later';
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
   const canUpdateLead = !authLoading && (isLeadAccessManager || isOnboarder || isQualifier);
+  const canEditPicked = !lead?.pickedBy || lead.pickedBy === currentUserId;
 
   // Update newStatus when lead loads
   useEffect(() => {
@@ -434,6 +436,19 @@ function LeadDetailContent() {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to update status');
+    },
+  });
+
+  const pickLeadMutation = useMutation({
+    mutationFn: () => caosApi.pickLead(leadId),
+    onSuccess: () => {
+      toast.success('Lead picked successfully');
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['all-leads'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to pick lead');
     },
   });
 
@@ -543,13 +558,19 @@ function LeadDetailContent() {
         </div>
         <div className="flex gap-2">
           {/* Edit Lead: qualifier can edit only own leads; onboarder/admin can edit all */}
-          {canUpdateLead && (
+          {canUpdateLead && canEditPicked && (
             <Button
               variant="outline"
               onClick={() => setShowEditModal(true)}
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit Lead
+            </Button>
+          )}
+          {canUpdateLead && !canEditPicked && (
+            <Button variant="outline" disabled>
+              <Edit className="h-4 w-4 mr-2" />
+              Locked
             </Button>
           )}
           {/* ✅ Delete Lead button - visible only to lead_access_manager and only for non-bulk-upload leads */}
@@ -564,7 +585,7 @@ function LeadDetailContent() {
             </Button>
           )}
             {/* ✅ Only qualifier team can move stages */}
-            {canMoveStage && (
+            {canMoveStage && canEditPicked && (
               <Button
                 variant="outline"
                 onClick={() => {
@@ -579,9 +600,25 @@ function LeadDetailContent() {
                 Move Stage
               </Button>
             )}
+            {isQualifier && lead && !lead.pickedBy && (
+              <Button
+                variant="outline"
+                onClick={() => pickLeadMutation.mutate()}
+                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                disabled={pickLeadMutation.isPending}
+              >
+                {pickLeadMutation.isPending ? 'Picking...' : 'Pick Lead'}
+              </Button>
+            )}
+            {lead?.pickedBy && !canEditPicked && (
+              <Button variant="outline" disabled>
+                Picked by {lead.pickedByName || lead.pickedBy}
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => setShowNoteModal(true)}
+              disabled={!canEditPicked}
             >
               <MessageSquare className="h-4 w-4 mr-2" />
               Add Note
@@ -673,6 +710,12 @@ function LeadDetailContent() {
               <p className="text-sm text-gray-600 mb-2">Added By</p>
               <p className="font-medium">{lead.addedByName || lead.addedBy}</p>
             </div>
+            {lead.pickedBy && (
+              <div>
+                <p className="text-sm text-gray-600 mb-2">Picked By</p>
+                <p className="font-medium">{lead.pickedByName || lead.pickedBy}</p>
+              </div>
+            )}
             <div>
               <p className="text-sm text-gray-600 mb-2">Created</p>
               <p className="font-medium">

@@ -11,20 +11,7 @@ export default function BulkLeadImportPage() {
   const router = useRouter();
   const { role, loading: authLoading } = useJWTAuth();
 
-  // Onboarder cannot upload leads; redirect to dashboard
-  useEffect(() => {
-    if (!authLoading && role === 'onboarder') {
-      router.replace('/dashboard');
-    }
-  }, [authLoading, role, router]);
 
-  if (!authLoading && role === 'onboarder') {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">

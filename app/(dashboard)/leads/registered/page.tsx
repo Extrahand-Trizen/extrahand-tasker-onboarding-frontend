@@ -36,6 +36,7 @@ export default function RegisteredCandidatesPage() {
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [registrationView, setRegistrationView] = useState<RegistrationView>('registered');
+  const [qualifierId, setQualifierId] = useState<string>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
 
@@ -55,14 +56,20 @@ export default function RegisteredCandidatesPage() {
     }
   }, [authLoading, canAccess, router]);
 
+  const creatorsQuery = useQuery({
+    queryKey: ['lead-creators'],
+    queryFn: () => caosApi.getLeadCreators(),
+    enabled: canAccess && (role === 'onboarder' || role === 'lead_access_manager'),
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ['registered-candidates', role, currentUserId, registrationView, page, searchCity, searchSkill],
+    queryKey: ['registered-candidates', role, currentUserId, registrationView, page, searchCity, searchSkill, qualifierId],
     queryFn: () =>
       caosApi.searchLeads({
         registrationStatus: registrationView,
         city: searchCity || undefined,
         primarySkill: searchSkill || undefined,
-        addedBy: role === 'qualifier' ? currentUserId : undefined,
+        addedBy: role === 'qualifier' ? currentUserId : (qualifierId !== 'all' ? qualifierId : undefined),
         page,
         limit,
       }),
@@ -157,6 +164,30 @@ export default function RegisteredCandidatesPage() {
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
+            { (role === 'onboarder' || role === 'lead_access_manager') && (
+              <div>
+                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Select
+                  value={qualifierId}
+                  onValueChange={(value) => {
+                    setQualifierId(value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger id="qualifier-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <SelectValue placeholder="All qualifiers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All qualifiers</SelectItem>
+                    {(creatorsQuery.data?.data || []).map((creator) => (
+                      <SelectItem key={creator.userId} value={creator.userId}>
+                        {creator.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex items-end">
               <Button
                 variant="outline"
@@ -164,6 +195,7 @@ export default function RegisteredCandidatesPage() {
                   setSearchCity('');
                   setSearchSkill('');
                   setRegistrationView('registered');
+                  setQualifierId('all');
                   setPage(1);
                 }}
                 className="w-full"

@@ -45,6 +45,26 @@ type LeadFormData = {
     | 'driver-chauffeur'
     | 'cooking-home-chef'
     | 'laundry-ironing'
+    | 'auto-electricians'
+    | 'av-specialist'
+    | 'alteration-services'
+    | 'assembly-services'
+    | 'bakers-services'
+    | 'bicycle-services'
+    | 'bricklaying-services'
+    | 'decking'
+    | 'florist'
+    | 'flooring-services'
+    | 'draftsman'
+    | 'gate-installation'
+    | 'home-automation'
+    | 'home-theatre-services'
+    | 'receptionist-services'
+    | 'sharpening-services'
+    | 'writing-services'
+    | 'admin-office-services'
+    | 'interior-architecture'
+    | 'building-construction'
     | 'other';
   primaryCategoryOther?: string;
   secondaryCategory?: string;
@@ -83,6 +103,26 @@ const leadSchema = z.object({
     'driver-chauffeur',
     'cooking-home-chef',
     'laundry-ironing',
+    'auto-electricians',
+    'av-specialist',
+    'alteration-services',
+    'assembly-services',
+    'bakers-services',
+    'bicycle-services',
+    'bricklaying-services',
+    'decking',
+    'florist',
+    'flooring-services',
+    'draftsman',
+    'gate-installation',
+    'home-automation',
+    'home-theatre-services',
+    'receptionist-services',
+    'sharpening-services',
+    'writing-services',
+    'admin-office-services',
+    'interior-architecture',
+    'building-construction',
     'other'
   ]).optional(),
   primaryCategoryOther: z.string().optional(),
@@ -126,12 +166,7 @@ export default function AddLeadPage() {
   const { role, loading: authLoading } = useJWTAuth();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
-  // Onboarder cannot add leads; redirect to dashboard
-  useEffect(() => {
-    if (!authLoading && role === 'onboarder') {
-      router.replace('/dashboard');
-    }
-  }, [authLoading, role, router]);
+
   const submittingRef = useRef(false);
 
   const {
@@ -181,7 +216,18 @@ export default function AddLeadPage() {
       'Door/Window Repair',
       'Lock Repair',
       'Inverter / UPS Setup',
-      'Curtain / Rod Fitting'
+      'Curtain / Rod Fitting',
+      'Rangehood Installation',
+      'Oven Fan Repair',
+      'Ice Machine Repair',
+      'Freezer Installation',
+      'Gas Oven Repair & Installation',
+      'Fridge Repair & Installation',
+      'Dishwasher Not Draining',
+      'DishDrawer Installation',
+      'Bosch Appliance Repair',
+      'Coffee Machine Repair',
+      'Cooker Hood Installation'
     ],
     moving: [
       'Food Delivery',
@@ -217,7 +263,15 @@ export default function AddLeadPage() {
       'GST Filing',
       'Income Tax Filing',
       'Payroll Support',
-      'Bookkeeping'
+      'Bookkeeping',
+      'Xero Training',
+      'Pension Advisor',
+      'Mortgage Advisor',
+      'Financial Reporting',
+      'Financial Modelling',
+      'Budgeting Help',
+      'MYOB Training',
+      'Financial Advisor'
     ],
     marketing: [
       'Graphic Design',
@@ -274,7 +328,9 @@ export default function AddLeadPage() {
       'Manicure/Pedicure',
       'Head / Neck Massage',
       'Therapy Session',
-      'Nail Services'
+      'Nail Services',
+      'Beard Grooming',
+      'Mobile Barber'
     ],
     'pet-care': [
       'Pet Grooming',
@@ -339,6 +395,61 @@ export default function AddLeadPage() {
       'Ironing',
       'Dry Cleaning Pickup',
       'Bulk Laundry'
+    ],
+    'auto-electricians': [],
+    'av-specialist': [],
+    'alteration-services': [
+      'Zipper Repair Services',
+      'Wedding Dress Alterations'
+    ],
+    'assembly-services': [],
+    'bakers-services': [
+      'Japanese Baker',
+      'Keto Bakers',
+      'Gluten Free Bakers',
+      'Greek Bakers',
+      'French Bakers',
+      'Custom Birthday Cake',
+      'Cake Toppers',
+      'Cake Decorators',
+      'Artisan Bakers',
+      'Custom Celebration Cakes'
+    ],
+    'bicycle-services': [],
+    'bricklaying-services': [],
+    'decking': [],
+    'florist': [],
+    'flooring-services': [],
+    'draftsman': [],
+    'gate-installation': [],
+    'home-automation': [],
+    'home-theatre-services': [],
+    'receptionist-services': [],
+    'sharpening-services': [],
+    'writing-services': [
+      'Resume Writing',
+      'Report Writing'
+    ],
+    'admin-office-services': [
+      'Queuing',
+      'eBay Selling Assistance',
+      'Research Assistant',
+      'HR Services',
+      'Personal Assistant',
+      'Office Work',
+      'Document Filing'
+    ],
+    'interior-architecture': [
+      'Building Designers',
+      'Loft Conversion',
+      'House Renovation',
+      'House Extensions',
+      'Architectural Rendering',
+      'Floor Planning',
+      'Garage Conversion'
+    ],
+    'building-construction': [
+      'Building Construction'
     ]
   };
 
@@ -441,13 +552,7 @@ export default function AddLeadPage() {
     createLeadMutation.mutate(payload);
   };
 
-  if (!authLoading && role === 'onboarder') {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
@@ -630,6 +735,26 @@ export default function AddLeadPage() {
                     <SelectItem value="driver-chauffeur" className="hover:bg-gray-100 cursor-pointer">Driver / Chauffeur Services</SelectItem>
                     <SelectItem value="cooking-home-chef" className="hover:bg-gray-100 cursor-pointer">Cooking / Home Chef</SelectItem>
                     <SelectItem value="laundry-ironing" className="hover:bg-gray-100 cursor-pointer">Laundry & Ironing</SelectItem>
+                    <SelectItem value="auto-electricians" className="hover:bg-gray-100 cursor-pointer">Auto Electricians</SelectItem>
+                    <SelectItem value="av-specialist" className="hover:bg-gray-100 cursor-pointer">AV Specialist</SelectItem>
+                    <SelectItem value="alteration-services" className="hover:bg-gray-100 cursor-pointer">Alteration Services</SelectItem>
+                    <SelectItem value="assembly-services" className="hover:bg-gray-100 cursor-pointer">Assembly Services</SelectItem>
+                    <SelectItem value="bakers-services" className="hover:bg-gray-100 cursor-pointer">Bakers Services</SelectItem>
+                    <SelectItem value="bicycle-services" className="hover:bg-gray-100 cursor-pointer">Bicycle Services</SelectItem>
+                    <SelectItem value="bricklaying-services" className="hover:bg-gray-100 cursor-pointer">Bricklaying Services</SelectItem>
+                    <SelectItem value="decking" className="hover:bg-gray-100 cursor-pointer">Decking</SelectItem>
+                    <SelectItem value="florist" className="hover:bg-gray-100 cursor-pointer">Florist</SelectItem>
+                    <SelectItem value="flooring-services" className="hover:bg-gray-100 cursor-pointer">Flooring Services</SelectItem>
+                    <SelectItem value="draftsman" className="hover:bg-gray-100 cursor-pointer">Draftsman</SelectItem>
+                    <SelectItem value="gate-installation" className="hover:bg-gray-100 cursor-pointer">Gate Installation</SelectItem>
+                    <SelectItem value="home-automation" className="hover:bg-gray-100 cursor-pointer">Home Automation</SelectItem>
+                    <SelectItem value="home-theatre-services" className="hover:bg-gray-100 cursor-pointer">Home Theatre Services</SelectItem>
+                    <SelectItem value="receptionist-services" className="hover:bg-gray-100 cursor-pointer">Receptionist Services</SelectItem>
+                    <SelectItem value="sharpening-services" className="hover:bg-gray-100 cursor-pointer">Sharpening Services</SelectItem>
+                    <SelectItem value="writing-services" className="hover:bg-gray-100 cursor-pointer">Writing Services</SelectItem>
+                    <SelectItem value="admin-office-services" className="hover:bg-gray-100 cursor-pointer">Admin / Office Services</SelectItem>
+                    <SelectItem value="interior-architecture" className="hover:bg-gray-100 cursor-pointer">Interior & Architecture</SelectItem>
+                    <SelectItem value="building-construction" className="hover:bg-gray-100 cursor-pointer">Building & Construction</SelectItem>
                     <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other (Specify Below)</SelectItem>
                   </SelectContent>
                 </Select>

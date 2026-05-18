@@ -51,12 +51,7 @@ export default function LeadsPage() {
   // Get current user's ID (handles both JWT userId and Firebase uid)
   const currentUserId = user?.userId || (user as any)?.uid;
 
-  // Onboarder cannot access My Leads List; redirect to All Leads
-  useEffect(() => {
-    if (!authLoading && role === 'onboarder') {
-      router.replace('/leads/all');
-    }
-  }, [authLoading, role, router]);
+
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['leads', { search, statusFilter, page, limit, userId: currentUserId }],
@@ -70,7 +65,7 @@ export default function LeadsPage() {
         page,
         limit,
       }),
-    enabled: !authLoading && !!currentUserId && role !== 'onboarder',
+    enabled: !authLoading && !!currentUserId,
   });
 
   const leads = data?.data || [];
@@ -86,6 +81,19 @@ export default function LeadsPage() {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to delete lead');
+    },
+  });
+
+  const pickLeadMutation = useMutation({
+    mutationFn: (leadId: string) => caosApi.pickLead(leadId),
+    onSuccess: () => {
+      toast.success('Lead picked successfully');
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['all-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['my-picks'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to pick lead');
     },
   });
 
@@ -134,15 +142,9 @@ export default function LeadsPage() {
 
   // Only lead_access_manager can delete leads; onboarder can view All Leads but not delete
   const canDelete = role === 'lead_access_manager';
+  const canPick = role === 'onboarder';
 
-  // Don't render My Leads content for onboarder (they get redirected to All Leads)
-  if (!authLoading && role === 'onboarder') {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent" />
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
@@ -306,6 +308,20 @@ export default function LeadsPage() {
                           >
                             View
                           </Button>
+                          {canPick && !lead.pickedBy && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                pickLeadMutation.mutate(lead.leadId);
+                              }}
+                              disabled={pickLeadMutation.isPending}
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            >
+                              Pick
+                            </Button>
+                          )}
                           {canDelete && (
                             <Button
                               variant="ghost"
@@ -427,6 +443,20 @@ export default function LeadsPage() {
                             >
                               View
                             </Button>
+                            {canPick && !lead.pickedBy && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  pickLeadMutation.mutate(lead.leadId);
+                                }}
+                                disabled={pickLeadMutation.isPending}
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              >
+                                Pick
+                              </Button>
+                            )}
                             {canDelete && (
                               <Button
                                 variant="ghost"

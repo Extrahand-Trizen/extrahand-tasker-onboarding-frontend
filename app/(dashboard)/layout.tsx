@@ -3,6 +3,9 @@
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { caosApi } from '@/lib/api/caos';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { useInactivityTimeout } from '@/lib/hooks/useInactivityTimeout';
@@ -21,10 +24,11 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, loading, logout } = useJWTAuth();
+  const { isAuthenticated, loading, logout, user } = useJWTAuth();
   const router = useRouter();
   const [showWarn, setShowWarn] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const currentUserId = user?.userId || (user as any)?.uid;
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -43,6 +47,65 @@ export default function DashboardLayout({
       router.push('/login');
     },
   });
+
+  const { data: transferNotifications } = useQuery({
+    queryKey: ['transfer-notifications', currentUserId],
+    queryFn: () => {
+      const sinceKey = currentUserId ? `transfer_notifications_since_${currentUserId}` : undefined;
+      const since = sinceKey ? localStorage.getItem(sinceKey) || undefined : undefined;
+      return caosApi.getTransferNotifications(since);
+    },
+    enabled: !!currentUserId && !loading && isAuthenticated,
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const seenKey = `transfer_notifications_seen_${currentUserId}`;
+    const sinceKey = `transfer_notifications_since_${currentUserId}`;
+    const seenRaw = localStorage.getItem(seenKey);
+    const seen: Record<string, boolean> = seenRaw ? JSON.parse(seenRaw) : {};
+    let updated = false;
+    let latestDecisionAt = localStorage.getItem(sinceKey) || '';
+
+    (transferNotifications?.data || []).forEach((notice) => {
+      const decidedAt = notice.decidedAt || '';
+      const uniqueKey = `${notice.leadId}_${notice.decision}_${decidedAt}`;
+      if (seen[uniqueKey]) return;
+
+      const isSender = notice.fromUserId === currentUserId;
+      const isRecipient = notice.toUserId === currentUserId;
+      if (!isSender && !isRecipient) return;
+
+      const otherName = isSender
+        ? (notice.toUserName || notice.toUserId || 'recipient')
+        : (notice.fromUserName || notice.fromUserId || 'sender');
+
+      const message = isSender
+        ? `Transfer ${notice.decision} by ${otherName}`
+        : `You ${notice.decision} transfer from ${otherName}`;
+
+      if (notice.decision === 'accepted') {
+        toast.success(message);
+      } else {
+        toast.error(message);
+      }
+
+      seen[uniqueKey] = true;
+      updated = true;
+
+      if (decidedAt && decidedAt > latestDecisionAt) {
+        latestDecisionAt = decidedAt;
+      }
+    });
+
+    if (updated) {
+      localStorage.setItem(seenKey, JSON.stringify(seen));
+      if (latestDecisionAt) {
+        localStorage.setItem(sinceKey, latestDecisionAt);
+      }
+    }
+  }, [transferNotifications, currentUserId]);
 
   if (loading) {
     return (

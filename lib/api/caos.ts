@@ -135,6 +135,28 @@ export interface Lead {
   sourceDetails?: string;
   addedBy: string;
   addedByName?: string;
+  pickedBy?: string;
+  pickedByName?: string;
+  pickedAt?: string;
+  lastTransferredBy?: string;
+  lastTransferredByName?: string;
+  lastTransferredAt?: string;
+  transferPendingTo?: string;
+  transferPendingToName?: string;
+  transferPendingAt?: string;
+  lastTransferDecision?: 'accepted' | 'rejected';
+  lastTransferDecisionBy?: string;
+  lastTransferDecisionByName?: string;
+  lastTransferDecisionAt?: string;
+  transferHistory?: Array<{
+    fromUserId: string;
+    fromUserName?: string;
+    toUserId: string;
+    toUserName?: string;
+    status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+    initiatedAt: string;
+    resolvedAt?: string;
+  }>;
   status: LeadStatus;  // ✅ Lead status only (ends at approved)
   accountStatus: AccountStatus;  // ✅ NEW: Separate account status (starts after approval)
   statusHistory: Array<{
@@ -213,6 +235,16 @@ export interface Lead {
   updatedAt: string;
 }
 
+export interface TransferNotification {
+  leadId: string;
+  decision: 'accepted' | 'rejected';
+  decidedAt: string;
+  fromUserId?: string;
+  fromUserName?: string;
+  toUserId?: string;
+  toUserName?: string;
+}
+
 export interface ConversionStatusData {
   converted: boolean;
   platformUid?: string;
@@ -258,6 +290,9 @@ export interface SearchLeadsParams {
   primarySkill?: string;
   source?: LeadSource;
   addedBy?: string;
+  pickedBy?: string;
+  transferPendingTo?: string;
+  ownerBy?: string;
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -563,6 +598,90 @@ export const caosApi = {
     return response.json();
   },
 
+  async getOnboarders(): Promise<{ success: boolean; data: Array<{ userId: string; uid?: string; name?: string; email?: string }> }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/onboarders`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch onboarders' }));
+      throw new Error(error.error || error.message || 'Failed to fetch onboarders');
+    }
+
+    return response.json();
+  },
+
+  async getQualifiers(): Promise<{ success: boolean; data: Array<{ userId: string; uid?: string; name?: string; email?: string }> }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/qualifiers`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch qualifiers' }));
+      throw new Error(error.error || error.message || 'Failed to fetch qualifiers');
+    }
+
+    return response.json();
+  },
+
+  async getTransferRecipients(): Promise<{ success: boolean; data: Array<{ userId: string; uid?: string; name?: string; email?: string; role?: string }> }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/transfer-recipients`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch transfer recipients' }));
+      throw new Error(error.error || error.message || 'Failed to fetch transfer recipients');
+    }
+
+    return response.json();
+  },
+
+  async getTransferNotifications(since?: string): Promise<{ success: boolean; data: TransferNotification[] }> {
+    const token = await getAdminToken();
+    const params = new URLSearchParams();
+    if (since) {
+      params.append('since', since);
+    }
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/transfer-notifications${params.toString() ? `?${params.toString()}` : ''}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch transfer notifications' }));
+      throw new Error(error.error || error.message || 'Failed to fetch transfer notifications');
+    }
+
+    return response.json();
+  },
+
   async getStatusAnalytics(params: {
     from?: string;
     to?: string;
@@ -788,6 +907,84 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to update status' }));
       throw new Error(error.error || error.message || 'Failed to update status');
+    }
+
+    return response.json();
+  },
+
+  async pickLead(leadId: string): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/pick`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to pick lead' }));
+      throw new Error(error.error || error.message || 'Failed to pick lead');
+    }
+
+    return response.json();
+  },
+
+  async transferLead(leadId: string, targetUserId: string): Promise<{ success: boolean; data: Lead; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/transfer`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ targetUserId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to transfer lead' }));
+      throw new Error(error.error || error.message || 'Failed to transfer lead');
+    }
+
+    return response.json();
+  },
+
+  async acceptTransferLead(leadId: string): Promise<{ success: boolean; data: any; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/accept-transfer`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to accept lead transfer' }));
+      throw new Error(error.error || error.message || 'Failed to accept lead transfer');
+    }
+
+    return response.json();
+  },
+
+  async rejectTransferLead(leadId: string): Promise<{ success: boolean; data: any; message: string }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(`${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/${leadId}/reject-transfer`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to reject lead transfer' }));
+      throw new Error(error.error || error.message || 'Failed to reject lead transfer');
     }
 
     return response.json();
@@ -1169,7 +1366,7 @@ export const caosApi = {
    * Get interested candidates queue
    * registrationStatus: not_registered | registered | registered_verified
    */
-  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; search?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string }): Promise<{
+  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; search?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string; ownerBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1219,7 +1416,7 @@ export const caosApi = {
   /**
    * Get contacted & not interested candidates queue
    */
-  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string }): Promise<{
+  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1266,7 +1463,7 @@ export const caosApi = {
     };
   },
 
-  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string }): Promise<{
+  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];

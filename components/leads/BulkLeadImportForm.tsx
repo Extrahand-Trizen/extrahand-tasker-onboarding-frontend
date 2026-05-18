@@ -154,7 +154,18 @@ export function BulkLeadImportForm() {
       'Door/Window Repair',
       'Lock Repair',
       'Inverter / UPS Setup',
-      'Curtain / Rod Fitting'
+      'Curtain / Rod Fitting',
+      'Rangehood Installation',
+      'Oven Fan Repair',
+      'Ice Machine Repair',
+      'Freezer Installation',
+      'Gas Oven Repair & Installation',
+      'Fridge Repair & Installation',
+      'Dishwasher Not Draining',
+      'DishDrawer Installation',
+      'Bosch Appliance Repair',
+      'Coffee Machine Repair',
+      'Cooker Hood Installation'
     ],
     moving: [
       'Food Delivery',
@@ -190,7 +201,15 @@ export function BulkLeadImportForm() {
       'GST Filing',
       'Income Tax Filing',
       'Payroll Support',
-      'Bookkeeping'
+      'Bookkeeping',
+      'Xero Training',
+      'Pension Advisor',
+      'Mortgage Advisor',
+      'Financial Reporting',
+      'Financial Modelling',
+      'Budgeting Help',
+      'MYOB Training',
+      'Financial Advisor'
     ],
     marketing: [
       'Graphic Design',
@@ -247,7 +266,9 @@ export function BulkLeadImportForm() {
       'Manicure/Pedicure',
       'Head / Neck Massage',
       'Therapy Session',
-      'Nail Services'
+      'Nail Services',
+      'Beard Grooming',
+      'Mobile Barber'
     ],
     'pet-care': [
       'Pet Grooming',
@@ -312,6 +333,61 @@ export function BulkLeadImportForm() {
       'Ironing',
       'Dry Cleaning Pickup',
       'Bulk Laundry'
+    ],
+    'auto-electricians': [],
+    'av-specialist': [],
+    'alteration-services': [
+      'Zipper Repair Services',
+      'Wedding Dress Alterations'
+    ],
+    'assembly-services': [],
+    'bakers-services': [
+      'Japanese Baker',
+      'Keto Bakers',
+      'Gluten Free Bakers',
+      'Greek Bakers',
+      'French Bakers',
+      'Custom Birthday Cake',
+      'Cake Toppers',
+      'Cake Decorators',
+      'Artisan Bakers',
+      'Custom Celebration Cakes'
+    ],
+    'bicycle-services': [],
+    'bricklaying-services': [],
+    'decking': [],
+    'florist': [],
+    'flooring-services': [],
+    'draftsman': [],
+    'gate-installation': [],
+    'home-automation': [],
+    'home-theatre-services': [],
+    'receptionist-services': [],
+    'sharpening-services': [],
+    'writing-services': [
+      'Resume Writing',
+      'Report Writing'
+    ],
+    'admin-office-services': [
+      'Queuing',
+      'eBay Selling Assistance',
+      'Research Assistant',
+      'HR Services',
+      'Personal Assistant',
+      'Office Work',
+      'Document Filing'
+    ],
+    'interior-architecture': [
+      'Building Designers',
+      'Loft Conversion',
+      'House Renovation',
+      'House Extensions',
+      'Architectural Rendering',
+      'Floor Planning',
+      'Garage Conversion'
+    ],
+    'building-construction': [
+      'Building Construction'
     ],
     other: [
       'Custom Service',
@@ -435,6 +511,26 @@ export function BulkLeadImportForm() {
                   <SelectItem value="driver-chauffeur">Driver / Chauffeur Services</SelectItem>
                   <SelectItem value="cooking-home-chef">Cooking / Home Chef</SelectItem>
                   <SelectItem value="laundry-ironing">Laundry & Ironing</SelectItem>
+                  <SelectItem value="auto-electricians">Auto Electricians</SelectItem>
+                  <SelectItem value="av-specialist">AV Specialist</SelectItem>
+                  <SelectItem value="alteration-services">Alteration Services</SelectItem>
+                  <SelectItem value="assembly-services">Assembly Services</SelectItem>
+                  <SelectItem value="bakers-services">Bakers Services</SelectItem>
+                  <SelectItem value="bicycle-services">Bicycle Services</SelectItem>
+                  <SelectItem value="bricklaying-services">Bricklaying Services</SelectItem>
+                  <SelectItem value="decking">Decking</SelectItem>
+                  <SelectItem value="florist">Florist</SelectItem>
+                  <SelectItem value="flooring-services">Flooring Services</SelectItem>
+                  <SelectItem value="draftsman">Draftsman</SelectItem>
+                  <SelectItem value="gate-installation">Gate Installation</SelectItem>
+                  <SelectItem value="home-automation">Home Automation</SelectItem>
+                  <SelectItem value="home-theatre-services">Home Theatre Services</SelectItem>
+                  <SelectItem value="receptionist-services">Receptionist Services</SelectItem>
+                  <SelectItem value="sharpening-services">Sharpening Services</SelectItem>
+                  <SelectItem value="writing-services">Writing Services</SelectItem>
+                  <SelectItem value="admin-office-services">Admin / Office Services</SelectItem>
+                  <SelectItem value="interior-architecture">Interior & Architecture</SelectItem>
+                  <SelectItem value="building-construction">Building & Construction</SelectItem>
                   <SelectItem value="other">Other (Specify Below)</SelectItem>
                 </SelectContent>
               </Select>

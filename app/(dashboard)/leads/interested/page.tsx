@@ -68,10 +68,11 @@ export default function InterestedCandidatesPage() {
   const [searchSkill, setSearchSkill] = useState('');
   const [searchPhone, setSearchPhone] = useState('');
   const [registrationFilter, setRegistrationFilter] = useState<'all' | 'not_registered' | 'registered' | 'registered_verified'>('all');
+  const [qualifierId, setQualifierId] = useState<string>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
+  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
@@ -80,8 +81,14 @@ export default function InterestedCandidatesPage() {
     }
   }, [authLoading, canAccess, router]);
 
+  const creatorsQuery = useQuery({
+    queryKey: ['qualifiers'],
+    queryFn: () => caosApi.getQualifiers(),
+    enabled: canAccess && (role === 'onboarder' || role === 'lead_access_manager'),
+  });
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['interested-candidates', role, user?.userId, page, searchCity, searchSkill, searchPhone, registrationFilter],
+    queryKey: ['interested-candidates', role, user?.userId, page, searchCity, searchSkill, searchPhone, registrationFilter, qualifierId],
     queryFn: () => caosApi.getInterestedCandidates({
       city: searchCity,
       primarySkill: searchSkill,
@@ -89,7 +96,7 @@ export default function InterestedCandidatesPage() {
       page,
       limit,
       registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
-      addedBy: role === 'qualifier' ? user?.userId : undefined,
+      ownerBy: role === 'qualifier' ? user?.userId : (qualifierId !== 'all' ? qualifierId : undefined),
     }),
     enabled: canAccess && (role !== 'qualifier' || !!user?.userId),
   });
@@ -201,7 +208,31 @@ export default function InterestedCandidatesPage() {
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
-            <div className="flex items-end sm:col-span-2 md:col-span-1">
+            { (role === 'onboarder' || role === 'lead_access_manager') && (
+              <div>
+                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Select
+                  value={qualifierId}
+                  onValueChange={(value) => {
+                    setQualifierId(value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger id="qualifier-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <SelectValue placeholder="All qualifiers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All qualifiers</SelectItem>
+                    {(creatorsQuery.data?.data || []).map((creator) => (
+                      <SelectItem key={creator.userId} value={creator.userId}>
+                        {creator.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex items-end">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -209,6 +240,7 @@ export default function InterestedCandidatesPage() {
                   setSearchSkill('');
                   setSearchPhone('');
                   setRegistrationFilter('all');
+                  setQualifierId('all');
                   setPage(1);
                 }}
                 className="w-full"

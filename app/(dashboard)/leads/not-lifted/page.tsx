@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2, PhoneOff, ShieldAlert, Eye } from 'lucide-react';
 import Link from 'next/link';
@@ -52,6 +53,7 @@ export default function NotLiftedCandidatesPage() {
   const { role, user, loading: authLoading } = useJWTAuth();
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
+  const [qualifierId, setQualifierId] = useState<string>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
   const currentUserId =
@@ -60,7 +62,7 @@ export default function NotLiftedCandidatesPage() {
       ? user.uid
       : undefined);
 
-  const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
+  const canAccess = !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
@@ -69,13 +71,19 @@ export default function NotLiftedCandidatesPage() {
     }
   }, [authLoading, canAccess, router]);
 
+  const creatorsQuery = useQuery({
+    queryKey: ['qualifiers'],
+    queryFn: () => caosApi.getQualifiers(),
+    enabled: canAccess && (role === 'onboarder' || role === 'lead_access_manager'),
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ['not-lifted-candidates', role, currentUserId, page, searchCity, searchSkill],
+    queryKey: ['not-lifted-candidates', role, currentUserId, page, searchCity, searchSkill, qualifierId],
     queryFn: () =>
       caosApi.getNotLiftedCandidates({
         city: searchCity,
         primarySkill: searchSkill,
-        addedBy: role === 'qualifier' ? currentUserId : undefined,
+        ownerBy: role === 'qualifier' ? currentUserId : (qualifierId !== 'all' ? qualifierId : undefined),
         page,
         limit,
       }),
@@ -153,12 +161,37 @@ export default function NotLiftedCandidatesPage() {
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
-            <div className="flex items-end sm:col-span-2 md:col-span-1">
+            { (role === 'onboarder' || role === 'lead_access_manager') && (
+              <div>
+                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Select
+                  value={qualifierId}
+                  onValueChange={(value) => {
+                    setQualifierId(value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger id="qualifier-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <SelectValue placeholder="All qualifiers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All qualifiers</SelectItem>
+                    {(creatorsQuery.data?.data || []).map((creator) => (
+                      <SelectItem key={creator.userId} value={creator.userId}>
+                        {creator.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex items-end">
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchCity('');
                   setSearchSkill('');
+                  setQualifierId('all');
                   setPage(1);
                 }}
                 className="w-full"

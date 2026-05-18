@@ -21,29 +21,42 @@ export default function DashboardPage() {
     queryKey: ["leads", "dashboard", role, currentUserId],
     queryFn: () =>
       caosApi.searchLeads({
-        limit: 1,
+        limit: 500,
         addedBy: isQualifier ? currentUserId : undefined,
+        pickedBy: role === "onboarder" ? currentUserId : undefined,
       }),
     enabled: isReady,
   });
 
+  const { data: myLeadsData } = useQuery({
+    queryKey: ["leads", "dashboard", "my-leads", currentUserId],
+    queryFn: () =>
+      caosApi.searchLeads({
+        limit: 1,
+        addedBy: currentUserId,
+      }),
+    enabled: role === "onboarder" && !!currentUserId,
+  });
+
   const { data: approvedData } = useQuery({
-    queryKey: ["leads", "dashboard", "approved"],
-    queryFn: () => caosApi.searchLeads({ status: "approved", limit: 1 }),
+    queryKey: ["leads", "dashboard", "approved", role, currentUserId],
+    queryFn: () => caosApi.searchLeads({
+      status: "approved",
+      limit: 1,
+      pickedBy: role === "onboarder" ? currentUserId : undefined,
+    }),
     enabled: !!role && role !== "qualifier",
   });
   const { data: followUpStatsData, isError: followUpStatsError } = useQuery({
     queryKey: ["leads", "dashboard", "callback-stats", role, currentUserId],
-    queryFn: () => caosApi.getFollowUpQueueStats(),
+    queryFn: () => caosApi.getFollowUpQueueStats({
+      addedBy: role === "qualifier" ? currentUserId : undefined,
+      pickedBy: role === "onboarder" ? currentUserId : undefined,
+    }),
     enabled: isReady,
     placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: 2,
-  });
-  const { data: dashboardMetricsData } = useQuery({
-    queryKey: ["leads", "dashboard", "metrics"],
-    queryFn: () => caosApi.getDashboardMetrics(),
-    enabled: !!role && role !== "qualifier",
   });
 
   const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
@@ -59,7 +72,8 @@ export default function DashboardPage() {
             status: "contacted_interested",
             page: 1,
             limit: 1,
-            statusChangedBy: isQualifier ? currentUserId : undefined,
+            addedBy: isQualifier ? currentUserId : undefined,
+            pickedBy: role === "onboarder" ? currentUserId : undefined,
           }),
         staleTime: 60_000,
         enabled: isReady,
@@ -71,7 +85,8 @@ export default function DashboardPage() {
             status: "contacted_not_interested",
             page: 1,
             limit: 1,
-            statusChangedBy: isQualifier ? currentUserId : undefined,
+            addedBy: isQualifier ? currentUserId : undefined,
+            pickedBy: role === "onboarder" ? currentUserId : undefined,
           }),
         staleTime: 60_000,
         enabled: isReady,
@@ -82,6 +97,7 @@ export default function DashboardPage() {
           caosApi.searchLeads({
             registrationStatus: "not_registered",
             addedBy: isQualifier ? currentUserId : undefined,
+            pickedBy: role === "onboarder" ? currentUserId : undefined,
             page: 1,
             limit: 1,
           }),
@@ -94,6 +110,7 @@ export default function DashboardPage() {
           caosApi.searchLeads({
             registrationStatus: "registered",
             addedBy: isQualifier ? currentUserId : undefined,
+            pickedBy: role === "onboarder" ? currentUserId : undefined,
             page: 1,
             limit: 1,
           }),
@@ -106,6 +123,7 @@ export default function DashboardPage() {
           caosApi.searchLeads({
             registrationStatus: "registered_verified",
             addedBy: isQualifier ? currentUserId : undefined,
+            pickedBy: role === "onboarder" ? currentUserId : undefined,
             page: 1,
             limit: 1,
           }),
@@ -120,54 +138,62 @@ export default function DashboardPage() {
     approved: approvedData?.pagination?.total ?? 0,
   };
 
+  const myLeadsTotal = myLeadsData?.pagination?.total ?? 0;
+
   const interestedTotal = countQueries[0]?.data?.pagination?.total ?? 0;
   const notInterestedTotal = countQueries[1]?.data?.pagination?.total ?? 0;
   const notRegisteredTotal = countQueries[2]?.data?.pagination?.total ?? 0;
   const registeredTotal = countQueries[3]?.data?.pagination?.total ?? 0;
   const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
-  const workersAadhaarVerifiedTotal = dashboardMetricsData?.data?.taskersAadhaarVerified ?? 0;
   const followUpStats = followUpStatsData?.data;
   const followUpAvailable = !!followUpStats && !followUpStatsError;
+  const localClaims = (role === "onboarder" && leadsData?.data) ? leadsData.data : [];
+  let localTotalFollowUps = 0;
+  let localOverdueFollowUps = 0;
+  let localDueTodayFollowUps = 0;
+
+  if (role === "onboarder") {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    localClaims.forEach((lead) => {
+      const dates = [lead.nextCallbackAt, lead.expectedOnboardingAt]
+        .filter(Boolean)
+        .map((d) => new Date(d!));
+
+      if (dates.length > 0) {
+        localTotalFollowUps++;
+        const mostRecentDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+        if (mostRecentDate < startOfToday) {
+          localOverdueFollowUps++;
+        } else if (mostRecentDate >= startOfToday && mostRecentDate <= endOfToday) {
+          localDueTodayFollowUps++;
+        }
+      }
+    });
+  }
   const statCards =
     role === "qualifier"
       ? [
           { title: "My Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads" },
           { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50", href: "/leads/interested" },
-          { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50", href: "/leads/not-interested" },
-          { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
           { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/registered" },
           { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
-          { title: "My Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
-          {
-            title: "My Overdue Follow-ups",
-            value: followUpAvailable
-              ? (followUpStats?.callbackOverdue ?? 0) + (followUpStats?.onboardingOverdue ?? 0)
-              : null,
-            icon: AlertTriangle,
-            color: "text-red-600",
-            bg: "bg-red-50",
-            href: "/leads/callbacks",
-          },
-          {
-            title: "My Follow-ups Due Today",
-            value: followUpAvailable
-              ? (followUpStats?.callbackDueToday ?? 0) + (followUpStats?.onboardingDueToday ?? 0)
-              : null,
-            icon: PhoneCall,
-            color: "text-indigo-600",
-            bg: "bg-indigo-50",
-            href: "/leads/callbacks",
-          },
         ]
       : [
-          { title: "Total Leads", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/all" },
-          { title: "Ready to Invite", value: stats.approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50", href: "/leads/activation" },
-          { title: "Total Follow-ups", value: followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
+          { title: "My Claims", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/picks" },
+          ...(role === "onboarder"
+            ? [{ title: "My Leads", value: myLeadsTotal, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads" }]
+            : []),
+          { title: "Total Follow-ups", value: role === "onboarder" ? localTotalFollowUps : (followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null), icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
           {
             title: "Overdue Follow-ups",
-            value: followUpAvailable
-              ? (followUpStats?.callbackOverdue ?? 0) + (followUpStats?.onboardingOverdue ?? 0)
-              : null,
+            value: role === "onboarder"
+              ? localOverdueFollowUps
+              : (followUpAvailable
+                  ? (followUpStats?.callbackOverdue ?? 0) + (followUpStats?.onboardingOverdue ?? 0)
+                  : null),
             icon: AlertTriangle,
             color: "text-red-600",
             bg: "bg-red-50",
@@ -175,9 +201,11 @@ export default function DashboardPage() {
           },
           {
             title: "Follow-ups Due Today",
-            value: followUpAvailable
-              ? (followUpStats?.callbackDueToday ?? 0) + (followUpStats?.onboardingDueToday ?? 0)
-              : null,
+            value: role === "onboarder"
+              ? localDueTodayFollowUps
+              : (followUpAvailable
+                  ? (followUpStats?.callbackDueToday ?? 0) + (followUpStats?.onboardingDueToday ?? 0)
+                  : null),
             icon: PhoneCall,
             color: "text-indigo-600",
             bg: "bg-indigo-50",
@@ -190,7 +218,6 @@ export default function DashboardPage() {
                 { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
                 { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/registered" },
                 { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
-                { title: "Helpers Aadhaar Verified", value: workersAadhaarVerifiedTotal, icon: ShieldCheck, color: "text-emerald-700", bg: "bg-emerald-50" },
               ]
             : []),
         ];

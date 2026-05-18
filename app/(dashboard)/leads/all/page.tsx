@@ -94,6 +94,19 @@ export default function AllLeadsPage() {
     },
   });
 
+  const pickLeadMutation = useMutation({
+    mutationFn: (leadId: string) => caosApi.pickLead(leadId),
+    onSuccess: () => {
+      toast.success('Lead picked successfully');
+      queryClient.invalidateQueries({ queryKey: ['all-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['my-picks'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to pick lead');
+    },
+  });
+
   const bulkDeleteMutation = useMutation({
     mutationFn: (leadIds: string[]) => caosApi.bulkDeleteLeads(leadIds),
     onSuccess: (data) => {
@@ -140,6 +153,7 @@ export default function AllLeadsPage() {
 
   // Lead access managers can delete any lead
   const canDelete = role === 'lead_access_manager';
+  const canPick = role === 'onboarder';
 
   if (authLoading) {
     return (
@@ -334,6 +348,20 @@ export default function AllLeadsPage() {
                           >
                             View
                           </Button>
+                          {canPick && !lead.pickedBy && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                pickLeadMutation.mutate(lead.leadId);
+                              }}
+                              disabled={pickLeadMutation.isPending}
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            >
+                              Pick
+                            </Button>
+                          )}
                           {canDelete && (
                             <Button
                               variant="ghost"
@@ -459,6 +487,20 @@ export default function AllLeadsPage() {
                             >
                               View
                             </Button>
+                            {canPick && !lead.pickedBy && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  pickLeadMutation.mutate(lead.leadId);
+                                }}
+                                disabled={pickLeadMutation.isPending}
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              >
+                                Pick
+                              </Button>
+                            )}
                             {canDelete && (
                               <Button
                                 variant="ghost"
