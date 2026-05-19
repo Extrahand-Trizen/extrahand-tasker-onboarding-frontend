@@ -25,7 +25,7 @@ const navigation: Array<{
   { name: 'Follow-up Queue', href: '/leads/callbacks', icon: PhoneCall, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Registered Candidates', href: '/leads/registered', icon: UserCheck, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Reports', href: '/leads/reports', icon: FileSpreadsheet, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
-  { name: 'Ready for Invitation', href: '/leads/activation', icon: Zap, roles: ['lead_access_manager'] },
+  { name: 'Performance', href: '/leads/performance', icon: BarChart3, roles: ['lead_access_manager'] },
   { name: 'Certificate Verification', href: '/certificates/verification', icon: ShieldCheck, roles: ['lead_access_manager', 'support'] },
   { name: 'Upload Leads (CSV)', href: '/leads/bulk-import', icon: Upload, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   // { name: 'Upload Workers (Bulk)', href: '/import', icon: Upload }, // ✅ COMMENTED OUT - Direct account creation removed
@@ -111,27 +111,39 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
           .filter((item) => {
             // Role-based filtering
             if (item.roles && !item.roles.includes(role || '')) return false;
+            // Avoid duplicate "All Leads" links for lead_access_manager
+            if (role === 'lead_access_manager' && item.href === '/leads/all') return false;
             return true;
           })
           .map((item) => {
+          let name = item.name;
+          let href = item.href;
+          let Icon = item.icon;
+
+          if (role === 'lead_access_manager' && item.href === '/leads/picks') {
+            name = 'All Leads';
+            href = '/leads/all';
+            Icon = UsersRound;
+          }
+
           // More precise active state checking to avoid highlighting parent routes when on child routes
           let isActive = false;
-          if (item.href === '/dashboard') {
+          if (href === '/dashboard') {
             isActive = pathname === '/dashboard';
-          } else if (item.href === '/leads') {
+          } else if (href === '/leads') {
             // Only highlight "My Leads List" if we're exactly on /leads, not on /leads/new, /leads/all, or /leads/[id]
             isActive = pathname === '/leads';
-          } else if (item.href === '/leads/all') {
+          } else if (href === '/leads/all') {
             // Only highlight "All Leads" if we're exactly on /leads/all
             isActive = pathname === '/leads/all';
           } else {
             // For other routes, check if pathname starts with the href
-            isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+            isActive = pathname === href || pathname?.startsWith(href + '/');
           }
           return (
             <Link
-              key={item.name}
-              href={item.href}
+              key={name}
+              href={href}
               onClick={handleLinkClick}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
@@ -140,8 +152,8 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
                   : 'text-gray-600 hover:bg-amber-50/50 hover:text-amber-600'
               )}
             >
-              <item.icon className={cn("h-5 w-5", isActive ? "text-amber-600" : "text-gray-400")} />
-              {item.name}
+              <Icon className={cn("h-5 w-5", isActive ? "text-amber-600" : "text-gray-400")} />
+              {name}
             </Link>
           );
         })}

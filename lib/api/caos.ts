@@ -692,6 +692,8 @@ export const caosApi = {
     qualifierId?: string;
     pickedBy?: string;
     category?: string;
+    claimsScope?: 'current' | 'total';
+    allTime?: boolean;
   } = {}): Promise<StatusAnalyticsResponse> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
@@ -729,6 +731,8 @@ export const caosApi = {
     includeNotes?: boolean;
     category?: string;
     exportLayout?: 'standard' | 'qualifier';
+    claimsScope?: 'current' | 'total';
+    allTime?: boolean;
   }): Promise<{ blob: Blob; filename: string }> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
@@ -760,6 +764,43 @@ export const caosApi = {
       blob: await response.blob(),
       filename,
     };
+  },
+
+  async getTeamPerformance(): Promise<any> {
+    const token = await getAdminToken();
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/performance`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch performance data' }));
+      throw new Error(error.error || error.message || 'Failed to fetch performance data');
+    }
+    return response.json();
+  },
+
+  async getPerformanceDetails(params: {
+    userId: string;
+    from?: string;
+    to?: string;
+    allTime?: boolean;
+  }): Promise<any> {
+    const token = await getAdminToken();
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/performance?${queryParams.toString()}`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch performance details' }));
+      throw new Error(error.error || error.message || 'Failed to fetch performance details');
+    }
+    return response.json();
   },
 
   /**

@@ -76,7 +76,11 @@ export function primaryCategoryLabel(primaryCategory?: string | null): string {
 
 export const PRIMARY_CATEGORY_OPTIONS = Object.entries(PRIMARY_CATEGORY_LABELS)
   .map(([value, label]) => ({ value, label }))
-  .sort((a, b) => a.label.localeCompare(b.label));
+  .sort((a, b) => {
+    if (a.value === 'other') return 1;
+    if (b.value === 'other') return -1;
+    return a.label.localeCompare(b.label);
+  });
 
 /** Display text for primary + optional secondary (e.g. "Water & Tanker Services (General)" when secondary empty for water-tanker) */
 export function categoryDisplay(primaryCategory?: string | null, secondaryCategory?: string | null): string {

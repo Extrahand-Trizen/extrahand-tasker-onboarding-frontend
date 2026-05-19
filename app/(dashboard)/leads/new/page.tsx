@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { PRIMARY_CATEGORY_OPTIONS } from '@/lib/leadLabels';
 
 type LeadFormData = {
   name: string;
@@ -716,46 +717,15 @@ export default function AddLeadPage() {
                     <SelectValue placeholder="Select primary category" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="cleaning" className="hover:bg-gray-100 cursor-pointer">Cleaning</SelectItem>
-                    <SelectItem value="handyperson" className="hover:bg-gray-100 cursor-pointer">Handyperson</SelectItem>
-                    <SelectItem value="moving" className="hover:bg-gray-100 cursor-pointer">Moving & Delivery</SelectItem>
-                    <SelectItem value="gardening" className="hover:bg-gray-100 cursor-pointer">Gardening</SelectItem>
-                    <SelectItem value="business" className="hover:bg-gray-100 cursor-pointer">Business Services</SelectItem>
-                    <SelectItem value="marketing" className="hover:bg-gray-100 cursor-pointer">Marketing & Design</SelectItem>
-                    <SelectItem value="tech" className="hover:bg-gray-100 cursor-pointer">Tech Support</SelectItem>
-                    <SelectItem value="tutoring" className="hover:bg-gray-100 cursor-pointer">Tutoring</SelectItem>
-                    <SelectItem value="photography" className="hover:bg-gray-100 cursor-pointer">Photography</SelectItem>
-                    <SelectItem value="beauty" className="hover:bg-gray-100 cursor-pointer">Beauty & Wellness</SelectItem>
-                    <SelectItem value="pet-care" className="hover:bg-gray-100 cursor-pointer">Pet Care</SelectItem>
-                    <SelectItem value="events" className="hover:bg-gray-100 cursor-pointer">Events & Entertainment</SelectItem>
-                    <SelectItem value="water-tanker" className="hover:bg-gray-100 cursor-pointer">Water & Tanker Services</SelectItem>
-                    <SelectItem value="ac-repair-service" className="hover:bg-gray-100 cursor-pointer">AC Repair & Service</SelectItem>
-                    <SelectItem value="security-services" className="hover:bg-gray-100 cursor-pointer">Security Services</SelectItem>
-                    <SelectItem value="senior-care" className="hover:bg-gray-100 cursor-pointer">Senior Care / Elder Care</SelectItem>
-                    <SelectItem value="driver-chauffeur" className="hover:bg-gray-100 cursor-pointer">Driver / Chauffeur Services</SelectItem>
-                    <SelectItem value="cooking-home-chef" className="hover:bg-gray-100 cursor-pointer">Cooking / Home Chef</SelectItem>
-                    <SelectItem value="laundry-ironing" className="hover:bg-gray-100 cursor-pointer">Laundry & Ironing</SelectItem>
-                    <SelectItem value="auto-electricians" className="hover:bg-gray-100 cursor-pointer">Auto Electricians</SelectItem>
-                    <SelectItem value="av-specialist" className="hover:bg-gray-100 cursor-pointer">AV Specialist</SelectItem>
-                    <SelectItem value="alteration-services" className="hover:bg-gray-100 cursor-pointer">Alteration Services</SelectItem>
-                    <SelectItem value="assembly-services" className="hover:bg-gray-100 cursor-pointer">Assembly Services</SelectItem>
-                    <SelectItem value="bakers-services" className="hover:bg-gray-100 cursor-pointer">Bakers Services</SelectItem>
-                    <SelectItem value="bicycle-services" className="hover:bg-gray-100 cursor-pointer">Bicycle Services</SelectItem>
-                    <SelectItem value="bricklaying-services" className="hover:bg-gray-100 cursor-pointer">Bricklaying Services</SelectItem>
-                    <SelectItem value="decking" className="hover:bg-gray-100 cursor-pointer">Decking</SelectItem>
-                    <SelectItem value="florist" className="hover:bg-gray-100 cursor-pointer">Florist</SelectItem>
-                    <SelectItem value="flooring-services" className="hover:bg-gray-100 cursor-pointer">Flooring Services</SelectItem>
-                    <SelectItem value="draftsman" className="hover:bg-gray-100 cursor-pointer">Draftsman</SelectItem>
-                    <SelectItem value="gate-installation" className="hover:bg-gray-100 cursor-pointer">Gate Installation</SelectItem>
-                    <SelectItem value="home-automation" className="hover:bg-gray-100 cursor-pointer">Home Automation</SelectItem>
-                    <SelectItem value="home-theatre-services" className="hover:bg-gray-100 cursor-pointer">Home Theatre Services</SelectItem>
-                    <SelectItem value="receptionist-services" className="hover:bg-gray-100 cursor-pointer">Receptionist Services</SelectItem>
-                    <SelectItem value="sharpening-services" className="hover:bg-gray-100 cursor-pointer">Sharpening Services</SelectItem>
-                    <SelectItem value="writing-services" className="hover:bg-gray-100 cursor-pointer">Writing Services</SelectItem>
-                    <SelectItem value="admin-office-services" className="hover:bg-gray-100 cursor-pointer">Admin / Office Services</SelectItem>
-                    <SelectItem value="interior-architecture" className="hover:bg-gray-100 cursor-pointer">Interior & Architecture</SelectItem>
-                    <SelectItem value="building-construction" className="hover:bg-gray-100 cursor-pointer">Building & Construction</SelectItem>
-                    <SelectItem value="other" className="hover:bg-gray-100 cursor-pointer">Other (Specify Below)</SelectItem>
+                    {PRIMARY_CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="hover:bg-gray-100 cursor-pointer"
+                      >
+                        {option.value === 'other' ? 'Other (Specify Below)' : option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {primaryCategoryValue === 'other' && (

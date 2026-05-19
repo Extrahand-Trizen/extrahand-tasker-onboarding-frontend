@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosApi, type StatusReportCategory } from '@/lib/api/caos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,10 +14,10 @@ import { Loader2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ExportTemplate = 'eod' | 'detailed';
-type DatePreset = 'today' | 'last_7_days' | 'custom';
+type DatePreset = 'today' | 'last_7_days' | 'all_time' | 'custom';
 
 const REPORT_CATEGORY_OPTIONS: Array<{ label: string; value: StatusReportCategory }> = [
-  { label: 'Touched Leads', value: 'touched_leads' },
+  { label: 'Claims', value: 'touched_leads' },
   { label: 'Interested', value: 'interested' },
   { label: 'Callback Scheduled', value: 'callback_scheduled' },
   { label: 'Callback Overdue', value: 'callback_overdue' },
@@ -30,7 +30,7 @@ function formatDateInputValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function getDateRangeFromPreset(preset: Exclude<DatePreset, 'custom'>): { from: string; to: string } {
+function getDateRangeFromPreset(preset: Exclude<DatePreset, 'custom' | 'all_time'>): { from: string; to: string } {
   const today = new Date();
   const to = formatDateInputValue(today);
 
@@ -55,7 +55,7 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 export default function LeadReportsPage() {
-  const { role, user } = useJWTAuth();
+  const { role, user, loading } = useJWTAuth();
   const isManagerView = role === 'lead_access_manager';
   const isQualifier = role === 'qualifier';
   const currentUserId =
@@ -67,22 +67,45 @@ export default function LeadReportsPage() {
   const [datePreset, setDatePreset] = useState<DatePreset>('last_7_days');
   const [fromDate, setFromDate] = useState(getDateRangeFromPreset('last_7_days').from);
   const [toDate, setToDate] = useState(getDateRangeFromPreset('last_7_days').to);
+  const [claimsScope, setClaimsScope] = useState<'current' | 'total'>('current');
   const [qualifierId, setQualifierId] = useState<string>('all');
   const [template, setTemplate] = useState<ExportTemplate>('eod');
-  const [reportCategory, setReportCategory] = useState<StatusReportCategory>('touched_leads');
+  const [reportCategory, setReportCategory] = useState<StatusReportCategory>('interested');
   const [downloadCategory, setDownloadCategory] = useState<string>('all');
   const [includeNotes, setIncludeNotes] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    if (role === 'onboarder' || role === 'lead_access_manager') {
+      setReportCategory('touched_leads');
+    } else {
+      setReportCategory('interested');
+    }
+  }, [role]);
+
+  const filteredReportCategoryOptions = useMemo(() => {
+    return REPORT_CATEGORY_OPTIONS.map((option) => {
+      if (option.value === 'touched_leads') {
+        return {
+          ...option,
+          label: role === 'onboarder' ? 'Claims' : 'Leads Added',
+        };
+      }
+      return option;
+    });
+  }, [role]);
 
   const isScopedUser = role === 'qualifier' || role === 'onboarder';
   const analyticsReady = isManagerView || (isScopedUser ? !!currentUserId : true);
 
   const analyticsQuery = useQuery({
-    queryKey: ['status-analytics', fromDate, toDate, qualifierId, currentUserId, role, downloadCategory],
+    queryKey: ['status-analytics', fromDate, toDate, qualifierId, currentUserId, role, downloadCategory, datePreset, claimsScope],
     queryFn: () =>
       caosApi.getStatusAnalytics({
-        from: fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
-        to: toDate ? `${toDate}T23:59:59.999Z` : undefined,
+        from: datePreset !== 'all_time' && fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
+        to: datePreset !== 'all_time' && toDate ? `${toDate}T23:59:59.999Z` : undefined,
+        allTime: datePreset === 'all_time',
+        claimsScope: role === 'onboarder' ? claimsScope : undefined,
         qualifierId: isManagerView
           ? (qualifierId !== 'all' ? qualifierId : undefined)
           : role === 'qualifier'
@@ -106,7 +129,7 @@ export default function LeadReportsPage() {
       return [{ label: 'Leads Added', value: data?.leadsAdded ?? 0 }];
     }
     const base = [
-      { label: 'Touched Leads', value: data?.touchedLeads ?? 0 },
+      ...(role === 'onboarder' ? [{ label: 'Claims', value: data?.touchedLeads ?? 0 }] : []),
       { label: 'Interested', value: data?.interested ?? 0 },
       { label: 'Not Interested', value: data?.notInterested ?? 0 },
       { label: 'Callback Scheduled', value: data?.callbackScheduled ?? 0 },
@@ -118,7 +141,7 @@ export default function LeadReportsPage() {
     }
 
     return base;
-  }, [analyticsQuery.data, isQualifier, isManagerView]);
+  }, [analyticsQuery.data, isQualifier, isManagerView, role]);
 
   const categoryBreakdownList = useMemo(() => {
     const rawBreakdown = analyticsQuery.data?.data?.categoryBreakdown || [];
@@ -138,8 +161,10 @@ export default function LeadReportsPage() {
         format,
         template,
         reportCategory: isQualifier ? undefined : reportCategory,
-        from: fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
-        to: toDate ? `${toDate}T23:59:59.999Z` : undefined,
+        from: datePreset !== 'all_time' && fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
+        to: datePreset !== 'all_time' && toDate ? `${toDate}T23:59:59.999Z` : undefined,
+        allTime: datePreset === 'all_time',
+        claimsScope: role === 'onboarder' ? claimsScope : undefined,
         qualifierId: isManagerView
           ? (qualifierId !== 'all' ? qualifierId : undefined)
           : role === 'qualifier'
@@ -159,10 +184,23 @@ export default function LeadReportsPage() {
   const handleDatePresetChange = (preset: DatePreset) => {
     setDatePreset(preset);
     if (preset === 'custom') return;
+    if (preset === 'all_time') {
+      setFromDate('');
+      setToDate('');
+      return;
+    }
     const range = getDateRangeFromPreset(preset);
     setFromDate(range.from);
     setToDate(range.to);
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8 px-4 sm:px-0">
@@ -178,7 +216,7 @@ export default function LeadReportsPage() {
               'grid grid-cols-1 sm:grid-cols-2 gap-4',
               isManagerView && 'lg:grid-cols-7',
               isQualifier && 'lg:grid-cols-5',
-              !isManagerView && !isQualifier && 'lg:grid-cols-6'
+              role === 'onboarder' && 'lg:grid-cols-7'
             )}
           >
             <div>
@@ -190,6 +228,7 @@ export default function LeadReportsPage() {
                 <SelectContent>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="last_7_days">Last Week (7 days)</SelectItem>
+                  <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
@@ -200,6 +239,7 @@ export default function LeadReportsPage() {
                 id="from-date"
                 type="date"
                 value={fromDate}
+                disabled={datePreset === 'all_time'}
                 onChange={(e) => {
                   setDatePreset('custom');
                   setFromDate(e.target.value);
@@ -213,6 +253,7 @@ export default function LeadReportsPage() {
                 id="to-date"
                 type="date"
                 value={toDate}
+                disabled={datePreset === 'all_time'}
                 onChange={(e) => {
                   setDatePreset('custom');
                   setToDate(e.target.value);
@@ -220,6 +261,20 @@ export default function LeadReportsPage() {
                 className="mt-1.5"
               />
             </div>
+            {role === 'onboarder' && (
+              <div>
+                <Label>Claims Scope</Label>
+                <Select value={claimsScope} onValueChange={(value) => setClaimsScope(value as 'current' | 'total')}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">Claims Only</SelectItem>
+                    <SelectItem value="total">Total Claims</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {isQualifier && (
               <div>
                 <Label>Category</Label>
@@ -286,7 +341,7 @@ export default function LeadReportsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {REPORT_CATEGORY_OPTIONS.map((option) => (
+                    {filteredReportCategoryOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>

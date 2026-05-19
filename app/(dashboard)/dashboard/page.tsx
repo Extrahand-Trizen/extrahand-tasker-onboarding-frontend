@@ -147,32 +147,6 @@ export default function DashboardPage() {
   const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
   const followUpStats = followUpStatsData?.data;
   const followUpAvailable = !!followUpStats && !followUpStatsError;
-  const localClaims = (role === "onboarder" && leadsData?.data) ? leadsData.data : [];
-  let localTotalFollowUps = 0;
-  let localOverdueFollowUps = 0;
-  let localDueTodayFollowUps = 0;
-
-  if (role === "onboarder") {
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
-    localClaims.forEach((lead) => {
-      const dates = [lead.nextCallbackAt, lead.expectedOnboardingAt]
-        .filter(Boolean)
-        .map((d) => new Date(d!));
-
-      if (dates.length > 0) {
-        localTotalFollowUps++;
-        const mostRecentDate = new Date(Math.max(...dates.map((d) => d.getTime())));
-        if (mostRecentDate < startOfToday) {
-          localOverdueFollowUps++;
-        } else if (mostRecentDate >= startOfToday && mostRecentDate <= endOfToday) {
-          localDueTodayFollowUps++;
-        }
-      }
-    });
-  }
   const statCards =
     role === "qualifier"
       ? [
@@ -182,18 +156,23 @@ export default function DashboardPage() {
           { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
         ]
       : [
-          { title: "My Claims", value: stats.total, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/picks" },
+          {
+            title: role === "lead_access_manager" ? "All Leads" : "My Claims",
+            value: stats.total,
+            icon: Users,
+            color: "text-amber-600",
+            bg: "bg-amber-50",
+            href: role === "lead_access_manager" ? "/leads/all" : "/leads/picks"
+          },
           ...(role === "onboarder"
             ? [{ title: "My Leads", value: myLeadsTotal, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads" }]
             : []),
-          { title: "Total Follow-ups", value: role === "onboarder" ? localTotalFollowUps : (followUpAvailable ? followUpStats?.totalFollowUps ?? 0 : null), icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
+          { title: "Total Follow-ups", value: followUpAvailable ? (followUpStats?.totalFollowUps ?? 0) : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
           {
             title: "Overdue Follow-ups",
-            value: role === "onboarder"
-              ? localOverdueFollowUps
-              : (followUpAvailable
-                  ? (followUpStats?.callbackOverdue ?? 0) + (followUpStats?.onboardingOverdue ?? 0)
-                  : null),
+            value: followUpAvailable
+              ? (followUpStats?.callbackOverdue ?? 0) + (followUpStats?.onboardingOverdue ?? 0)
+              : null,
             icon: AlertTriangle,
             color: "text-red-600",
             bg: "bg-red-50",
@@ -201,11 +180,9 @@ export default function DashboardPage() {
           },
           {
             title: "Follow-ups Due Today",
-            value: role === "onboarder"
-              ? localDueTodayFollowUps
-              : (followUpAvailable
-                  ? (followUpStats?.callbackDueToday ?? 0) + (followUpStats?.onboardingDueToday ?? 0)
-                  : null),
+            value: followUpAvailable
+              ? (followUpStats?.callbackDueToday ?? 0) + (followUpStats?.onboardingDueToday ?? 0)
+              : null,
             icon: PhoneCall,
             color: "text-indigo-600",
             bg: "bg-indigo-50",
