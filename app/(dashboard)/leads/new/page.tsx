@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,66 +18,6 @@ import { AlertCircle } from 'lucide-react';
 import { PRIMARY_CATEGORY_OPTIONS } from '@/lib/leadLabels';
 
 const OTHER_GATED_COMMUNITY_VALUE = '__other__';
-
-type LeadFormData = {
-  name: string;
-  phone: string;
-  landline: string;
-  email: string;
-  city?: string;
-  address?: string;
-  pincode?: string;
-  gatedCommunitySelection?: string;
-  gatedCommunityOther?: string;
-  primaryCategory?:
-    | 'cleaning'
-    | 'handyperson'
-    | 'moving'
-    | 'gardening'
-    | 'business'
-    | 'marketing'
-    | 'tech'
-    | 'tutoring'
-    | 'photography'
-    | 'beauty'
-    | 'pet-care'
-    | 'events'
-    | 'water-tanker'
-    | 'ac-repair-service'
-    | 'security-services'
-    | 'senior-care'
-    | 'driver-chauffeur'
-    | 'cooking-home-chef'
-    | 'laundry-ironing'
-    | 'auto-electricians'
-    | 'av-specialist'
-    | 'alteration-services'
-    | 'assembly-services'
-    | 'bakers-services'
-    | 'bicycle-services'
-    | 'bricklaying-services'
-    | 'decking'
-    | 'florist'
-    | 'flooring-services'
-    | 'draftsman'
-    | 'gate-installation'
-    | 'home-automation'
-    | 'home-theatre-services'
-    | 'receptionist-services'
-    | 'sharpening-services'
-    | 'writing-services'
-    | 'admin-office-services'
-    | 'interior-architecture'
-    | 'building-construction'
-    | 'other';
-  primaryCategoryOther?: string;
-  secondaryCategory?: string;
-  secondaryCategoryOther?: string;
-  experienceLevel?: 'beginner' | 'intermediate' | 'experienced';
-  workingDays?: string;
-  preferredTimeSlot?: string;
-  source?: LeadSource;
-};
 
 const leadSchema = z.object({
   name: z.string().min(2, 'Full Name must be at least 2 characters'),
@@ -174,6 +114,9 @@ const leadSchema = z.object({
     }
   });
 
+type LeadFormValues = z.input<typeof leadSchema>;
+type LeadFormData = z.output<typeof leadSchema>;
+
 export default function AddLeadPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -189,9 +132,7 @@ export default function AddLeadPage() {
     setValue,
     watch,
     trigger,
-  } = useForm<LeadFormData>({
-    // TS struggles to reconcile Zod's refined schema type with RHF's Resolver generics.
-    // @ts-expect-error Resolver type mismatch is safe to ignore here
+  } = useForm<LeadFormValues, unknown, LeadFormData>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
       source: undefined,
@@ -546,7 +487,7 @@ export default function AddLeadPage() {
     },
   });
 
-  const onSubmit = async (data: LeadFormData) => {
+  const onSubmit: SubmitHandler<LeadFormData> = async (data) => {
     if (submittingRef.current) return;
     submittingRef.current = true;
 
