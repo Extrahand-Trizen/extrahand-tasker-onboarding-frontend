@@ -204,14 +204,20 @@ export default function PerformancePage() {
 
         <Card className="bg-white border-gray-200 shadow-sm">
           <CardContent className="p-6">
-            <p className="text-sm font-medium text-gray-500">Total Overdue Follow-ups</p>
+            <p className="text-sm font-medium text-gray-500">
+              {activeTab === 'all' ? 'Team Overdue Follow-ups' : 'Overdue Follow-ups'}
+            </p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className={cn("text-3xl font-bold", computedKpis.totalOverdue > 0 ? "text-rose-600" : "text-emerald-600")}>
                 {computedKpis.totalOverdue.toLocaleString()}
               </span>
             </div>
             <p className="mt-1 text-xs text-gray-400">
-              {computedKpis.totalOverdue > 0 ? 'Needs attention' : 'On track'}
+              {activeTab === 'all'
+                ? 'Across displayed team members'
+                : computedKpis.totalOverdue > 0
+                  ? 'Needs attention'
+                  : 'On track'}
             </p>
           </CardContent>
         </Card>
