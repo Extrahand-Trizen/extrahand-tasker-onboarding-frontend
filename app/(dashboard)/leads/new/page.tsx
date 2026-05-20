@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { caosApi, type LeadSource } from '@/lib/api/caos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { PRIMARY_CATEGORY_OPTIONS } from '@/lib/leadLabels';
+
+const OTHER_GATED_COMMUNITY_VALUE = '__other__';
 
 type LeadFormData = {
   name: string;
@@ -26,6 +27,8 @@ type LeadFormData = {
   city?: string;
   address?: string;
   pincode?: string;
+  gatedCommunitySelection?: string;
+  gatedCommunityOther?: string;
   primaryCategory?:
     | 'cleaning'
     | 'handyperson'
@@ -84,6 +87,8 @@ const leadSchema = z.object({
   city: z.string().optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   pincode: z.string().regex(/^\d{6}$/, 'Pincode must be 6 digits').optional().or(z.literal('')),
+  gatedCommunitySelection: z.string().optional(),
+  gatedCommunityOther: z.string().optional(),
   primaryCategory: z.enum([
     'cleaning',
     'handyperson',
@@ -146,6 +151,13 @@ const leadSchema = z.object({
     }
   )
   .superRefine((data, ctx) => {
+    if (data.gatedCommunitySelection === OTHER_GATED_COMMUNITY_VALUE && !data.gatedCommunityOther?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please specify the gated community name',
+        path: ['gatedCommunityOther']
+      });
+    }
     if (data.primaryCategory === 'other' && !data.primaryCategoryOther?.trim()) {
       ctx.addIssue({ 
         code: z.ZodIssueCode.custom, 
@@ -164,7 +176,7 @@ const leadSchema = z.object({
 
 export default function AddLeadPage() {
   const router = useRouter();
-  const { role, loading: authLoading } = useJWTAuth();
+  const queryClient = useQueryClient();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
 
@@ -190,6 +202,22 @@ export default function AddLeadPage() {
 
   const primaryCategoryValue = watch('primaryCategory');
   const secondaryCategoryValue = watch('secondaryCategory');
+  const gatedCommunitySelectionValue = watch('gatedCommunitySelection');
+
+  // Fetch existing gated community names for dropdown
+  const gatedCommunityNamesQuery = useQuery({
+    queryKey: ['gated-community-names'],
+    queryFn: () => caosApi.getGatedCommunityNames(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const existingGatedCommunityNames: string[] = gatedCommunityNamesQuery.data?.data || [];
+  const gatedCommunityOptions = Array.from(
+    new Set(
+      existingGatedCommunityNames
+        .map((name) => name.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
 
   // Secondary categories mapping based on primary category
   const secondaryCategoriesMap: Record<string, string[]> = {
@@ -474,7 +502,7 @@ export default function AddLeadPage() {
       } else {
         setDuplicateWarning(null);
       }
-    } catch (error) {
+    } catch {
       // Ignore duplicate check errors
     }
   };
@@ -485,11 +513,28 @@ export default function AddLeadPage() {
     Parameters<typeof caosApi.createLead>[0]
   >({
     mutationFn: (data: Parameters<typeof caosApi.createLead>[0]) => caosApi.createLead(data),
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
+      const normalizedGatedCommunityName = variables.gatedCommunityName?.trim();
+      if (normalizedGatedCommunityName) {
+        queryClient.setQueryData<{ success: boolean; data: string[] } | undefined>(
+          ['gated-community-names'],
+          (current) => {
+            const names = Array.from(
+              new Set([...(current?.data || []), normalizedGatedCommunityName])
+            ).sort((a, b) => a.localeCompare(b));
+
+            return {
+              success: true,
+              data: names,
+            };
+          }
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ['gated-community-names'] });
       toast.success('Helper created successfully!');
       router.push(`/leads/${response.data.leadId}`);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       if (error.message.includes('Duplicate')) {
         toast.error('Duplicate helper found. Please check existing helpers.');
       } else {
@@ -531,24 +576,29 @@ export default function AddLeadPage() {
 
     const normalizedPhone = data.phone?.trim() || '';
     const normalizedLandline = data.landline?.trim() || '';
+    const resolvedGatedCommunityName =
+      data.gatedCommunitySelection === OTHER_GATED_COMMUNITY_VALUE
+        ? (data.gatedCommunityOther || '').trim()
+        : (data.gatedCommunitySelection || '').trim();
 
     const payload: Parameters<typeof caosApi.createLead>[0] = {
-      ...data,
+      name: data.name.trim(),
+      email: data.email?.trim() || undefined,
       phone: normalizedPhone || undefined,
       landline: normalizedLandline || undefined,
       city: data.city?.trim() || undefined,
       address: data.address?.trim() || undefined,
       pincode: data.pincode?.trim() || undefined,
+      workingDays: data.workingDays?.trim() || undefined,
+      preferredTimeSlot: data.preferredTimeSlot?.trim() || undefined,
       source: data.source || undefined,
       experienceLevel: data.experienceLevel || undefined,
       primaryCategory: resolvedPrimaryCategory || undefined,
       secondaryCategory:
         data.secondaryCategory === '__general__' ? '' : (resolvedSecondaryCategory || ''),
+      isGatedCommunity: Boolean(resolvedGatedCommunityName),
+      gatedCommunityName: resolvedGatedCommunityName || undefined,
     };
-    
-    // Remove temporary internal fields from payload
-    delete (payload as any).primaryCategoryOther;
-    delete (payload as any).secondaryCategoryOther;
 
     createLeadMutation.mutate(payload);
   };
@@ -572,7 +622,7 @@ export default function AddLeadPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
-          <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-3 sm:space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name *</Label>
@@ -700,13 +750,86 @@ export default function AddLeadPage() {
               </div>
             </div>
 
+            {/* Gated Community */}
+            <div className="space-y-3">
+              <Label htmlFor="gatedCommunitySelection">Gated Community</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={gatedCommunitySelectionValue || undefined}
+                  onValueChange={(value) => {
+                    setValue('gatedCommunitySelection', value, { shouldValidate: true });
+                    if (value !== OTHER_GATED_COMMUNITY_VALUE) {
+                      setValue('gatedCommunityOther', '', { shouldValidate: false });
+                    }
+                    void trigger('gatedCommunityOther');
+                  }}
+                >
+                  <SelectTrigger id="gatedCommunitySelection" className="flex-1 bg-white">
+                    <SelectValue
+                      placeholder={
+                        gatedCommunityNamesQuery.isLoading
+                          ? 'Loading gated communities...'
+                          : 'Select gated community'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {gatedCommunityOptions.map((name) => (
+                      <SelectItem
+                        key={name}
+                        value={name}
+                        className="hover:bg-gray-100 cursor-pointer"
+                      >
+                        {name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem
+                      value={OTHER_GATED_COMMUNITY_VALUE}
+                      className="hover:bg-gray-100 cursor-pointer"
+                    >
+                      Other (Specify Below)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {gatedCommunitySelectionValue && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setValue('gatedCommunitySelection', '', { shouldValidate: false });
+                      setValue('gatedCommunityOther', '', { shouldValidate: false });
+                    }}
+                    className="shrink-0"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {gatedCommunitySelectionValue === OTHER_GATED_COMMUNITY_VALUE && (
+                <div className="space-y-1">
+                  <Input
+                    id="gatedCommunityOther"
+                    {...register('gatedCommunityOther', {
+                      onChange: () => trigger('gatedCommunityOther'),
+                    })}
+                    placeholder="Enter custom gated community name"
+                    className={errors.gatedCommunityOther ? 'border-red-500' : ''}
+                  />
+                  {errors.gatedCommunityOther && (
+                    <p className="text-xs text-red-600">{errors.gatedCommunityOther.message}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2 bg-white">
                 <Label htmlFor="primaryCategory">Primary Category</Label>
                 <Select
                   value={primaryCategoryValue}
                   onValueChange={(value) => {
-                    setValue('primaryCategory', value as any, { shouldValidate: true });
+                    setValue('primaryCategory', value as NonNullable<LeadFormData['primaryCategory']>, { shouldValidate: true });
                     setValue('secondaryCategory', '', { shouldValidate: true });
                     setValue('primaryCategoryOther', '');
                     setValue('secondaryCategoryOther', '');
@@ -845,7 +968,7 @@ export default function AddLeadPage() {
                 <Select
                   value={watch('experienceLevel') || undefined}
                   onValueChange={(value) => {
-                    setValue('experienceLevel', value as any, { shouldValidate: true });
+                    setValue('experienceLevel', value as NonNullable<LeadFormData['experienceLevel']>, { shouldValidate: true });
                     trigger('experienceLevel');
                   }}
                 >

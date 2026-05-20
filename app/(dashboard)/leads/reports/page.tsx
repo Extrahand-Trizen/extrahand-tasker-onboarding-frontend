@@ -74,6 +74,7 @@ export default function LeadReportsPage() {
   const [downloadCategory, setDownloadCategory] = useState<string>('all');
   const [includeNotes, setIncludeNotes] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [gatedCommunityFilter, setGatedCommunityFilter] = useState<string>('all');
 
   useEffect(() => {
     if (role === 'onboarder' || role === 'lead_access_manager') {
@@ -99,7 +100,7 @@ export default function LeadReportsPage() {
   const analyticsReady = isManagerView || (isScopedUser ? !!currentUserId : true);
 
   const analyticsQuery = useQuery({
-    queryKey: ['status-analytics', fromDate, toDate, qualifierId, currentUserId, role, downloadCategory, datePreset, claimsScope],
+    queryKey: ['status-analytics', fromDate, toDate, qualifierId, currentUserId, role, downloadCategory, datePreset, claimsScope, gatedCommunityFilter],
     queryFn: () =>
       caosApi.getStatusAnalytics({
         from: datePreset !== 'all_time' && fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
@@ -113,6 +114,7 @@ export default function LeadReportsPage() {
             : undefined,
         pickedBy: role === 'onboarder' ? currentUserId : undefined,
         category: downloadCategory !== 'all' ? downloadCategory : undefined,
+        gatedCommunityName: gatedCommunityFilter !== 'all' ? gatedCommunityFilter : undefined,
       }),
     enabled: analyticsReady,
   });
@@ -122,6 +124,13 @@ export default function LeadReportsPage() {
     queryFn: () => caosApi.getQualifiers(),
     enabled: isManagerView,
   });
+
+  const gatedCommunityNamesQuery = useQuery({
+    queryKey: ['gated-community-names'],
+    queryFn: () => caosApi.getGatedCommunityNames(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const gatedCommunityNames: string[] = gatedCommunityNamesQuery.data?.data || [];
 
   const cards = useMemo(() => {
     const data = analyticsQuery.data?.data;
@@ -134,6 +143,7 @@ export default function LeadReportsPage() {
       { label: 'Not Interested', value: data?.notInterested ?? 0 },
       { label: 'Callback Scheduled', value: data?.callbackScheduled ?? 0 },
       { label: 'Callback Overdue', value: data?.callbackOverdue ?? 0 },
+      { label: 'Onboarded', value: data?.onboarded ?? 0 },
     ];
 
     if (isManagerView) {
@@ -174,6 +184,7 @@ export default function LeadReportsPage() {
         includeNotes: isQualifier ? false : includeNotes,
         category: downloadCategory !== 'all' ? downloadCategory : undefined,
         exportLayout: isQualifier ? 'qualifier' : 'standard',
+        gatedCommunityName: gatedCommunityFilter !== 'all' ? gatedCommunityFilter : undefined,
       });
       triggerDownload(report.blob, report.filename);
     } finally {
@@ -214,9 +225,9 @@ export default function LeadReportsPage() {
           <div
             className={cn(
               'grid grid-cols-1 sm:grid-cols-2 gap-4',
-              isManagerView && 'lg:grid-cols-7',
-              isQualifier && 'lg:grid-cols-5',
-              role === 'onboarder' && 'lg:grid-cols-7'
+              isManagerView && 'lg:grid-cols-4 xl:grid-cols-8',
+              isQualifier && 'lg:grid-cols-3 xl:grid-cols-6',
+              role === 'onboarder' && 'lg:grid-cols-4 xl:grid-cols-8'
             )}
           >
             <div>
@@ -359,6 +370,24 @@ export default function LeadReportsPage() {
                 </Button>
               </div>
             )}
+            <div>
+              <Label>Gated Community</Label>
+              <Select value={gatedCommunityFilter} onValueChange={setGatedCommunityFilter}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue
+                    placeholder={
+                      gatedCommunityNamesQuery.isLoading ? 'Loading communities...' : 'All communities'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All communities</SelectItem>
+                  {gatedCommunityNames.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {isQualifier && (
             <p className="mt-4 text-xs text-gray-500">
@@ -371,7 +400,11 @@ export default function LeadReportsPage() {
       <div
         className={cn(
           'grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2',
-          cards.length > 5 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
+          cards.length > 6
+            ? 'lg:grid-cols-3 xl:grid-cols-7'
+            : cards.length > 5
+              ? 'lg:grid-cols-3 xl:grid-cols-6'
+              : 'lg:grid-cols-5'
         )}
       >
         {cards.map((card) => (

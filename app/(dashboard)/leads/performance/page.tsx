@@ -74,7 +74,7 @@ export default function PerformancePage() {
     const totalLeads = tabUsers.reduce((sum: number, u: any) => sum + (u.totalLeads || 0), 0);
     const totalOverdue = tabUsers.reduce((sum: number, u: any) => sum + (u.overdue || 0), 0);
     const totalRegistered = activeTab === 'onboarder'
-      ? tabUsers.reduce((sum: number, u: any) => sum + (u.registered || 0), 0)
+      ? (kpis.totalRegistered || 0)
       : 0;
 
     return {
@@ -204,7 +204,7 @@ export default function PerformancePage() {
 
         <Card className="bg-white border-gray-200 shadow-sm">
           <CardContent className="p-6">
-            <p className="text-sm font-medium text-gray-500">Total Callback Overdue</p>
+            <p className="text-sm font-medium text-gray-500">Total Overdue Follow-ups</p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className={cn("text-3xl font-bold", computedKpis.totalOverdue > 0 ? "text-rose-600" : "text-emerald-600")}>
                 {computedKpis.totalOverdue.toLocaleString()}
@@ -299,12 +299,12 @@ export default function PerformancePage() {
                 <div className="text-right min-w-[70px]">
                   {user.overdue > 0 ? (
                     <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700 border border-rose-100">
-                      {user.overdue} callback overdue
+                      {user.overdue} overdue follow-ups
                     </span>
                   ) : (
                     <div className="text-center">
                       <p className="font-semibold text-gray-400">-</p>
-                      <p className="text-xs text-gray-400">Callback Overdue</p>
+                      <p className="text-xs text-gray-400">Overdue Follow-ups</p>
                     </div>
                   )}
                 </div>

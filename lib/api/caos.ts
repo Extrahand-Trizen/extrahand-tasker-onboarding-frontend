@@ -129,6 +129,8 @@ export interface Lead {
   city: string;
   state?: string;
   address?: string;
+  isGatedCommunity?: boolean;
+  gatedCommunityName?: string;
   primaryCategory: string;
   secondaryCategory?: string;
   source: LeadSource;
@@ -275,6 +277,8 @@ export interface CreateLeadData {
   state?: string;
   address?: string; // Local Area
   pincode?: string;
+  isGatedCommunity?: boolean;
+  gatedCommunityName?: string;
   primaryCategory?: string;
   secondaryCategory?: string;
   experienceLevel?: 'beginner' | 'intermediate' | 'experienced';
@@ -371,6 +375,7 @@ export interface StatusAnalyticsResponse {
     notInterested: number;
     callbackScheduled: number;
     callbackOverdue: number;
+    onboarded: number;
     statusCounts: Array<{ status: string; count: number }>;
     qualifierBreakdown: Array<{ qualifierId: string; qualifierName: string; touchedLeads: number }>;
     categoryBreakdown?: Array<{ category: string; count: number }>;
@@ -642,6 +647,26 @@ export const caosApi = {
     return response.json();
   },
 
+  async getGatedCommunityNames(): Promise<{ success: boolean; data: string[] }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/gated-community-names`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch gated community names' }));
+      throw new Error(error.error || error.message || 'Failed to fetch gated community names');
+    }
+
+    return response.json();
+  },
+
   async getTransferRecipients(): Promise<{ success: boolean; data: Array<{ userId: string; uid?: string; name?: string; email?: string; role?: string }> }> {
     const token = await getAdminToken();
 
@@ -694,6 +719,7 @@ export const caosApi = {
     category?: string;
     claimsScope?: 'current' | 'total';
     allTime?: boolean;
+    gatedCommunityName?: string;
   } = {}): Promise<StatusAnalyticsResponse> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
@@ -733,6 +759,7 @@ export const caosApi = {
     exportLayout?: 'standard' | 'qualifier';
     claimsScope?: 'current' | 'total';
     allTime?: boolean;
+    gatedCommunityName?: string;
   }): Promise<{ blob: Blob; filename: string }> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
