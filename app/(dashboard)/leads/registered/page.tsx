@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Loader2, ShieldAlert, Eye, UserCheck } from 'lucide-react';
 import Link from 'next/link';
-import { primaryCategoryLabel } from '@/lib/leadLabels';
+import { PRIMARY_CATEGORY_OPTIONS, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
 
 type RegistrationView = 'registered' | 'registered_verified';
@@ -166,17 +166,26 @@ export default function RegisteredCandidatesPage() {
               />
             </div>
             <div>
-              <Label htmlFor="skill-filter" className="text-sm font-medium text-gray-700">Primary Skill</Label>
-              <Input
-                id="skill-filter"
-                value={searchSkill}
-                onChange={(e) => {
-                  setSearchSkill(e.target.value);
+              <Label htmlFor="category-filter" className="text-sm font-medium text-gray-700">Category</Label>
+              <Select
+                value={searchSkill || 'all'}
+                onValueChange={(value) => {
+                  setSearchSkill(value === 'all' ? '' : value);
                   setPage(1);
                 }}
-                placeholder="Filter by skill..."
-                className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
-              />
+              >
+                <SelectTrigger id="category-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {PRIMARY_CATEGORY_OPTIONS.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             { (role === 'onboarder' || role === 'lead_access_manager') && (
               <div>
@@ -249,7 +258,7 @@ export default function RegisteredCandidatesPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Primary Skill</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Registration</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>

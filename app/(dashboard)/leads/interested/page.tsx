@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Loader2, Heart, ShieldAlert, Eye } from 'lucide-react';
 import Link from 'next/link';
-import { leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
+import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
 
 const statusColors: Record<Lead['status'], string> = {
@@ -177,17 +177,26 @@ export default function InterestedCandidatesPage() {
               />
             </div>
             <div>
-              <Label htmlFor="skill-filter" className="text-sm font-medium text-gray-700">Primary Skill</Label>
-              <Input
-                id="skill-filter"
-                value={searchSkill}
-                onChange={(e) => {
-                  setSearchSkill(e.target.value);
+              <Label htmlFor="category-filter" className="text-sm font-medium text-gray-700">Category</Label>
+              <Select
+                value={searchSkill || 'all'}
+                onValueChange={(value) => {
+                  setSearchSkill(value === 'all' ? '' : value);
                   setPage(1);
                 }}
-                placeholder="Filter by skill..."
-                className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
-              />
+              >
+                <SelectTrigger id="category-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {PRIMARY_CATEGORY_OPTIONS.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="registration-filter" className="text-sm font-medium text-gray-700">Registration status</Label>
@@ -286,7 +295,7 @@ export default function InterestedCandidatesPage() {
                         Location
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Primary Skill
+                        Category
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Registration
@@ -397,7 +406,7 @@ export default function InterestedCandidatesPage() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Primary Skill:</span>{' '}
+                          <span className="text-gray-500">Category:</span>{' '}
                           <Badge variant="secondary" className="text-xs ml-1">
                             {primaryCategoryLabel(lead.primaryCategory || (lead as any).primarySkill)}
                           </Badge>

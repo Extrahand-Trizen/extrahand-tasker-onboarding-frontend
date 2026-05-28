@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Eye, CalendarClock } from 'lucide-react';
 import Link from 'next/link';
-import { leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
+import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 
@@ -187,17 +187,26 @@ export default function CallbackQueuePage() {
               />
             </div>
             <div>
-              <Label htmlFor="skill-filter" className="text-sm font-medium text-gray-700">Primary Skill</Label>
-              <Input
-                id="skill-filter"
-                value={searchSkill}
-                onChange={(e) => {
-                  setSearchSkill(e.target.value);
+              <Label htmlFor="category-filter" className="text-sm font-medium text-gray-700">Category</Label>
+              <Select
+                value={searchSkill || 'all'}
+                onValueChange={(value) => {
+                  setSearchSkill(value === 'all' ? '' : value);
                   setPage(1);
                 }}
-                placeholder="Filter by skill..."
-                className="mt-1.5"
-              />
+              >
+                <SelectTrigger id="category-filter" className="mt-1.5">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">All categories</SelectItem>
+                  {PRIMARY_CATEGORY_OPTIONS.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="start-date" className="text-sm font-medium text-gray-700">From</Label>

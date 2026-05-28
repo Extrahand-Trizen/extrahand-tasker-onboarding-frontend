@@ -20,7 +20,10 @@ import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { SkillsSection } from '@/components/leads/SkillsSection';
-import { leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
+import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
+
+const OTHER_GATED_COMMUNITY_VALUE = '__other__';
+const NO_GATED_COMMUNITY_VALUE = '__none__';
 
 const statusColors: Record<LeadStatus, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -264,6 +267,8 @@ function LeadDetailContent() {
     state: string;
     address: string;
     pincode: string;
+    isGatedCommunity: boolean;
+    gatedCommunityName: string;
     primaryCategory: string;
     secondaryCategory: string;
     source: LeadSource | '';
@@ -275,6 +280,8 @@ function LeadDetailContent() {
     state: '',
     address: '',
     pincode: '',
+    isGatedCommunity: false,
+    gatedCommunityName: '',
     primaryCategory: '',
     secondaryCategory: '',
     source: '',
@@ -326,8 +333,20 @@ function LeadDetailContent() {
     queryKey: ['lead-status-reason-codes'],
     queryFn: () => caosApi.getStatusReasonCodes(),
   });
+  const gatedCommunityNamesQuery = useQuery({
+    queryKey: ['gated-community-names'],
+    queryFn: () => caosApi.getGatedCommunityNames(),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const lead = leadData?.data;
+  const gatedCommunityOptions = Array.from(
+    new Set(
+      (gatedCommunityNamesQuery.data?.data || [])
+        .map((name) => name.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
   const statusReasonOptions = statusReasonCodesData?.data || [];
   const allowedReasonCodesForStatus = statusReasonCodeMap[newStatus] || [];
   const filteredStatusReasonOptions = statusReasonOptions.filter((code) =>
@@ -377,6 +396,8 @@ function LeadDetailContent() {
         state: lead.state || '',
         address: lead.address || '',
         pincode: (lead as any).pincode || '',
+        isGatedCommunity: !!lead.isGatedCommunity || !!lead.gatedCommunityName,
+        gatedCommunityName: lead.gatedCommunityName || '',
         primaryCategory: lead.primaryCategory || (lead as any).primarySkill || '',
         secondaryCategory: lead.secondaryCategory || (lead as any).secondarySkill || '',
         source: lead.source || '',
@@ -475,7 +496,11 @@ function LeadDetailContent() {
         state: data.state.trim() || null,
         address: data.address.trim() || null,
         pincode: data.pincode.trim() || null,
+        isGatedCommunity: data.isGatedCommunity,
+        gatedCommunityName: data.isGatedCommunity ? data.gatedCommunityName.trim() || null : null,
+        primaryCategory: data.primaryCategory.trim() || null,
         primarySkill: data.primaryCategory.trim() || null,
+        secondaryCategory: data.secondaryCategory.trim() || null,
         secondarySkill: data.secondaryCategory.trim() || null,
         source: data.source || null,
         sourceDetails: data.sourceDetails.trim() || null,
@@ -487,6 +512,7 @@ function LeadDetailContent() {
       setShowEditModal(false);
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['gated-community-names'] });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to update lead');
@@ -1088,13 +1114,76 @@ function LeadDetailContent() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-primary-category">Primary Category</Label>
-                  <Input
-                    id="edit-primary-category"
-                    value={editFormData.primaryCategory}
-                    onChange={(e) => setEditFormData({ ...editFormData, primaryCategory: e.target.value })}
-                    placeholder="e.g., cleaning, handyperson"
-                  />
+                  <Select
+                    value={editFormData.primaryCategory || undefined}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, primaryCategory: value })}
+                  >
+                    <SelectTrigger id="edit-primary-category">
+                      <SelectValue placeholder="Select primary category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editFormData.primaryCategory &&
+                        !PRIMARY_CATEGORY_OPTIONS.some((category) => category.value === editFormData.primaryCategory) && (
+                          <SelectItem value={editFormData.primaryCategory}>{editFormData.primaryCategory}</SelectItem>
+                        )}
+                      {PRIMARY_CATEGORY_OPTIONS.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-gated-community">Gated Community</Label>
+                  <Select
+                    value={
+                      editFormData.isGatedCommunity
+                        ? editFormData.gatedCommunityName || OTHER_GATED_COMMUNITY_VALUE
+                        : NO_GATED_COMMUNITY_VALUE
+                    }
+                    onValueChange={(value) => {
+                      if (value === NO_GATED_COMMUNITY_VALUE) {
+                        setEditFormData({ ...editFormData, isGatedCommunity: false, gatedCommunityName: '' });
+                      } else if (value === OTHER_GATED_COMMUNITY_VALUE) {
+                        setEditFormData({ ...editFormData, isGatedCommunity: true, gatedCommunityName: '' });
+                      } else {
+                        setEditFormData({ ...editFormData, isGatedCommunity: true, gatedCommunityName: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="edit-gated-community">
+                      <SelectValue placeholder="Select gated community" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_GATED_COMMUNITY_VALUE}>Not a gated community</SelectItem>
+                      {gatedCommunityOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                      {editFormData.gatedCommunityName &&
+                        !gatedCommunityOptions.includes(editFormData.gatedCommunityName) && (
+                          <SelectItem value={editFormData.gatedCommunityName}>
+                            {editFormData.gatedCommunityName}
+                          </SelectItem>
+                        )}
+                      <SelectItem value={OTHER_GATED_COMMUNITY_VALUE}>Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {editFormData.isGatedCommunity &&
+                  (!editFormData.gatedCommunityName || !gatedCommunityOptions.includes(editFormData.gatedCommunityName)) && (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="edit-gated-community-name">Gated Community Name</Label>
+                      <Input
+                        id="edit-gated-community-name"
+                        value={editFormData.gatedCommunityName}
+                        onChange={(e) => setEditFormData({ ...editFormData, gatedCommunityName: e.target.value })}
+                        placeholder="Enter gated community name"
+                      />
+                    </div>
+                  )}
                 <div className="space-y-2">
                   <Label htmlFor="edit-secondary-category">Secondary Category</Label>
                   <Input
@@ -1138,6 +1227,10 @@ function LeadDetailContent() {
                   onClick={() => {
                     if (!editFormData.name.trim()) {
                       toast.error('Name is required');
+                      return;
+                    }
+                    if (editFormData.isGatedCommunity && !editFormData.gatedCommunityName.trim()) {
+                      toast.error('Gated community name is required');
                       return;
                     }
                     updateLeadMutation.mutate(editFormData);
