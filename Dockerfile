@@ -4,6 +4,14 @@
     RUN apk add --no-cache dumb-init curl
     
     WORKDIR /app
+
+    ENV NEXT_TELEMETRY_DISABLED=1 \
+        NODE_OPTIONS=--max-old-space-size=384 \
+        npm_config_audit=false \
+        npm_config_fund=false \
+        npm_config_progress=false \
+        npm_config_loglevel=error \
+        npm_config_maxsockets=1
     
     RUN addgroup -g 1001 -S nodejs && \
         adduser -S nextjs -u 1001
@@ -14,7 +22,7 @@
     
     COPY package.json package-lock.json* ./
     
-    RUN npm ci --no-audit --no-fund
+    RUN npm ci --no-audit --no-fund --prefer-offline --maxsockets=1 && npm cache clean --force
     
     
     # ---------------- BUILDER ----------------
@@ -50,7 +58,8 @@
     # Make Docker consider this layer unique
     RUN echo "CACHE_BUST=${CACHE_BUST}"
     
-    ENV NEXT_TELEMETRY_DISABLED=1
+    ENV NEXT_TELEMETRY_DISABLED=1 \
+        NEXT_PRIVATE_BUILD_WORKER=1
     
     COPY --from=deps /app/node_modules ./node_modules
     

@@ -53,8 +53,8 @@
   },
 
   "resources": {
-    "memory": "512Mi",
-    "cpu": "0.5"
+    "memory": "1024Mi",
+    "cpu": "0.75"
   },
 
   "networking": {
