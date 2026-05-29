@@ -44,6 +44,10 @@ export default function AllLeadsPage() {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [addedByFilter, setAddedByFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
+  const [localityFilter, setLocalityFilter] = useState<string>('all');
+  const [localAreaFilter, setLocalAreaFilter] = useState<string>('all');
+  const [claimFilter, setClaimFilter] = useState<'unclaimed' | 'claimed' | 'all'>('unclaimed');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
@@ -65,14 +69,31 @@ export default function AllLeadsPage() {
 
   const leadCreators = creatorsData?.data || [];
 
+  const locationFiltersQuery = useQuery({
+    queryKey: ['lead-location-filter-options'],
+    queryFn: () => caosApi.getLeadLocationFilterOptions(),
+    enabled: !authLoading && canViewAllLeads,
+    staleTime: 5 * 60 * 1000,
+  });
+  const cityOptions = locationFiltersQuery.data?.data?.cities || [];
+  const localityOptions = locationFiltersQuery.data?.data?.localities || [];
+  const localAreaOptions = locationFiltersQuery.data?.data?.localAreas || [];
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['all-leads', { search, statusFilter, addedByFilter, categoryFilter, page, limit }],
+    queryKey: [
+      'all-leads',
+      { search, statusFilter, addedByFilter, categoryFilter, cityFilter, localityFilter, localAreaFilter, claimFilter, page, limit },
+    ],
     queryFn: () =>
       caosApi.searchLeads({
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         addedBy: addedByFilter !== 'all' ? addedByFilter : undefined,
         primarySkill: categoryFilter !== 'all' ? categoryFilter : undefined,
+        city: cityFilter !== 'all' ? cityFilter : undefined,
+        localArea: localAreaFilter !== 'all' ? localAreaFilter : undefined,
+        unclaimed: claimFilter === 'unclaimed' ? true : undefined,
+        claimed: claimFilter === 'claimed' ? true : undefined,
         page,
         limit,
       }),
@@ -178,7 +199,11 @@ export default function AllLeadsPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">All Leads</h1>
           <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-500">
-            View all leads from all qualifiers and onboarders
+            {claimFilter === 'unclaimed'
+              ? 'Showing leads available to claim.'
+              : claimFilter === 'claimed'
+                ? 'Showing leads that have been claimed.'
+                : 'Showing all leads (claimed and unclaimed).'}
           </p>
         </div>
       </div>
@@ -186,7 +211,7 @@ export default function AllLeadsPage() {
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <div className="relative sm:col-span-2 lg:col-span-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
@@ -199,6 +224,23 @@ export default function AllLeadsPage() {
                 className="pl-10 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
+
+            <Select
+              value={claimFilter}
+              onValueChange={(value) => {
+                setClaimFilter(value as 'unclaimed' | 'claimed' | 'all');
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="border-gray-300">
+                <SelectValue placeholder="Claim status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unclaimed">Unclaimed</SelectItem>
+                <SelectItem value="claimed">Claimed</SelectItem>
+                <SelectItem value="all">All claims</SelectItem>
+              </SelectContent>
+            </Select>
 
             <Select
               value={statusFilter}
@@ -260,6 +302,76 @@ export default function AllLeadsPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select
+              value={cityFilter}
+              onValueChange={(value) => {
+                setCityFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="border-gray-300">
+                <SelectValue
+                  placeholder={locationFiltersQuery.isLoading ? 'Loading cities...' : 'All Cities'}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cities</SelectItem>
+                {cityOptions.map((city) => (
+                  <SelectItem key={city} value={city}>
+                    {city}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={localityFilter}
+              onValueChange={(value) => {
+                setLocalityFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="border-gray-300">
+                <SelectValue
+                  placeholder={
+                    locationFiltersQuery.isLoading ? 'Loading localities...' : 'All Localities'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Localities</SelectItem>
+                {localityOptions.map((locality) => (
+                  <SelectItem key={locality} value={locality}>
+                    {locality}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={localAreaFilter}
+              onValueChange={(value) => {
+                setLocalAreaFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="border-gray-300">
+                <SelectValue
+                  placeholder={
+                    locationFiltersQuery.isLoading ? 'Loading local areas...' : 'All Local Areas'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Local Areas</SelectItem>
+                {localAreaOptions.map((area) => (
+                  <SelectItem key={area} value={area}>
+                    {area}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -312,7 +424,13 @@ export default function AllLeadsPage() {
             </div>
           ) : leads.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">No leads found</p>
+              <p className="text-gray-600">
+                {claimFilter === 'unclaimed'
+                  ? 'No unclaimed leads available'
+                  : claimFilter === 'claimed'
+                    ? 'No claimed leads found'
+                    : 'No leads found'}
+              </p>
             </div>
           ) : (
             <>

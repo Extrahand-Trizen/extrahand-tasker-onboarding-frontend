@@ -29,6 +29,10 @@ export function leadStatusLabel(status: LeadStatus): string {
 const PRIMARY_CATEGORY_LABELS: Record<string, string> = {
   cleaning: 'Cleaning',
   handyperson: 'Handyperson',
+  plumbing: 'Plumbing',
+  electrical: 'Electrician',
+  carpenter: 'Carpentry',
+  painting: 'Home Painting',
   moving: 'Moving & Delivery',
   gardening: 'Gardening',
   business: 'Business Services',

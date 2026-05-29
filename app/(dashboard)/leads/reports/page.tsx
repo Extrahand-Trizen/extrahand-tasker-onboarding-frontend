@@ -75,6 +75,9 @@ export default function LeadReportsPage() {
   const [includeNotes, setIncludeNotes] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [gatedCommunityFilter, setGatedCommunityFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
+  const [localityFilter, setLocalityFilter] = useState<string>('all');
+  const [localAreaFilter, setLocalAreaFilter] = useState<string>('all');
 
   useEffect(() => {
     if (role === 'onboarder' || role === 'lead_access_manager') {
@@ -100,7 +103,7 @@ export default function LeadReportsPage() {
   const analyticsReady = isManagerView || (isScopedUser ? !!currentUserId : true);
 
   const analyticsQuery = useQuery({
-    queryKey: ['status-analytics', fromDate, toDate, qualifierId, currentUserId, role, downloadCategory, datePreset, claimsScope, gatedCommunityFilter],
+    queryKey: ['status-analytics', fromDate, toDate, qualifierId, currentUserId, role, downloadCategory, datePreset, claimsScope, gatedCommunityFilter, cityFilter, localityFilter, localAreaFilter],
     queryFn: () =>
       caosApi.getStatusAnalytics({
         from: datePreset !== 'all_time' && fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
@@ -115,6 +118,9 @@ export default function LeadReportsPage() {
         pickedBy: role === 'onboarder' ? currentUserId : undefined,
         category: downloadCategory !== 'all' ? downloadCategory : undefined,
         gatedCommunityName: gatedCommunityFilter !== 'all' ? gatedCommunityFilter : undefined,
+        city: cityFilter !== 'all' ? cityFilter : undefined,
+        locality: localityFilter !== 'all' ? localityFilter : undefined,
+        localArea: localAreaFilter !== 'all' ? localAreaFilter : undefined,
       }),
     enabled: analyticsReady,
   });
@@ -131,6 +137,15 @@ export default function LeadReportsPage() {
     staleTime: 5 * 60 * 1000,
   });
   const gatedCommunityNames: string[] = gatedCommunityNamesQuery.data?.data || [];
+
+  const locationFiltersQuery = useQuery({
+    queryKey: ['lead-location-filter-options'],
+    queryFn: () => caosApi.getLeadLocationFilterOptions(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const cityOptions = locationFiltersQuery.data?.data?.cities || [];
+  const localityOptions = locationFiltersQuery.data?.data?.localities || [];
+  const localAreaOptions = locationFiltersQuery.data?.data?.localAreas || [];
 
   const cards = useMemo(() => {
     const data = analyticsQuery.data?.data;
@@ -370,6 +385,58 @@ export default function LeadReportsPage() {
                 </Button>
               </div>
             )}
+            <div>
+              <Label>City</Label>
+              <Select value={cityFilter} onValueChange={setCityFilter}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue
+                    placeholder={locationFiltersQuery.isLoading ? 'Loading cities...' : 'All cities'}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All cities</SelectItem>
+                  {cityOptions.map((city) => (
+                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Locality</Label>
+              <Select value={localityFilter} onValueChange={setLocalityFilter}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue
+                    placeholder={
+                      locationFiltersQuery.isLoading ? 'Loading localities...' : 'All localities'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All localities</SelectItem>
+                  {localityOptions.map((locality) => (
+                    <SelectItem key={locality} value={locality}>{locality}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Local Area</Label>
+              <Select value={localAreaFilter} onValueChange={setLocalAreaFilter}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue
+                    placeholder={
+                      locationFiltersQuery.isLoading ? 'Loading local areas...' : 'All local areas'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All local areas</SelectItem>
+                  {localAreaOptions.map((area) => (
+                    <SelectItem key={area} value={area}>{area}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label>Gated Community</Label>
               <Select value={gatedCommunityFilter} onValueChange={setGatedCommunityFilter}>
