@@ -14,12 +14,14 @@ export function isLeadCreator(leadAddedBy: string | undefined, identityIds: stri
   return identityIds.includes(leadAddedBy);
 }
 
-/** Qualifier may edit lead details if they created it or claimed it (pickedBy). */
+/**
+ * Any qualifier can edit any lead — regardless of who created or claimed it.
+ * The only requirement is that the caller is a valid authenticated qualifier
+ * (identityIds must be non-empty).
+ */
 export function canQualifierEditLead(
   lead: { addedBy: string; pickedBy?: string | null },
   identityIds: string[]
 ): boolean {
-  if (identityIds.length === 0) return false;
-  if (isLeadCreator(lead.addedBy, identityIds)) return true;
-  return !!lead.pickedBy && identityIds.includes(lead.pickedBy);
+  return identityIds.length > 0;
 }

@@ -26,6 +26,7 @@ import {
   GooglePlaceAutocomplete,
   type CitySelectionMeta,
 } from '@/components/leads/GooglePlaceAutocomplete';
+import { GatedCommunityMultiSelect } from '@/components/leads/GatedCommunityMultiSelect';
 import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
 
 const OTHER_GATED_COMMUNITY_VALUE = '__other__';
@@ -300,7 +301,7 @@ function LeadDetailContent() {
     address: string;
     pincode: string;
     isGatedCommunity: boolean;
-    gatedCommunityName: string;
+    gatedCommunityNames: string[];
     primaryCategory: string;
     secondaryCategory: string;
     source: LeadSource | '';
@@ -314,7 +315,7 @@ function LeadDetailContent() {
     address: '',
     pincode: '',
     isGatedCommunity: false,
-    gatedCommunityName: '',
+    gatedCommunityNames: [],
     primaryCategory: '',
     secondaryCategory: '',
     source: '',
@@ -329,7 +330,7 @@ function LeadDetailContent() {
   const isLeadAccessManager = !authLoading && role === 'lead_access_manager';
   const isQualifier = !authLoading && role === 'qualifier';
   const isOnboarder = !authLoading && role === 'onboarder';
-  const canMoveStage = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
+  const canMoveStage = !authLoading && (isLeadAccessManager || isOnboarder);
   const canDeleteLead = !authLoading && isLeadAccessManager;
   
   // ✅ Qualifier team can only move stages up to "Contacted & Interested"
@@ -433,6 +434,11 @@ function LeadDetailContent() {
   // Initialize edit form data when lead loads or edit modal opens
   useEffect(() => {
     if (lead && showEditModal) {
+      // Parse existing gatedCommunityName (may be comma-separated from multi-select)
+      const existingNames = (lead.gatedCommunityName || '')
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean);
       setEditFormData({
         name: lead.name || '',
         email: lead.email || '',
@@ -442,7 +448,7 @@ function LeadDetailContent() {
         address: lead.address || '',
         pincode: (lead as any).pincode || '',
         isGatedCommunity: !!lead.isGatedCommunity || !!lead.gatedCommunityName,
-        gatedCommunityName: lead.gatedCommunityName || '',
+        gatedCommunityNames: existingNames,
         primaryCategory: lead.primaryCategory || (lead as any).primarySkill || '',
         secondaryCategory: lead.secondaryCategory || (lead as any).secondarySkill || '',
         source: lead.source || '',
@@ -548,6 +554,10 @@ function LeadDetailContent() {
 
   const updateLeadMutation = useMutation({
     mutationFn: (data: typeof editFormData) => {
+      const resolvedGatedCommunityName = data.gatedCommunityNames
+        .map((n) => n.trim())
+        .filter(Boolean)
+        .join(', ');
       const updateData: any = {
         name: data.name.trim(),
         email: data.email.trim() || null,
@@ -556,8 +566,8 @@ function LeadDetailContent() {
         locality: data.locality.trim() || null,
         address: data.address.trim() || null,
         pincode: data.pincode.trim() || null,
-        isGatedCommunity: data.isGatedCommunity,
-        gatedCommunityName: data.isGatedCommunity ? data.gatedCommunityName.trim() || null : null,
+        isGatedCommunity: resolvedGatedCommunityName.length > 0,
+        gatedCommunityName: resolvedGatedCommunityName || null,
         source: data.source || null,
         sourceDetails: data.sourceDetails.trim() || null,
       };
@@ -755,6 +765,17 @@ function LeadDetailContent() {
                 <DetailRow icon={MapPinned} label="Locality" value={lead.locality || '—'} />
                 <DetailRow icon={Landmark} label="State" value={lead.state || '—'} />
                 <DetailRow icon={Home} label="Local Area" value={lead.address || '—'} />
+                {lead.isGatedCommunity || lead.gatedCommunityName ? (
+                  <DetailRow
+                    icon={Home}
+                    label="Gated Community"
+                    value={
+                      lead.gatedCommunityName
+                        ? lead.gatedCommunityName.split(',').map((n) => n.trim()).filter(Boolean).join(' · ')
+                        : 'Yes'
+                    }
+                  />
+                ) : null}
               </InfoGroup>
             </div>
           </CardContent>
@@ -1270,54 +1291,15 @@ function LeadDetailContent() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="edit-gated-community">Gated Community</Label>
-                  <Select
-                    value={
-                      editFormData.isGatedCommunity
-                        ? editFormData.gatedCommunityName || OTHER_GATED_COMMUNITY_VALUE
-                        : NO_GATED_COMMUNITY_VALUE
+                  <GatedCommunityMultiSelect
+                    selected={editFormData.gatedCommunityNames}
+                    options={gatedCommunityOptions}
+                    onChange={(names) =>
+                      setEditFormData({ ...editFormData, gatedCommunityNames: names, isGatedCommunity: names.length > 0 })
                     }
-                    onValueChange={(value) => {
-                      if (value === NO_GATED_COMMUNITY_VALUE) {
-                        setEditFormData({ ...editFormData, isGatedCommunity: false, gatedCommunityName: '' });
-                      } else if (value === OTHER_GATED_COMMUNITY_VALUE) {
-                        setEditFormData({ ...editFormData, isGatedCommunity: true, gatedCommunityName: '' });
-                      } else {
-                        setEditFormData({ ...editFormData, isGatedCommunity: true, gatedCommunityName: value });
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="edit-gated-community">
-                      <SelectValue placeholder="Select gated community" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_GATED_COMMUNITY_VALUE}>Not a gated community</SelectItem>
-                      {gatedCommunityOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                      {editFormData.gatedCommunityName &&
-                        !gatedCommunityOptions.includes(editFormData.gatedCommunityName) && (
-                          <SelectItem value={editFormData.gatedCommunityName}>
-                            {editFormData.gatedCommunityName}
-                          </SelectItem>
-                        )}
-                      <SelectItem value={OTHER_GATED_COMMUNITY_VALUE}>Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    isLoading={gatedCommunityNamesQuery.isLoading}
+                  />
                 </div>
-                {editFormData.isGatedCommunity &&
-                  (!editFormData.gatedCommunityName || !gatedCommunityOptions.includes(editFormData.gatedCommunityName)) && (
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="edit-gated-community-name">Gated Community Name</Label>
-                      <Input
-                        id="edit-gated-community-name"
-                        value={editFormData.gatedCommunityName}
-                        onChange={(e) => setEditFormData({ ...editFormData, gatedCommunityName: e.target.value })}
-                        placeholder="Enter gated community name"
-                      />
-                    </div>
-                  )}
                 <div className="space-y-2">
                   <Label htmlFor="edit-secondary-category">Secondary Category</Label>
                   <Input
@@ -1362,10 +1344,6 @@ function LeadDetailContent() {
                   onClick={() => {
                     if (!editFormData.name.trim()) {
                       toast.error('Name is required');
-                      return;
-                    }
-                    if (editFormData.isGatedCommunity && !editFormData.gatedCommunityName.trim()) {
-                      toast.error('Gated community name is required');
                       return;
                     }
                     updateLeadMutation.mutate(editFormData);

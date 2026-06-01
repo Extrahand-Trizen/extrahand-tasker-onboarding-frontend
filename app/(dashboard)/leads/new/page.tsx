@@ -20,6 +20,7 @@ import {
   GooglePlaceAutocomplete,
   type CitySelectionMeta,
 } from '@/components/leads/GooglePlaceAutocomplete';
+import { GatedCommunityMultiSelect } from '@/components/leads/GatedCommunityMultiSelect';
 
 const OTHER_GATED_COMMUNITY_VALUE = '__other__';
 
@@ -101,13 +102,6 @@ const leadSchema = z.object({
     }
   )
   .superRefine((data, ctx) => {
-    if (data.gatedCommunitySelection === OTHER_GATED_COMMUNITY_VALUE && !data.gatedCommunityOther?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Please specify the gated community name',
-        path: ['gatedCommunityOther']
-      });
-    }
     if (data.primaryCategory === 'other' && !data.primaryCategoryOther?.trim()) {
       ctx.addIssue({ 
         code: z.ZodIssueCode.custom, 
@@ -163,6 +157,7 @@ export default function AddLeadPage() {
   const queryClient = useQueryClient();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [citySelection, setCitySelection] = useState<CitySelectionMeta | null>(null);
+  const [gatedCommunitySelections, setGatedCommunitySelections] = useState<string[]>([]);
 
   const submittingRef = useRef(false);
 
@@ -184,7 +179,6 @@ export default function AddLeadPage() {
 
   const primaryCategoryValue = watch('primaryCategory');
   const secondaryCategoryValue = watch('secondaryCategory');
-  const gatedCommunitySelectionValue = watch('gatedCommunitySelection');
 
   // Fetch existing gated community names for dropdown
   const gatedCommunityNamesQuery = useQuery({
@@ -523,19 +517,19 @@ export default function AddLeadPage() {
   >({
     mutationFn: (data: Parameters<typeof caosApi.createLead>[0]) => caosApi.createLead(data),
     onSuccess: (response, variables) => {
-      const normalizedGatedCommunityName = variables.gatedCommunityName?.trim();
-      if (normalizedGatedCommunityName) {
+      // Update the gated community names cache with any newly added names
+      const newNames = (variables.gatedCommunityName || '')
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean);
+      if (newNames.length > 0) {
         queryClient.setQueryData<{ success: boolean; data: string[] } | undefined>(
           ['gated-community-names'],
           (current) => {
             const names = Array.from(
-              new Set([...(current?.data || []), normalizedGatedCommunityName])
+              new Set([...(current?.data || []), ...newNames])
             ).sort((a, b) => a.localeCompare(b));
-
-            return {
-              success: true,
-              data: names,
-            };
+            return { success: true, data: names };
           }
         );
       }
@@ -585,10 +579,10 @@ export default function AddLeadPage() {
 
     const normalizedPhone = data.phone?.trim() || '';
     const normalizedLandline = data.landline?.trim() || '';
-    const resolvedGatedCommunityName =
-      data.gatedCommunitySelection === OTHER_GATED_COMMUNITY_VALUE
-        ? (data.gatedCommunityOther || '').trim()
-        : (data.gatedCommunitySelection || '').trim();
+    const resolvedGatedCommunityName = gatedCommunitySelections
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(', ');
 
     const payload: Parameters<typeof caosApi.createLead>[0] = {
       name: data.name.trim(),
@@ -809,75 +803,13 @@ export default function AddLeadPage() {
 
             {/* Gated Community */}
             <div className="space-y-3">
-              <Label htmlFor="gatedCommunitySelection">Gated Community</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={gatedCommunitySelectionValue || undefined}
-                  onValueChange={(value) => {
-                    setValue('gatedCommunitySelection', value, { shouldValidate: true });
-                    if (value !== OTHER_GATED_COMMUNITY_VALUE) {
-                      setValue('gatedCommunityOther', '', { shouldValidate: false });
-                    }
-                    void trigger('gatedCommunityOther');
-                  }}
-                >
-                  <SelectTrigger id="gatedCommunitySelection" className="flex-1 bg-white">
-                    <SelectValue
-                      placeholder={
-                        gatedCommunityNamesQuery.isLoading
-                          ? 'Loading gated communities...'
-                          : 'Select gated community'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {gatedCommunityOptions.map((name) => (
-                      <SelectItem
-                        key={name}
-                        value={name}
-                        className="hover:bg-gray-100 cursor-pointer"
-                      >
-                        {name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem
-                      value={OTHER_GATED_COMMUNITY_VALUE}
-                      className="hover:bg-gray-100 cursor-pointer"
-                    >
-                      Other (Specify Below)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {gatedCommunitySelectionValue && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setValue('gatedCommunitySelection', '', { shouldValidate: false });
-                      setValue('gatedCommunityOther', '', { shouldValidate: false });
-                    }}
-                    className="shrink-0"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              {gatedCommunitySelectionValue === OTHER_GATED_COMMUNITY_VALUE && (
-                <div className="space-y-1">
-                  <Input
-                    id="gatedCommunityOther"
-                    {...register('gatedCommunityOther', {
-                      onChange: () => trigger('gatedCommunityOther'),
-                    })}
-                    placeholder="Enter custom gated community name"
-                    className={errors.gatedCommunityOther ? 'border-red-500' : ''}
-                  />
-                  {errors.gatedCommunityOther && (
-                    <p className="text-xs text-red-600">{errors.gatedCommunityOther.message}</p>
-                  )}
-                </div>
-              )}
+              <Label>Gated Community</Label>
+              <GatedCommunityMultiSelect
+                selected={gatedCommunitySelections}
+                options={gatedCommunityOptions}
+                onChange={setGatedCommunitySelections}
+                isLoading={gatedCommunityNamesQuery.isLoading}
+              />
             </div>
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
