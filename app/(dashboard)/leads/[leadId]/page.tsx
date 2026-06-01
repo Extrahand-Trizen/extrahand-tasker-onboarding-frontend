@@ -21,6 +21,7 @@ import { useState, useEffect, Suspense, type ComponentType, type ReactNode } fro
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { SkillsSection } from '@/components/leads/SkillsSection';
+import { canQualifierEditLead, getUserIdentityIds, isLeadCreator } from '@/lib/leadCreatorAccess';
 import {
   GooglePlaceAutocomplete,
   type CitySelectionMeta,
@@ -277,6 +278,7 @@ function LeadDetailContent() {
   const queryClient = useQueryClient();
   const { role, user, loading: authLoading } = useJWTAuth();
   const currentUserId = user?.userId || (user as any)?.uid;
+  const identityIds = getUserIdentityIds(user);
   const fromVerification = searchParams?.get('from') === 'verification';
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
@@ -390,9 +392,16 @@ function LeadDetailContent() {
   const showExpectedOnboardingField =
     newStatus === 'contacted_interested' && statusReasonCode === 'interested_onboarding_later';
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
+  const canEditLeadSkills = !!lead && isLeadCreator(lead.addedBy, identityIds) && !isBulkUpload;
   const canUpdateLead = !authLoading && (isLeadAccessManager || isOnboarder || isQualifier);
-  const canEditPicked = !lead?.pickedBy || lead.pickedBy === currentUserId;
-  const requiresClaimToWorkLead = isOnboarder || isQualifier;
+  const canEditPicked = !lead?.pickedBy || identityIds.includes(lead.pickedBy);
+  const canEditLeadDetails =
+    !authLoading &&
+    !!lead &&
+    (isLeadAccessManager || isOnboarder
+      ? canUpdateLead && canEditPicked
+      : isQualifier && canQualifierEditLead(lead, identityIds));
+  const requiresClaimToWorkLead = isOnboarder;
   const hasClaimedLead = !!lead?.pickedBy && lead.pickedBy === currentUserId;
   const mustClaimBeforeStageChange =
     requiresClaimToWorkLead && !!lead && !hasClaimedLead;
@@ -539,7 +548,6 @@ function LeadDetailContent() {
 
   const updateLeadMutation = useMutation({
     mutationFn: (data: typeof editFormData) => {
-      // Map primaryCategory to primarySkill for API compatibility
       const updateData: any = {
         name: data.name.trim(),
         email: data.email.trim() || null,
@@ -550,13 +558,15 @@ function LeadDetailContent() {
         pincode: data.pincode.trim() || null,
         isGatedCommunity: data.isGatedCommunity,
         gatedCommunityName: data.isGatedCommunity ? data.gatedCommunityName.trim() || null : null,
-        primaryCategory: data.primaryCategory.trim() || null,
-        primarySkill: data.primaryCategory.trim() || null,
-        secondaryCategory: data.secondaryCategory.trim() || null,
-        secondarySkill: data.secondaryCategory.trim() || null,
         source: data.source || null,
         sourceDetails: data.sourceDetails.trim() || null,
       };
+      if (canEditLeadSkills) {
+        updateData.primaryCategory = data.primaryCategory.trim() || null;
+        updateData.primarySkill = data.primaryCategory.trim() || null;
+        updateData.secondaryCategory = data.secondaryCategory.trim() || null;
+        updateData.secondarySkill = data.secondaryCategory.trim() || null;
+      }
       return caosApi.updateLead(leadId, updateData);
     },
     onSuccess: () => {
@@ -647,8 +657,8 @@ function LeadDetailContent() {
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5 lg:justify-end">
-          {/* Edit Lead: qualifier can edit only own leads; onboarder/admin can edit all */}
-          {canUpdateLead && canEditPicked && (
+          {/* Edit Lead: qualifier — creator or claimer only; onboarder/admin — existing pick rules */}
+          {canEditLeadDetails && (
             <Button
               variant="outline"
               size="sm"
@@ -658,7 +668,7 @@ function LeadDetailContent() {
               Edit Lead
             </Button>
           )}
-          {canUpdateLead && !canEditPicked && (
+          {(isLeadAccessManager || isOnboarder) && canUpdateLead && !canEditPicked && (
             <Button variant="outline" size="sm" disabled>
               <Edit className="h-4 w-4 mr-2" />
               Locked
@@ -693,7 +703,7 @@ function LeadDetailContent() {
                 Move Stage
               </Button>
             )}
-            {(isQualifier || isOnboarder) && lead && !lead.pickedBy && (
+            {isOnboarder && lead && !lead.pickedBy && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1128,7 +1138,7 @@ function LeadDetailContent() {
       )}
 
       {/* Edit Lead Modal */}
-      {showEditModal && canUpdateLead && (
+      {showEditModal && canEditLeadDetails && (
         <div 
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
           onClick={(e) => {
@@ -1234,11 +1244,15 @@ function LeadDetailContent() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-primary-category">Primary Category</Label>
+                  {!canEditLeadSkills && (
+                    <p className="text-xs text-gray-500">Only the user who created this lead can edit skills.</p>
+                  )}
                   <Select
                     value={editFormData.primaryCategory || undefined}
+                    disabled={!canEditLeadSkills}
                     onValueChange={(value) => setEditFormData({ ...editFormData, primaryCategory: value })}
                   >
-                    <SelectTrigger id="edit-primary-category">
+                    <SelectTrigger id="edit-primary-category" disabled={!canEditLeadSkills}>
                       <SelectValue placeholder="Select primary category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1309,6 +1323,7 @@ function LeadDetailContent() {
                   <Input
                     id="edit-secondary-category"
                     value={editFormData.secondaryCategory}
+                    disabled={!canEditLeadSkills}
                     onChange={(e) => setEditFormData({ ...editFormData, secondaryCategory: e.target.value })}
                     placeholder="e.g., deep cleaning, plumbing"
                   />

@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Briefcase, CheckCircle } from 'lucide-react';
 import { categoryDisplay } from '@/lib/leadLabels';
+import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { getUserIdentityIds, isLeadCreator } from '@/lib/leadCreatorAccess';
 
 interface SkillsSectionProps {
   lead: Lead;
@@ -20,6 +22,10 @@ interface SkillsSectionProps {
 
 export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
   const queryClient = useQueryClient();
+  const { user, loading: authLoading } = useJWTAuth();
+  const identityIds = getUserIdentityIds(user);
+  const canEditSkills =
+    !authLoading && isLeadCreator(lead.addedBy, identityIds) && lead.creationMethod !== 'bulk_upload';
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSkillIndex, setSelectedSkillIndex] = useState<number | null>(null);
@@ -113,14 +119,12 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
     }
   };
 
-  const isBulkUpload = lead.creationMethod === 'bulk_upload';
-
   return (
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Skills</CardTitle>
-          {!isBulkUpload && (
+          {canEditSkills && (
             <Button
               variant="outline"
               size="sm"
@@ -135,6 +139,11 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
           )}
         </CardHeader>
         <CardContent>
+          {!canEditSkills && lead.creationMethod !== 'bulk_upload' && !authLoading && (
+            <p className="mb-3 text-sm text-gray-600">
+              Only the user who created this lead can edit skills.
+            </p>
+          )}
           {lead.skills.length === 0 && !lead.primaryCategory && !(lead as any).primarySkill ? (
             <p className="text-sm text-gray-600">No skills assigned yet</p>
           ) : (
@@ -187,7 +196,7 @@ export function SkillsSection({ lead, leadId }: SkillsSectionProps) {
                       )}
                     </div>
                   </div>
-                  {!isBulkUpload && (
+                  {canEditSkills && (
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
