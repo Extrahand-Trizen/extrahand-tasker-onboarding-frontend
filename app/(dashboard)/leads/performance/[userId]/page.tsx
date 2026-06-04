@@ -6,12 +6,12 @@ import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Loader2, ArrowLeft, PencilLine } from 'lucide-react';
+import { useParams, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-type DatePreset = 'today' | 'last_7_days' | 'all_time' | 'custom';
+type DatePreset = 'today' | 'last_7_days' | 'all_time';
 
 function formatDateInputValue(date: Date): string {
   const year = date.getFullYear();
@@ -20,7 +20,7 @@ function formatDateInputValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function getDateRangeFromPreset(preset: Exclude<DatePreset, 'custom' | 'all_time'>): { from: string; to: string } {
+function getDateRangeFromPreset(preset: 'today' | 'last_7_days'): { from: string; to: string } {
   const today = new Date();
   const to = formatDateInputValue(today);
 
@@ -28,6 +28,7 @@ function getDateRangeFromPreset(preset: Exclude<DatePreset, 'custom' | 'all_time
     return { from: to, to };
   }
 
+  // last_7_days: today back 6 days (7-day window inclusive)
   const fromDate = new Date(today);
   fromDate.setDate(fromDate.getDate() - 6);
   return { from: formatDateInputValue(fromDate), to };
@@ -39,20 +40,20 @@ export default function PerformanceUserDetailsPage() {
   const searchParams = useSearchParams();
   const userId = params?.userId as string;
   const isManagerView = role === 'lead_access_manager';
-  
+
   const [datePreset, setDatePreset] = useState<DatePreset>('all_time');
 
-
+  // Derive from/to/allTime from the selected preset
   const { from, to, allTime } = useMemo(() => {
     if (datePreset === 'all_time') {
       return { from: undefined, to: undefined, allTime: true };
     }
-    const range = getDateRangeFromPreset(datePreset as any);
+    const range = getDateRangeFromPreset(datePreset);
     return { from: range.from, to: range.to, allTime: false };
   }, [datePreset]);
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ['performance-details', userId, datePreset, from, to],
+    queryKey: ['performance-details', userId, datePreset],
     queryFn: () => caosApi.getPerformanceDetails({ userId, from, to, allTime }),
     enabled: isManagerView && !!userId,
   });
@@ -86,23 +87,25 @@ export default function PerformanceUserDetailsPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
         <p className="text-gray-500">User performance details not found.</p>
-        <Link href="/leads/performance" className="text-amber-600 hover:underline inline-flex items-center gap-1">
+        <Link
+          href={`/leads/performance?tab=${searchParams.get('tab') || 'all'}`}
+          className="text-amber-600 hover:underline inline-flex items-center gap-1"
+        >
           <ArrowLeft className="h-4 w-4" /> Back to Performance
         </Link>
       </div>
     );
   }
 
-  const { user, claims, rankLabel, followUps, outcomes } = data;
+  const { user, claims, rankLabel, followUps, outcomes, editedLeads, totalLeadsInRange } = data;
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string) =>
+    name
       .split(' ')
-      .map((n) => n[0])
+      .map((n: string) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
 
   const getAvatarColors = (name: string) => {
     const colorPairs = [
@@ -122,31 +125,59 @@ export default function PerformanceUserDetailsPage() {
     return `${pair.bg} ${pair.text}`;
   };
 
-  const totalLeadsCount = data.totalLeads ?? claims;
-  const conversionRate = totalLeadsCount > 0 && outcomes.totalRegistered !== undefined 
-    ? ((outcomes.totalRegistered / totalLeadsCount) * 100).toFixed(1)
-    : '0.0';
+  const totalLeadsCount =
+    datePreset === 'all_time'
+      ? (data.totalLeads ?? claims)
+      : (totalLeadsInRange ?? data.totalLeads ?? 0);
+  const conversionRate =
+    totalLeadsCount > 0 && outcomes?.totalRegistered !== undefined
+      ? ((outcomes.totalRegistered / totalLeadsCount) * 100).toFixed(1)
+      : '0.0';
+
+  const isQualifier = user.role === 'qualifier';
+
+  // Label for the date-range sub-text shown under Edited Leads
+  const dateRangeLabel =
+    datePreset === 'today'
+      ? 'today'
+      : datePreset === 'last_7_days'
+        ? 'last 7 days'
+        : 'all time';
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8 px-4 sm:px-0 pb-12">
+      {/* Back link */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-        <Link href={`/leads/performance?tab=${searchParams.get('tab') || 'all'}`} className="hover:text-amber-600 hover:underline inline-flex items-center gap-1">
+        <Link
+          href={`/leads/performance?tab=${searchParams.get('tab') || 'all'}`}
+          className="hover:text-amber-600 hover:underline inline-flex items-center gap-1"
+        >
           <ArrowLeft className="h-4 w-4" /> Back to Team
         </Link>
       </div>
 
+      {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className={cn("h-14 w-14 rounded-full flex items-center justify-center text-xl font-semibold", getAvatarColors(user.name))}>
+          <div
+            className={cn(
+              'h-14 w-14 rounded-full flex items-center justify-center text-xl font-semibold',
+              getAvatarColors(user.name),
+            )}
+          >
             {getInitials(user.name)}
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{user.name}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <span className={cn(
-                "px-2 py-0.5 text-xs font-semibold rounded-md",
-                user.role === 'qualifier' ? "bg-blue-50 text-blue-700 border border-blue-100" : "bg-purple-50 text-purple-700 border border-purple-100"
-              )}>
+              <span
+                className={cn(
+                  'px-2 py-0.5 text-xs font-semibold rounded-md',
+                  isQualifier
+                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                    : 'bg-purple-50 text-purple-700 border border-purple-100',
+                )}
+              >
                 {user.role.toUpperCase()}
               </span>
               <span className="text-sm text-gray-500">{user.location}</span>
@@ -154,8 +185,12 @@ export default function PerformanceUserDetailsPage() {
           </div>
         </div>
 
+        {/* Date range filter */}
         <div className="w-full sm:w-48">
-          <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+          <Select
+            value={datePreset}
+            onValueChange={(v) => setDatePreset(v as DatePreset)}
+          >
             <SelectTrigger className="bg-white border-gray-200 text-gray-900 h-10 shadow-sm focus:ring-1 focus:ring-amber-500">
               <SelectValue placeholder="Date range" />
             </SelectTrigger>
@@ -169,15 +204,54 @@ export default function PerformanceUserDetailsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* ── LEADS section ─────────────────────────────────────────────────── */}
         <div>
-          <h2 className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-3">LEADS</h2>
-          {user.role === 'onboarder' ? (
+          <h2 className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-3">
+            LEADS
+          </h2>
+
+          {isQualifier ? (
+            /* Qualifier: single Total Leads card + Edited Leads card */
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <p className="text-sm font-medium text-gray-500">Total Leads</p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-gray-900">
+                      {totalLeadsCount.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-amber-600">{rankLabel}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-gray-500">Edited Leads</p>
+                    <PencilLine className="h-4 w-4 text-gray-300" />
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-gray-900">
+                      {(editedLeads ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Leads edited — {dateRangeLabel}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            /* Onboarder: Current Claims + Total Leads + Edited Leads */
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
                   <p className="text-sm font-medium text-gray-500">Current Claims</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-gray-900">{(data.currentClaims || 0).toLocaleString()}</span>
+                    <span className="text-4xl font-bold text-gray-900">
+                      {(data.currentClaims || 0).toLocaleString()}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm font-medium text-amber-600">{rankLabel}</p>
                 </CardContent>
@@ -187,48 +261,73 @@ export default function PerformanceUserDetailsPage() {
                 <CardContent className="p-6">
                   <p className="text-sm font-medium text-gray-500">Total Leads</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-gray-900">{totalLeadsCount.toLocaleString()}</span>
+                    <span className="text-4xl font-bold text-gray-900">
+                      {totalLeadsCount.toLocaleString()}
+                    </span>
                   </div>
                   <p className="mt-1 text-xs text-gray-400">Includes transferred leads</p>
                 </CardContent>
               </Card>
+
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-gray-500">Edited Leads</p>
+                    <PencilLine className="h-4 w-4 text-gray-300" />
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-gray-900">
+                      {(editedLeads ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Leads edited — {dateRangeLabel}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-          ) : (
-            <Card className="bg-white border-gray-200 shadow-sm">
-              <CardContent className="p-6">
-                <p className="text-sm font-medium text-gray-500">Total Leads</p>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-gray-900">{totalLeadsCount.toLocaleString()}</span>
-                </div>
-                <p className="mt-1 text-sm font-medium text-amber-600">{rankLabel}</p>
-              </CardContent>
-            </Card>
           )}
         </div>
 
-        {/* Follow ups - only display for onboarders since qualifiers don't do follow ups */}
-        {user.role === 'onboarder' && (
+        {/* ── FOLLOW-UPS — onboarder only ───────────────────────────────────── */}
+        {!isQualifier && (
           <div>
-            <h2 className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-3">FOLLOW-UPS</h2>
+            <h2 className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-3">
+              FOLLOW-UPS
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
                   <p className="text-sm font-medium text-gray-500">Total Follow-ups</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900">{followUps.total.toLocaleString()}</span>
+                    <span className="text-3xl font-bold text-gray-900">
+                      {followUps.total.toLocaleString()}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className={cn("bg-white border-gray-200 shadow-sm", followUps.overdue > 0 ? "border-rose-200 bg-rose-50/20" : "")}>
+              <Card
+                className={cn(
+                  'bg-white border-gray-200 shadow-sm',
+                  followUps.overdue > 0 ? 'border-rose-200 bg-rose-50/20' : '',
+                )}
+              >
                 <CardContent className="p-6">
                   <p className="text-sm font-medium text-gray-500">Overdue Follow-ups</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className={cn("text-3xl font-bold", followUps.overdue > 0 ? "text-rose-600" : "text-gray-900")}>
+                    <span
+                      className={cn(
+                        'text-3xl font-bold',
+                        followUps.overdue > 0 ? 'text-rose-600' : 'text-gray-900',
+                      )}
+                    >
                       {followUps.overdue.toLocaleString()}
                     </span>
                   </div>
-                  {followUps.overdue > 0 && <p className="mt-1 text-xs font-medium text-rose-600">Needs attention</p>}
+                  {followUps.overdue > 0 && (
+                    <p className="mt-1 text-xs font-medium text-rose-600">Needs attention</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -236,7 +335,9 @@ export default function PerformanceUserDetailsPage() {
                 <CardContent className="p-6">
                   <p className="text-sm font-medium text-gray-500">Follow-ups Due Today</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900">{followUps.dueToday.toLocaleString()}</span>
+                    <span className="text-3xl font-bold text-gray-900">
+                      {followUps.dueToday.toLocaleString()}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -244,72 +345,76 @@ export default function PerformanceUserDetailsPage() {
           </div>
         )}
 
-        <div>
-          <h2 className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-3">OUTCOMES</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="bg-white border-gray-200 shadow-sm">
-              <CardContent className="p-6">
-                <p className="text-sm font-medium text-gray-500">Interested</p>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-emerald-600">{outcomes.interested.toLocaleString()}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-gray-200 shadow-sm">
-              <CardContent className="p-6">
-                <p className="text-sm font-medium text-gray-500">Not Interested</p>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">{outcomes.notInterested.toLocaleString()}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {user.role === 'qualifier' ? (
+        {/* ── OUTCOMES — onboarder only ─────────────────────────────────────── */}
+        {!isQualifier && (
+          <div>
+            <h2 className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-3">
+              OUTCOMES
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Not Lifted</p>
+                  <p className="text-sm font-medium text-gray-500">Interested</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900">{outcomes.notLifted?.toLocaleString() || 0}</span>
+                    <span className="text-3xl font-bold text-emerald-600">
+                      {outcomes.interested.toLocaleString()}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <>
-                <Card className="bg-white border-gray-200 shadow-sm">
-                  <CardContent className="p-6">
-                    <p className="text-sm font-medium text-gray-500">Not Registered</p>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-gray-900">{outcomes.notRegistered?.toLocaleString() || 0}</span>
-                    </div>
-                  </CardContent>
-                </Card>
 
-                <Card className="bg-emerald-50/10 border-emerald-200 shadow-sm">
-                  <CardContent className="p-6">
-                    <p className="text-sm font-medium text-gray-500">Registered</p>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-emerald-600">{outcomes.registered?.toLocaleString() || 0}</span>
-                    </div>
-                    <p className="mt-1 text-xs font-semibold text-emerald-600">{conversionRate}% conv. rate</p>
-                  </CardContent>
-                </Card>
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <p className="text-sm font-medium text-gray-500">Not Interested</p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900">
+                      {outcomes.notInterested.toLocaleString()}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card className="bg-white border-gray-200 shadow-sm">
-                  <CardContent className="p-6">
-                    <p className="text-sm font-medium text-gray-500">Registered & Verified</p>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-amber-600">{outcomes.verified?.toLocaleString() || 0}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-400">
-                      of {outcomes.totalRegistered?.toLocaleString() || 0} registered
-                    </p>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <p className="text-sm font-medium text-gray-500">Not Registered</p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900">
+                      {(outcomes.notRegistered ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-emerald-50/10 border-emerald-200 shadow-sm">
+                <CardContent className="p-6">
+                  <p className="text-sm font-medium text-gray-500">Registered</p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-emerald-600">
+                      {(outcomes.registered ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-emerald-600">
+                    {conversionRate}% conv. rate
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <p className="text-sm font-medium text-gray-500">Registered &amp; Verified</p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-amber-600">
+                      {(outcomes.verified ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    of {(outcomes.totalRegistered ?? 0).toLocaleString()} registered
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -70,7 +70,7 @@ export default function LeadReportsPage() {
   const [claimsScope, setClaimsScope] = useState<'current' | 'total'>('current');
   const [qualifierId, setQualifierId] = useState<string>('all');
   const [template, setTemplate] = useState<ExportTemplate>('eod');
-  const [reportCategory, setReportCategory] = useState<StatusReportCategory>('interested');
+  const [reportCategory, setReportCategory] = useState<StatusReportCategory>('touched_leads');
   const [downloadCategory, setDownloadCategory] = useState<string>('all');
   const [includeNotes, setIncludeNotes] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -475,6 +475,11 @@ export default function LeadReportsPage() {
                 Download XLSX
               </Button>
             </div>
+            {!isQualifier && (
+              <p className="text-xs text-gray-500">
+                Download uses the Lead Category filter above. Choose &quot;Leads Added&quot; to match the Leads Added card count, or pick Interested / Callback / etc. to match those cards.
+              </p>
+            )}
             {isQualifier && (
               <p className="text-xs text-gray-500">
                 Export includes leads you added in the selected date range with name, phone, category, contact status, and registration status.

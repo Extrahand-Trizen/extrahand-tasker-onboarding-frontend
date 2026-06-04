@@ -386,25 +386,28 @@ function LeadDetailContent() {
     showExpectedOnboardingField,
   ]);
 
-  // Initialize edit form data when lead loads or edit modal opens
-  useEffect(() => {
-    if (lead && showEditModal) {
-      setEditFormData({
-        name: lead.name || '',
-        email: lead.email || '',
-        city: lead.city || '',
-        state: lead.state || '',
-        address: lead.address || '',
-        pincode: (lead as any).pincode || '',
-        isGatedCommunity: !!lead.isGatedCommunity || !!lead.gatedCommunityName,
-        gatedCommunityName: lead.gatedCommunityName || '',
-        primaryCategory: lead.primaryCategory || (lead as any).primarySkill || '',
-        secondaryCategory: lead.secondaryCategory || (lead as any).secondarySkill || '',
-        source: lead.source || '',
-        sourceDetails: lead.sourceDetails || '',
-      });
-    }
-  }, [lead, showEditModal]);
+  const populateEditFormFromLead = () => {
+    if (!lead) return;
+    setEditFormData({
+      name: lead.name || '',
+      email: lead.email || '',
+      city: lead.city || '',
+      state: lead.state || '',
+      address: lead.address || '',
+      pincode: (lead as { pincode?: string }).pincode || '',
+      isGatedCommunity: !!lead.isGatedCommunity || !!lead.gatedCommunityName,
+      gatedCommunityName: lead.gatedCommunityName || '',
+      primaryCategory: lead.primaryCategory || (lead as { primarySkill?: string }).primarySkill || '',
+      secondaryCategory: lead.secondaryCategory || (lead as { secondarySkill?: string }).secondarySkill || '',
+      source: lead.source || '',
+      sourceDetails: lead.sourceDetails || '',
+    });
+  };
+
+  const openEditModal = () => {
+    populateEditFormFromLead();
+    setShowEditModal(true);
+  };
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({
@@ -587,7 +590,7 @@ function LeadDetailContent() {
           {canUpdateLead && canEditPicked && (
             <Button
               variant="outline"
-              onClick={() => setShowEditModal(true)}
+              onClick={openEditModal}
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit Lead
@@ -820,26 +823,38 @@ function LeadDetailContent() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {lead.statusHistory.map((history, idx) => (
+              {lead.statusHistory.map((history, idx) => {
+                const isDetailsUpdate = history.notes === 'Lead details updated';
+                return (
                 <div key={idx} className="flex items-start gap-4 pb-3 border-b last:border-0">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge className={statusColors[history.status]}>
-                        {leadStatusLabel(history.status)}
-                      </Badge>
+                      {isDetailsUpdate ? (
+                        <Badge className="bg-slate-100 text-slate-800 border border-slate-200">
+                          Details Updated
+                        </Badge>
+                      ) : (
+                        <Badge className={statusColors[history.status]}>
+                          {leadStatusLabel(history.status)}
+                        </Badge>
+                      )}
                       <span className="text-sm text-gray-600">
                         by {history.changedByName || history.changedBy}
                       </span>
                     </div>
-                    {history.notes && (
+                    {history.notes && !isDetailsUpdate && (
                       <p className="text-sm text-gray-600 mt-1">{history.notes}</p>
+                    )}
+                    {isDetailsUpdate && (
+                      <p className="text-sm text-gray-600 mt-1">Lead profile fields were edited</p>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
                       {new Date(history.changedAt).toLocaleString()}
                     </p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
