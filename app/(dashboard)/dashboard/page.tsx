@@ -61,6 +61,19 @@ export default function DashboardPage() {
 
   const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
   const canViewRegistrationMetrics = isOnboarderOrManager || (isQualifier && !!currentUserId);
+  /** Onboarder: owner scope for not-registered / verified cards (broader). */
+  const registrationScopeOwner =
+    role === "onboarder" && currentUserId
+      ? { ownerBy: currentUserId }
+      : {
+          addedBy: isQualifier ? currentUserId : undefined,
+          pickedBy: role === "onboarder" ? currentUserId : undefined,
+        };
+  /** Registered card only: claimed (pickedBy) + registered on platform, not Aadhaar-verified. */
+  const registrationScopeRegisteredCard =
+    role === "onboarder" && currentUserId
+      ? { pickedBy: currentUserId }
+      : registrationScopeOwner;
 
   // Registration metrics are shown for onboarder/manager and qualifier.
   const countQueries = useQueries({
@@ -96,8 +109,7 @@ export default function DashboardPage() {
         queryFn: () =>
           caosApi.searchLeads({
             registrationStatus: "not_registered",
-            addedBy: isQualifier ? currentUserId : undefined,
-            pickedBy: role === "onboarder" ? currentUserId : undefined,
+            ...registrationScopeOwner,
             page: 1,
             limit: 1,
           }),
@@ -109,8 +121,7 @@ export default function DashboardPage() {
         queryFn: () =>
           caosApi.searchLeads({
             registrationStatus: "registered",
-            addedBy: isQualifier ? currentUserId : undefined,
-            pickedBy: role === "onboarder" ? currentUserId : undefined,
+            ...registrationScopeRegisteredCard,
             page: 1,
             limit: 1,
           }),
@@ -122,8 +133,7 @@ export default function DashboardPage() {
         queryFn: () =>
           caosApi.searchLeads({
             registrationStatus: "registered_verified",
-            addedBy: isQualifier ? currentUserId : undefined,
-            pickedBy: role === "onboarder" ? currentUserId : undefined,
+            ...registrationScopeOwner,
             page: 1,
             limit: 1,
           }),
@@ -147,6 +157,8 @@ export default function DashboardPage() {
   const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
   const followUpStats = followUpStatsData?.data;
   const followUpAvailable = !!followUpStats && !followUpStatsError;
+  const onboarderCurrentTotalLabel = `${stats.total} / ${myLeadsTotal}`;
+
   const statCards =
     role === "qualifier"
       ? [
@@ -156,17 +168,25 @@ export default function DashboardPage() {
           { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
         ]
       : [
-          {
-            title: role === "lead_access_manager" ? "All Leads" : "My Claims",
-            value: stats.total,
-            icon: Users,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
-            href: role === "lead_access_manager" ? "/leads/all" : "/leads/picks"
-          },
           ...(role === "onboarder"
-            ? [{ title: "My Leads", value: myLeadsTotal, icon: Users, color: "text-amber-600", bg: "bg-amber-50", href: "/leads" }]
-            : []),
+            ? [{
+                title: "Current / Total Leads",
+                value: null,
+                displayValue: onboarderCurrentTotalLabel,
+                icon: Users,
+                color: "text-amber-600",
+                bg: "bg-amber-50",
+                href: "/leads/picks",
+                subtitle: "Claims / leads you added",
+              }]
+            : [{
+                title: role === "lead_access_manager" ? "All Leads" : "My Claims",
+                value: stats.total,
+                icon: Users,
+                color: "text-amber-600",
+                bg: "bg-amber-50",
+                href: role === "lead_access_manager" ? "/leads/all" : "/leads/picks",
+              }]),
           { title: "Total Follow-ups", value: followUpAvailable ? (followUpStats?.totalFollowUps ?? 0) : null, icon: CalendarClock, color: "text-cyan-700", bg: "bg-cyan-50", href: "/leads/callbacks" },
           {
             title: "Overdue Follow-ups",
@@ -193,7 +213,15 @@ export default function DashboardPage() {
                 { title: "Interested Candidates", value: interestedTotal, icon: Heart, color: "text-yellow-600", bg: "bg-yellow-50", href: "/leads/interested" },
                 { title: "Not Interested Candidates", value: notInterestedTotal, icon: UserX, color: "text-blue-600", bg: "bg-blue-50", href: "/leads/not-interested" },
                 { title: "Not Registered", value: notRegisteredTotal, icon: UserMinus, color: "text-gray-600", bg: "bg-gray-100" },
-                { title: "Registered", value: registeredTotal, icon: UserCheck, color: "text-amber-600", bg: "bg-amber-50", href: "/leads/registered" },
+                {
+                  title: "Registered",
+                  value: registeredTotal,
+                  icon: UserCheck,
+                  color: "text-emerald-600",
+                  bg: "bg-emerald-50",
+                  href: "/leads/registered",
+                 
+                },
                 { title: "Registered & Verified", value: registeredVerifiedTotal, icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", href: "/leads/registered" },
               ]
             : []),
@@ -240,9 +268,18 @@ export default function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {stat.value === null ? '—' : stat.value.toLocaleString()}
+                  <div className={`text-2xl sm:text-3xl font-bold ${stat.color?.includes('emerald') ? 'text-emerald-600' : 'text-gray-900'}`}>
+                    {'displayValue' in stat && stat.displayValue
+                      ? stat.displayValue
+                      : stat.value === null
+                        ? '—'
+                        : typeof stat.value === 'number'
+                          ? stat.value.toLocaleString()
+                          : String(stat.value)}
                   </div>
+                  {'subtitle' in stat && stat.subtitle ? (
+                    <p className="mt-1 text-xs text-gray-400">{stat.subtitle}</p>
+                  ) : null}
                 </CardContent>
               </Card>
             );

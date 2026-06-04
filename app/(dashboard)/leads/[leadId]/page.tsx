@@ -12,14 +12,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { 
-  Phone, Mail, MapPin, Briefcase, Calendar, User, 
+  Phone, Mail, MapPin, MapPinned, Landmark, Home, Briefcase, Calendar, User, Tag,
   MessageSquare, Clock, CheckCircle, XCircle,
   ArrowLeft, Edit, Trash2, RefreshCw, UserCheck, Award
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, type ComponentType, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { SkillsSection } from '@/components/leads/SkillsSection';
+import { canQualifierEditLead, getUserIdentityIds, isLeadCreator } from '@/lib/leadCreatorAccess';
+import {
+  GooglePlaceAutocomplete,
+  type CitySelectionMeta,
+} from '@/components/leads/GooglePlaceAutocomplete';
+import { GatedCommunityMultiSelect } from '@/components/leads/GatedCommunityMultiSelect';
 import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
 
 const OTHER_GATED_COMMUNITY_VALUE = '__other__';
@@ -48,6 +55,41 @@ const statusReasonCodeMap: Partial<Record<LeadStatus, string[]>> = {
   contacted_interested: ['callback_requested', 'interested_onboarding_later', 'other'],
   contacted_not_interested: ['not_interested', 'wrong_number', 'other'],
 };
+
+const leadDetailCardClass = 'border-gray-200 bg-white shadow-sm overflow-hidden';
+const leadDetailCardHeaderClass = 'border-b border-gray-100 px-3 py-2 space-y-0';
+const leadDetailCardContentClass = 'p-3';
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+  className,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex items-start gap-2 py-0.5', className)}>
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <span className="text-xs text-gray-500">{label}: </span>
+        <span className="text-sm text-gray-900 break-words">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function InfoGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{title}</p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
 
 /** Card showing whether lead has registered on main website and verified Aadhaar */
 function ConversionStatusCard({
@@ -132,17 +174,11 @@ function ConversionStatusCard({
   }
 
   return (
-    <Card className="border-gray-200 shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <UserCheck className="h-5 w-5 text-gray-500" />
-          Platform status
-        </CardTitle>
-        <CardDescription className="text-sm text-gray-500">
-          Registration and Aadhaar verification status on the main website
-        </CardDescription>
+    <Card className={leadDetailCardClass}>
+      <CardHeader className={leadDetailCardHeaderClass}>
+        <CardTitle className="text-sm font-semibold text-gray-900">Platform status</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className={cn(leadDetailCardContentClass, 'space-y-2')}>
         <div>
           <p className="text-sm text-gray-600 mb-1">Status</p>
           <Badge className={statusBadgeClass}>{statusLabel}</Badge>
@@ -193,17 +229,11 @@ function VerifiedCertificatesCard({ leadId }: { leadId: string }) {
   const certificates = data?.data?.certificates || [];
 
   return (
-    <Card className="border-gray-200 shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <Award className="h-5 w-5 text-gray-500" />
-          Verified skill certificates
-        </CardTitle>
-        <CardDescription className="text-sm text-gray-500">
-          Skill certificates verified for this helper on ExtraHand platform
-        </CardDescription>
+    <Card className={leadDetailCardClass}>
+      <CardHeader className={leadDetailCardHeaderClass}>
+        <CardTitle className="text-sm font-semibold text-gray-900">Verified skill certificates</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className={cn(leadDetailCardContentClass, 'space-y-2')}>
         {isLoading ? (
           <p className="text-sm text-gray-500">Loading verified certificates...</p>
         ) : certificates.length === 0 ? (
@@ -249,6 +279,7 @@ function LeadDetailContent() {
   const queryClient = useQueryClient();
   const { role, user, loading: authLoading } = useJWTAuth();
   const currentUserId = user?.userId || (user as any)?.uid;
+  const identityIds = getUserIdentityIds(user);
   const fromVerification = searchParams?.get('from') === 'verification';
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
@@ -260,15 +291,17 @@ function LeadDetailContent() {
   const [noteText, setNoteText] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editCitySelection, setEditCitySelection] = useState<CitySelectionMeta | null>(null);
   const [editFormData, setEditFormData] = useState<{
     name: string;
     email: string;
     city: string;
     state: string;
+    locality: string;
     address: string;
     pincode: string;
     isGatedCommunity: boolean;
-    gatedCommunityName: string;
+    gatedCommunityNames: string[];
     primaryCategory: string;
     secondaryCategory: string;
     source: LeadSource | '';
@@ -278,10 +311,11 @@ function LeadDetailContent() {
     email: '',
     city: '',
     state: '',
+    locality: '',
     address: '',
     pincode: '',
     isGatedCommunity: false,
-    gatedCommunityName: '',
+    gatedCommunityNames: [],
     primaryCategory: '',
     secondaryCategory: '',
     source: '',
@@ -296,7 +330,7 @@ function LeadDetailContent() {
   const isLeadAccessManager = !authLoading && role === 'lead_access_manager';
   const isQualifier = !authLoading && role === 'qualifier';
   const isOnboarder = !authLoading && role === 'onboarder';
-  const canMoveStage = !authLoading && (isLeadAccessManager || isQualifier || isOnboarder);
+  const canMoveStage = !authLoading && (isLeadAccessManager || isOnboarder);
   const canDeleteLead = !authLoading && isLeadAccessManager;
   
   // ✅ Qualifier team can only move stages up to "Contacted & Interested"
@@ -359,8 +393,19 @@ function LeadDetailContent() {
   const showExpectedOnboardingField =
     newStatus === 'contacted_interested' && statusReasonCode === 'interested_onboarding_later';
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
+  const canEditLeadSkills = !!lead && isLeadCreator(lead.addedBy, identityIds) && !isBulkUpload;
   const canUpdateLead = !authLoading && (isLeadAccessManager || isOnboarder || isQualifier);
-  const canEditPicked = !lead?.pickedBy || lead.pickedBy === currentUserId;
+  const canEditPicked = !lead?.pickedBy || identityIds.includes(lead.pickedBy);
+  const canEditLeadDetails =
+    !authLoading &&
+    !!lead &&
+    (isLeadAccessManager || isOnboarder
+      ? canUpdateLead && canEditPicked
+      : isQualifier && canQualifierEditLead(lead, identityIds));
+  const requiresClaimToWorkLead = isOnboarder;
+  const hasClaimedLead = !!lead?.pickedBy && lead.pickedBy === currentUserId;
+  const mustClaimBeforeStageChange =
+    requiresClaimToWorkLead && !!lead && !hasClaimedLead;
 
   // Update newStatus when lead loads
   useEffect(() => {
@@ -408,6 +453,40 @@ function LeadDetailContent() {
     populateEditFormFromLead();
     setShowEditModal(true);
   };
+  // Initialize edit form data when lead loads or edit modal opens
+  useEffect(() => {
+    if (lead && showEditModal) {
+      // Parse existing gatedCommunityName (may be comma-separated from multi-select)
+      const existingNames = (lead.gatedCommunityName || '')
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean);
+      setEditFormData({
+        name: lead.name || '',
+        email: lead.email || '',
+        city: lead.city || '',
+        state: lead.state || '',
+        locality: lead.locality || '',
+        address: lead.address || '',
+        pincode: (lead as any).pincode || '',
+        isGatedCommunity: !!lead.isGatedCommunity || !!lead.gatedCommunityName,
+        gatedCommunityNames: existingNames,
+        primaryCategory: lead.primaryCategory || (lead as any).primarySkill || '',
+        secondaryCategory: lead.secondaryCategory || (lead as any).secondarySkill || '',
+        source: lead.source || '',
+        sourceDetails: lead.sourceDetails || '',
+      });
+      setEditCitySelection(
+        lead.city
+          ? {
+              cityName: lead.city,
+              stateName: lead.state || undefined,
+              placeId: '',
+            }
+          : null,
+      );
+    }
+  }, [lead, showEditModal]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({
@@ -427,6 +506,11 @@ function LeadDetailContent() {
       if (!canMoveStage) {
         toast.error('You do not have permission to move stages. Only qualifier team can update lead status.');
         throw new Error('Unauthorized: Only qualifier team can move stages');
+      }
+
+      if (mustClaimBeforeStageChange) {
+        toast.error('Please claim this lead before changing its stage.');
+        throw new Error('Lead must be claimed first');
       }
       
       // ✅ Qualifier can only set status up to Contacted & Interested
@@ -470,6 +554,7 @@ function LeadDetailContent() {
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['all-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['my-picks'] });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to claim lead');
@@ -491,28 +576,35 @@ function LeadDetailContent() {
 
   const updateLeadMutation = useMutation({
     mutationFn: (data: typeof editFormData) => {
-      // Map primaryCategory to primarySkill for API compatibility
+      const resolvedGatedCommunityName = data.gatedCommunityNames
+        .map((n) => n.trim())
+        .filter(Boolean)
+        .join(', ');
       const updateData: any = {
         name: data.name.trim(),
         email: data.email.trim() || null,
         city: data.city.trim() || null,
         state: data.state.trim() || null,
+        locality: data.locality.trim() || null,
         address: data.address.trim() || null,
         pincode: data.pincode.trim() || null,
-        isGatedCommunity: data.isGatedCommunity,
-        gatedCommunityName: data.isGatedCommunity ? data.gatedCommunityName.trim() || null : null,
-        primaryCategory: data.primaryCategory.trim() || null,
-        primarySkill: data.primaryCategory.trim() || null,
-        secondaryCategory: data.secondaryCategory.trim() || null,
-        secondarySkill: data.secondaryCategory.trim() || null,
+        isGatedCommunity: resolvedGatedCommunityName.length > 0,
+        gatedCommunityName: resolvedGatedCommunityName || null,
         source: data.source || null,
         sourceDetails: data.sourceDetails.trim() || null,
       };
+      if (canEditLeadSkills) {
+        updateData.primaryCategory = data.primaryCategory.trim() || null;
+        updateData.primarySkill = data.primaryCategory.trim() || null;
+        updateData.secondaryCategory = data.secondaryCategory.trim() || null;
+        updateData.secondarySkill = data.secondaryCategory.trim() || null;
+      }
       return caosApi.updateLead(leadId, updateData);
     },
     onSuccess: () => {
       toast.success('Lead updated successfully');
       setShowEditModal(false);
+      setEditCitySelection(null);
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['gated-community-names'] });
@@ -537,10 +629,10 @@ function LeadDetailContent() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-16">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">Loading helper details...</p>
+          <div className="inline-block h-9 w-9 animate-spin rounded-full border-2 border-amber-500 border-r-transparent" />
+          <p className="mt-4 text-sm font-medium text-gray-700">Loading helper details...</p>
         </div>
       </div>
     );
@@ -561,43 +653,56 @@ function LeadDetailContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 pb-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
           {fromVerification ? (
             <Link href="/leads/verification">
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+              <Button variant="ghost" size="sm" className="-ml-2 text-gray-600 hover:text-gray-900">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Verification Queue
               </Button>
             </Link>
           ) : (
             <Link href="/leads">
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+              <Button variant="ghost" size="sm" className="-ml-2 shrink-0 text-gray-600 hover:text-gray-900">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
             </Link>
           )}
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{lead.name}</h1>
-            <p className="text-sm text-gray-500">Helper ID: {lead.leadId}</p>
+          <div className="min-w-0 sm:border-l sm:border-gray-100 sm:pl-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h1 className="text-lg font-semibold text-gray-900">{lead.name}</h1>
+              <Badge className={cn('shrink-0 text-xs', statusColors[lead.status])}>
+                {leadStatusLabel(lead.status)}
+              </Badge>
+            </div>
+            <p className="font-mono text-[11px] text-gray-500">{lead.leadId}</p>
+            {lead.pickedBy && (
+              <p className="text-[11px] text-amber-700">
+                Claimed by {lead.pickedByName || lead.pickedBy}
+              </p>
+            )}
           </div>
         </div>
-        <div className="flex gap-2">
-          {/* Edit Lead: qualifier can edit only own leads; onboarder/admin can edit all */}
-          {canUpdateLead && canEditPicked && (
+        <div className="flex flex-wrap gap-1.5 lg:justify-end">
+          {/* Edit Lead: qualifier — creator or claimer only; onboarder/admin — existing pick rules */}
+          {canEditLeadDetails && (
             <Button
               variant="outline"
               onClick={openEditModal}
+              size="sm"
+              onClick={() => setShowEditModal(true)}
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit Lead
             </Button>
           )}
-          {canUpdateLead && !canEditPicked && (
-            <Button variant="outline" disabled>
+          {(isLeadAccessManager || isOnboarder) && canUpdateLead && !canEditPicked && (
+            <Button variant="outline" size="sm" disabled>
               <Edit className="h-4 w-4 mr-2" />
               Locked
             </Button>
@@ -606,6 +711,7 @@ function LeadDetailContent() {
           {canDeleteLead && !isBulkUpload && (
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setShowDeleteModal(true)}
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
@@ -617,6 +723,7 @@ function LeadDetailContent() {
             {canMoveStage && canEditPicked && (
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   // ✅ Admin, Operations, and Qualifier can all move stages
                   if (lead) {
@@ -629,9 +736,10 @@ function LeadDetailContent() {
                 Move Stage
               </Button>
             )}
-            {isQualifier && lead && !lead.pickedBy && (
+            {isOnboarder && lead && !lead.pickedBy && (
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => pickLeadMutation.mutate()}
                 className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                 disabled={pickLeadMutation.isPending}
@@ -640,12 +748,13 @@ function LeadDetailContent() {
               </Button>
             )}
             {lead?.pickedBy && !canEditPicked && (
-              <Button variant="outline" disabled>
+              <Button variant="outline" size="sm" disabled>
                 Claimed by {lead.pickedByName || lead.pickedBy}
               </Button>
             )}
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setShowNoteModal(true)}
               disabled={!canEditPicked}
             >
@@ -653,104 +762,84 @@ function LeadDetailContent() {
               Add Note
             </Button>
         </div>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         {/* Basic Information */}
-        <Card className="border-gray-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-900">Basic Information</CardTitle>
+        <Card className={leadDetailCardClass}>
+          <CardHeader className={leadDetailCardHeaderClass}>
+            <CardTitle className="text-sm font-semibold text-gray-900">Basic Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <User className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">Name</p>
-                <p className="font-medium">{lead.name}</p>
-              </div>
+          <CardContent className={leadDetailCardContentClass}>
+            <InfoGroup title="Contact">
+              <DetailRow icon={User} label="Name" value={lead.name} />
+              <DetailRow icon={Phone} label="Phone" value={lead.phone || '—'} />
+              {lead.landline ? (
+                <DetailRow icon={Phone} label="Landline" value={lead.landline} />
+              ) : null}
+              {lead.email ? (
+                <DetailRow icon={Mail} label="Email" value={lead.email} />
+              ) : null}
+            </InfoGroup>
+            <div className="mt-2 border-t border-gray-100 pt-2">
+              <InfoGroup title="Location">
+                <DetailRow icon={MapPin} label="City" value={lead.city || '—'} />
+                <DetailRow icon={MapPinned} label="Locality" value={lead.locality || '—'} />
+                <DetailRow icon={Landmark} label="State" value={lead.state || '—'} />
+                <DetailRow icon={Home} label="Local Area" value={lead.address || '—'} />
+                {lead.isGatedCommunity || lead.gatedCommunityName ? (
+                  <DetailRow
+                    icon={Home}
+                    label="Gated Community"
+                    value={
+                      lead.gatedCommunityName
+                        ? lead.gatedCommunityName.split(',').map((n) => n.trim()).filter(Boolean).join(' · ')
+                        : 'Yes'
+                    }
+                  />
+                ) : null}
+              </InfoGroup>
             </div>
-            <div className="flex items-center gap-3">
-              <Phone className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">Phone</p>
-                <p className="font-medium">{lead.phone}</p>
-              </div>
-            </div>
-            {lead.email && (
-              <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium">{lead.email}</p>
-                </div>
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <MapPin className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">City</p>
-                <p className="font-medium">{lead.city}</p>
-              </div>
-            </div>
-            {lead.state && (
-              <div>
-                <p className="text-sm text-gray-600">State</p>
-                <p className="font-medium">{lead.state}</p>
-              </div>
-            )}
-            {lead.address && (
-              <div>
-                <p className="text-sm text-gray-600">Address</p>
-                <p className="font-medium">{lead.address}</p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
         {/* Status & Stage */}
-        <Card className="border-gray-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-900">Onboarding Stage</CardTitle>
+        <Card className={leadDetailCardClass}>
+          <CardHeader className={leadDetailCardHeaderClass}>
+            <CardTitle className="text-sm font-semibold text-gray-900">Onboarding Stage</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Current Status</p>
-              <Badge className={statusColors[lead.status]}>
-                {leadStatusLabel(lead.status)}
-              </Badge>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Category</p>
-              <p className="font-medium">
-                {categoryDisplay(lead.primaryCategory || (lead as any).primarySkill, lead.secondaryCategory || (lead as any).secondarySkill)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Source</p>
-              <p className="font-medium capitalize">{lead.source}</p>
-            </div>
-            {lead.sourceDetails && (
-              <div>
-                <p className="text-sm text-gray-600 mb-2">Source Details</p>
-                <p className="font-medium">{lead.sourceDetails}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Added By</p>
-              <p className="font-medium">{lead.addedByName || lead.addedBy}</p>
-            </div>
-            {lead.pickedBy && (
-              <div>
-                <p className="text-sm text-gray-600 mb-2">Claimed By</p>
-                <p className="font-medium">{lead.pickedByName || lead.pickedBy}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Created</p>
-              <p className="font-medium">
-                {new Date(lead.createdAt).toLocaleString()}
-              </p>
-            </div>
+          <CardContent className={cn(leadDetailCardContentClass, 'space-y-0.5')}>
+            <DetailRow
+              icon={Briefcase}
+              label="Status"
+              value={
+                <Badge className={cn('text-xs', statusColors[lead.status])}>
+                  {leadStatusLabel(lead.status)}
+                </Badge>
+              }
+            />
+            <DetailRow
+              icon={Tag}
+              label="Category"
+              value={categoryDisplay(
+                lead.primaryCategory || (lead as any).primarySkill,
+                lead.secondaryCategory || (lead as any).secondarySkill,
+              )}
+            />
+            <DetailRow icon={User} label="Source" value={<span className="capitalize">{lead.source || '—'}</span>} />
+            {lead.sourceDetails ? (
+              <DetailRow icon={MessageSquare} label="Source Details" value={lead.sourceDetails} />
+            ) : null}
+            <DetailRow icon={User} label="Added By" value={lead.addedByName || lead.addedBy} />
+            {lead.pickedBy ? (
+              <DetailRow icon={UserCheck} label="Claimed By" value={lead.pickedByName || lead.pickedBy} />
+            ) : null}
+            <DetailRow
+              icon={Calendar}
+              label="Created"
+              value={new Date(lead.createdAt).toLocaleString()}
+            />
           </CardContent>
         </Card>
 
@@ -855,35 +944,94 @@ function LeadDetailContent() {
                 </div>
                 );
               })}
+      {/* Status History / Timeline — includes bulk-upload leads after stage moves */}
+      <Card className={leadDetailCardClass}>
+        <CardHeader className="border-b border-gray-100 bg-gray-50/50 pb-3">
+          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-gray-500" />
+            Timeline
+          </CardTitle>
+          {isBulkUpload && (
+            <CardDescription className="text-xs text-gray-500">
+              Bulk-uploaded lead — shows who created the lead and each stage change.
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent className="pt-5">
+          {!(lead.statusHistory?.length) ? (
+            <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 text-center text-sm text-gray-500">
+              No stage history recorded yet.
+            </p>
+          ) : (
+            <div className="relative space-y-0 pl-1">
+              {[...lead.statusHistory]
+                .sort(
+                  (a, b) =>
+                    new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime(),
+                )
+                .map((history, idx, arr) => (
+                  <div
+                    key={`${history.status}-${history.changedAt}-${idx}`}
+                    className="relative flex gap-4 pb-6 last:pb-0"
+                  >
+                    {idx < arr.length - 1 ? (
+                      <span
+                        className="absolute left-[15px] top-8 bottom-0 w-px bg-gray-200"
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span className="relative z-10 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-gray-100">
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                    </span>
+                    <div className="min-w-0 flex-1 rounded-lg border border-gray-100 bg-gray-50/40 px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={statusColors[history.status]}>
+                          {leadStatusLabel(history.status)}
+                        </Badge>
+                        <span className="text-xs text-gray-500">
+                          {new Date(history.changedAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-sm text-gray-600">
+                        by {history.changedByName || history.changedBy || 'Unknown'}
+                      </p>
+                      {history.notes ? (
+                        <p className="mt-2 text-sm text-gray-700 border-t border-gray-100 pt-2">
+                          {history.notes}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Skills Section */}
       <SkillsSection lead={lead} leadId={leadId} />
 
       {/* Internal Notes */}
-      <Card className="border-gray-200 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-900">Internal Notes</CardTitle>
+      <Card className={leadDetailCardClass}>
+        <CardHeader className={leadDetailCardHeaderClass}>
+          <CardTitle className="text-sm font-semibold text-gray-900">Internal Notes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className={leadDetailCardContentClass}>
           {lead.internalNotes.length === 0 ? (
-            <p className="text-sm text-gray-600">No notes yet</p>
+            <p className="py-3 text-center text-xs text-gray-500">No notes yet.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {lead.internalNotes.map((note, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">
+                <div key={idx} className="rounded border border-gray-100 bg-gray-50/50 px-2.5 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="text-xs font-medium text-gray-900">
                       {note.addedByName || note.addedBy}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-[11px] text-gray-500">
                       {new Date(note.addedAt).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700">{note.note}</p>
+                  <p className="mt-1 text-xs text-gray-700">{note.note}</p>
                 </div>
               ))}
             </div>
@@ -913,9 +1061,14 @@ function LeadDetailContent() {
                   You can move stages up to &quot;Contacted & Interested&quot;. After that, the verification team will review and approve.
                 </p>
               )}
-              {(isLeadAccessManager || isOnboarder) && (
+              {(isLeadAccessManager || isOnboarder) && !mustClaimBeforeStageChange && (
                 <p className="text-sm text-gray-600 mt-1">
                   You have full access to move leads to any stage.
+                </p>
+              )}
+              {mustClaimBeforeStageChange && (
+                <p className="text-sm text-amber-800 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  Claim this lead first using the <strong>Claim Lead</strong> button before you can change its stage.
                 </p>
               )}
             </CardHeader>
@@ -924,7 +1077,12 @@ function LeadDetailContent() {
                 <Label htmlFor="status-select">New Status</Label>
                 <Select
                   value={newStatus}
+                  disabled={mustClaimBeforeStageChange}
                   onValueChange={(value) => {
+                    if (mustClaimBeforeStageChange) {
+                      toast.error('Please claim this lead before changing its stage.');
+                      return;
+                    }
                     const selectedStatus = value as LeadStatus;
                     // ✅ Only restrict qualifier team - admin and onboarder can select any status
                     if (isQualifier && !qualifierAllowedStatuses.includes(selectedStatus)) {
@@ -937,7 +1095,11 @@ function LeadDetailContent() {
                     setExpectedOnboardingAt('');
                   }}
                 >
-                  <SelectTrigger id="status-select">
+                  <SelectTrigger
+                    id="status-select"
+                    disabled={mustClaimBeforeStageChange}
+                    className={mustClaimBeforeStageChange ? 'opacity-60 cursor-not-allowed' : undefined}
+                  >
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
@@ -969,6 +1131,7 @@ function LeadDetailContent() {
                   placeholder="Add notes about this status change..."
                   rows={3}
                   className="resize-none"
+                  disabled={mustClaimBeforeStageChange}
                 />
               </div>
               {showReasonFields && (
@@ -977,9 +1140,10 @@ function LeadDetailContent() {
                     <Label htmlFor="status-reason-code">Reason</Label>
                     <Select
                       value={statusReasonCode || '__none__'}
+                      disabled={mustClaimBeforeStageChange}
                       onValueChange={(value) => setStatusReasonCode(value === '__none__' ? '' : value)}
                     >
-                      <SelectTrigger id="status-reason-code">
+                      <SelectTrigger id="status-reason-code" disabled={mustClaimBeforeStageChange}>
                         <SelectValue placeholder="Select reason (optional)" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
@@ -1002,6 +1166,7 @@ function LeadDetailContent() {
                     type="datetime-local"
                     value={callbackAt}
                     onChange={(e) => setCallbackAt(e.target.value)}
+                    disabled={mustClaimBeforeStageChange}
                   />
                 </div>
               )}
@@ -1013,12 +1178,17 @@ function LeadDetailContent() {
                     type="datetime-local"
                     value={expectedOnboardingAt}
                     onChange={(e) => setExpectedOnboardingAt(e.target.value)}
+                    disabled={mustClaimBeforeStageChange}
                   />
                 </div>
               )}
               <div className="flex gap-2 pt-2">
                 <Button
                   onClick={() => {
+                    if (mustClaimBeforeStageChange) {
+                      toast.error('Please claim this lead before changing its stage.');
+                      return;
+                    }
                     updateStatusMutation.mutate({
                       status: newStatus,
                       notes: statusNotes,
@@ -1027,7 +1197,7 @@ function LeadDetailContent() {
                       expectedOnboardingAt,
                     });
                   }}
-                  disabled={updateStatusMutation.isPending}
+                  disabled={updateStatusMutation.isPending || mustClaimBeforeStageChange}
                   className="flex-1"
                 >
                   {updateStatusMutation.isPending ? 'Saving...' : 'Save'}
@@ -1052,12 +1222,13 @@ function LeadDetailContent() {
       )}
 
       {/* Edit Lead Modal */}
-      {showEditModal && canUpdateLead && (
+      {showEditModal && canEditLeadDetails && (
         <div 
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowEditModal(false);
+              setEditCitySelection(null);
             }
           }}
         >
@@ -1090,32 +1261,60 @@ function LeadDetailContent() {
                     placeholder="email@example.com"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-city">City</Label>
-                  <Input
-                    id="edit-city"
-                    value={editFormData.city}
-                    onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
-                    placeholder="City"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-state">State</Label>
-                  <Input
-                    id="edit-state"
-                    value={editFormData.state}
-                    onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
-                    placeholder="State"
-                  />
-                </div>
+                <GooglePlaceAutocomplete
+                  id="edit-city"
+                  label="City"
+                  mode="city"
+                  value={editFormData.city}
+                  onValueChange={(value) => {
+                    if (!value.trim()) {
+                      setEditCitySelection(null);
+                      setEditFormData((prev) => ({ ...prev, city: '', state: '', locality: '' }));
+                    } else if (editCitySelection && value.trim() !== editCitySelection.cityName) {
+                      setEditCitySelection(null);
+                      setEditFormData((prev) => ({ ...prev, city: value, state: '', locality: '' }));
+                    } else {
+                      setEditFormData((prev) => ({ ...prev, city: value }));
+                    }
+                  }}
+                  onCitySelected={(meta) => {
+                    setEditCitySelection(meta);
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      city: meta.cityName,
+                      state: meta.stateName || '',
+                      locality: '',
+                    }));
+                  }}
+                  onClear={() => {
+                    setEditCitySelection(null);
+                    setEditFormData((prev) => ({ ...prev, city: '', state: '', locality: '' }));
+                  }}
+                  helperText="Select city name, for example: Hyderabad."
+                />
+
+                <GooglePlaceAutocomplete
+                  id="edit-locality"
+                  label="Locality"
+                  mode="locality"
+                  value={editFormData.locality}
+                  onValueChange={(value) =>
+                    setEditFormData((prev) => ({ ...prev, locality: value }))
+                  }
+                  citySelection={editCitySelection}
+                  onClear={() => setEditFormData((prev) => ({ ...prev, locality: '' }))}
+                  helperText="Select locality name, for example: Madhapur."
+                />
+
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="edit-address">Address</Label>
+                  <Label htmlFor="edit-address">Local Area</Label>
                   <Input
                     id="edit-address"
                     value={editFormData.address}
                     onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                    placeholder="Local Area / Address"
+                    placeholder="Street, landmark, or area details"
                   />
+                  <p className="text-xs text-gray-500">Full address or area details (optional)</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-pincode">Pincode</Label>
@@ -1129,11 +1328,15 @@ function LeadDetailContent() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-primary-category">Primary Category</Label>
+                  {!canEditLeadSkills && (
+                    <p className="text-xs text-gray-500">Only the user who created this lead can edit skills.</p>
+                  )}
                   <Select
                     value={editFormData.primaryCategory || undefined}
+                    disabled={!canEditLeadSkills}
                     onValueChange={(value) => setEditFormData({ ...editFormData, primaryCategory: value })}
                   >
-                    <SelectTrigger id="edit-primary-category">
+                    <SelectTrigger id="edit-primary-category" disabled={!canEditLeadSkills}>
                       <SelectValue placeholder="Select primary category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1151,59 +1354,21 @@ function LeadDetailContent() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="edit-gated-community">Gated Community</Label>
-                  <Select
-                    value={
-                      editFormData.isGatedCommunity
-                        ? editFormData.gatedCommunityName || OTHER_GATED_COMMUNITY_VALUE
-                        : NO_GATED_COMMUNITY_VALUE
+                  <GatedCommunityMultiSelect
+                    selected={editFormData.gatedCommunityNames}
+                    options={gatedCommunityOptions}
+                    onChange={(names) =>
+                      setEditFormData({ ...editFormData, gatedCommunityNames: names, isGatedCommunity: names.length > 0 })
                     }
-                    onValueChange={(value) => {
-                      if (value === NO_GATED_COMMUNITY_VALUE) {
-                        setEditFormData({ ...editFormData, isGatedCommunity: false, gatedCommunityName: '' });
-                      } else if (value === OTHER_GATED_COMMUNITY_VALUE) {
-                        setEditFormData({ ...editFormData, isGatedCommunity: true, gatedCommunityName: '' });
-                      } else {
-                        setEditFormData({ ...editFormData, isGatedCommunity: true, gatedCommunityName: value });
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="edit-gated-community">
-                      <SelectValue placeholder="Select gated community" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_GATED_COMMUNITY_VALUE}>Not a gated community</SelectItem>
-                      {gatedCommunityOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                      {editFormData.gatedCommunityName &&
-                        !gatedCommunityOptions.includes(editFormData.gatedCommunityName) && (
-                          <SelectItem value={editFormData.gatedCommunityName}>
-                            {editFormData.gatedCommunityName}
-                          </SelectItem>
-                        )}
-                      <SelectItem value={OTHER_GATED_COMMUNITY_VALUE}>Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    isLoading={gatedCommunityNamesQuery.isLoading}
+                  />
                 </div>
-                {editFormData.isGatedCommunity &&
-                  (!editFormData.gatedCommunityName || !gatedCommunityOptions.includes(editFormData.gatedCommunityName)) && (
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="edit-gated-community-name">Gated Community Name</Label>
-                      <Input
-                        id="edit-gated-community-name"
-                        value={editFormData.gatedCommunityName}
-                        onChange={(e) => setEditFormData({ ...editFormData, gatedCommunityName: e.target.value })}
-                        placeholder="Enter gated community name"
-                      />
-                    </div>
-                  )}
                 <div className="space-y-2">
                   <Label htmlFor="edit-secondary-category">Secondary Category</Label>
                   <Input
                     id="edit-secondary-category"
                     value={editFormData.secondaryCategory}
+                    disabled={!canEditLeadSkills}
                     onChange={(e) => setEditFormData({ ...editFormData, secondaryCategory: e.target.value })}
                     placeholder="e.g., deep cleaning, plumbing"
                   />
@@ -1244,10 +1409,6 @@ function LeadDetailContent() {
                       toast.error('Name is required');
                       return;
                     }
-                    if (editFormData.isGatedCommunity && !editFormData.gatedCommunityName.trim()) {
-                      toast.error('Gated community name is required');
-                      return;
-                    }
                     updateLeadMutation.mutate(editFormData);
                   }}
                   disabled={updateLeadMutation.isPending}
@@ -1257,7 +1418,10 @@ function LeadDetailContent() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditCitySelection(null);
+                  }}
                   disabled={updateLeadMutation.isPending}
                 >
                   Cancel

@@ -127,6 +127,7 @@ export interface Lead {
   landline?: string; // New optional field
   email?: string;
   city: string;
+  locality?: string;
   state?: string;
   address?: string;
   isGatedCommunity?: boolean;
@@ -274,6 +275,7 @@ export interface CreateLeadData {
   landline?: string;
   email?: string;
   city?: string;
+  locality?: string;
   state?: string;
   address?: string; // Local Area
   pincode?: string;
@@ -304,6 +306,14 @@ export interface SearchLeadsParams {
   limit?: number;
   registrationStatus?: 'not_registered' | 'registered' | 'registered_verified';
   statusChangedBy?: string;
+  /** When true, only unclaimed leads (no pickedBy) */
+  unclaimed?: boolean;
+  /** When true, only claimed leads (pickedBy set) */
+  claimed?: boolean;
+  /** Locality filter (lead.locality) */
+  locality?: string;
+  /** Exact local area filter (lead.address values from existing leads) */
+  localArea?: string;
 }
 
 export interface SearchLeadsResponse {
@@ -647,6 +657,29 @@ export const caosApi = {
     return response.json();
   },
 
+  async getLeadLocationFilterOptions(): Promise<{
+    success: boolean;
+    data: { cities: string[]; localities: string[]; localAreas: string[] };
+  }> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/location-filter-options`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch location filters' }));
+      throw new Error(error.error || error.message || 'Failed to fetch location filters');
+    }
+
+    return response.json();
+  },
+
   async getGatedCommunityNames(): Promise<{ success: boolean; data: string[] }> {
     const token = await getAdminToken();
 
@@ -720,6 +753,9 @@ export const caosApi = {
     claimsScope?: 'current' | 'total';
     allTime?: boolean;
     gatedCommunityName?: string;
+    city?: string;
+    locality?: string;
+    localArea?: string;
   } = {}): Promise<StatusAnalyticsResponse> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();
@@ -760,6 +796,9 @@ export const caosApi = {
     claimsScope?: 'current' | 'total';
     allTime?: boolean;
     gatedCommunityName?: string;
+    city?: string;
+    locality?: string;
+    localArea?: string;
   }): Promise<{ blob: Blob; filename: string }> {
     const token = await getAdminToken();
     const queryParams = new URLSearchParams();

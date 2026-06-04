@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,8 +14,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, MapPin, User } from 'lucide-react';
 import { PRIMARY_CATEGORY_OPTIONS } from '@/lib/leadLabels';
+import {
+  GooglePlaceAutocomplete,
+  type CitySelectionMeta,
+} from '@/components/leads/GooglePlaceAutocomplete';
+import { GatedCommunityMultiSelect } from '@/components/leads/GatedCommunityMultiSelect';
 
 const OTHER_GATED_COMMUNITY_VALUE = '__other__';
 
@@ -25,6 +30,8 @@ const leadSchema = z.object({
   landline: z.string().regex(/^[0-9]{6,15}$/, 'Invalid landline number (6-15 digits)').optional().or(z.literal('')),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
+  state: z.string().optional().or(z.literal('')),
+  locality: z.string().optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   pincode: z.string().regex(/^\d{6}$/, 'Pincode must be 6 digits').optional().or(z.literal('')),
   gatedCommunitySelection: z.string().optional(),
@@ -32,6 +39,10 @@ const leadSchema = z.object({
   primaryCategory: z.enum([
     'cleaning',
     'handyperson',
+    'plumbing',
+    'electrical',
+    'carpenter',
+    'painting',
     'moving',
     'gardening',
     'business',
@@ -91,13 +102,6 @@ const leadSchema = z.object({
     }
   )
   .superRefine((data, ctx) => {
-    if (data.gatedCommunitySelection === OTHER_GATED_COMMUNITY_VALUE && !data.gatedCommunityOther?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Please specify the gated community name',
-        path: ['gatedCommunityOther']
-      });
-    }
     if (data.primaryCategory === 'other' && !data.primaryCategoryOther?.trim()) {
       ctx.addIssue({ 
         code: z.ZodIssueCode.custom, 
@@ -117,11 +121,43 @@ const leadSchema = z.object({
 type LeadFormValues = z.input<typeof leadSchema>;
 type LeadFormData = z.output<typeof leadSchema>;
 
+function FormSection({
+  title,
+  description,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  description?: string;
+  icon?: ComponentType<{ className?: string }>;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-gray-200/80 bg-white p-4 sm:p-5">
+      <div className="mb-4 flex items-start gap-3 border-b border-gray-100 pb-3">
+        {Icon ? (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+          {description ? (
+            <p className="mt-0.5 text-xs text-gray-500">{description}</p>
+          ) : null}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function AddLeadPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-
+  const [citySelection, setCitySelection] = useState<CitySelectionMeta | null>(null);
+  const [gatedCommunitySelections, setGatedCommunitySelections] = useState<string[]>([]);
 
   const submittingRef = useRef(false);
 
@@ -143,7 +179,6 @@ export default function AddLeadPage() {
 
   const primaryCategoryValue = watch('primaryCategory');
   const secondaryCategoryValue = watch('secondaryCategory');
-  const gatedCommunitySelectionValue = watch('gatedCommunitySelection');
 
   // Fetch existing gated community names for dropdown
   const gatedCommunityNamesQuery = useQuery({
@@ -366,6 +401,33 @@ export default function AddLeadPage() {
       'Dry Cleaning Pickup',
       'Bulk Laundry'
     ],
+    plumbing: [
+      'Tap / Faucet Repair',
+      'Pipe Leak Repair',
+      'Bathroom Plumbing',
+      'Water Tank Issues',
+      'Drain Blockage',
+    ],
+    electrical: [
+      'Wiring / Rewiring',
+      'Switch & Socket Repair',
+      'Fan Installation',
+      'Light Fitting',
+      'MCB / Fuse Issues',
+      'Inverter / UPS',
+    ],
+    carpenter: [
+      'Furniture Repair',
+      'Door / Window Repair',
+      'Custom Woodwork',
+      'Modular Furniture',
+    ],
+    painting: [
+      'Interior Painting',
+      'Exterior Painting',
+      'Touch-up / Patch Work',
+      'Waterproofing',
+    ],
     'auto-electricians': [],
     'av-specialist': [],
     'alteration-services': [
@@ -455,19 +517,19 @@ export default function AddLeadPage() {
   >({
     mutationFn: (data: Parameters<typeof caosApi.createLead>[0]) => caosApi.createLead(data),
     onSuccess: (response, variables) => {
-      const normalizedGatedCommunityName = variables.gatedCommunityName?.trim();
-      if (normalizedGatedCommunityName) {
+      // Update the gated community names cache with any newly added names
+      const newNames = (variables.gatedCommunityName || '')
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean);
+      if (newNames.length > 0) {
         queryClient.setQueryData<{ success: boolean; data: string[] } | undefined>(
           ['gated-community-names'],
           (current) => {
             const names = Array.from(
-              new Set([...(current?.data || []), normalizedGatedCommunityName])
+              new Set([...(current?.data || []), ...newNames])
             ).sort((a, b) => a.localeCompare(b));
-
-            return {
-              success: true,
-              data: names,
-            };
+            return { success: true, data: names };
           }
         );
       }
@@ -517,10 +579,10 @@ export default function AddLeadPage() {
 
     const normalizedPhone = data.phone?.trim() || '';
     const normalizedLandline = data.landline?.trim() || '';
-    const resolvedGatedCommunityName =
-      data.gatedCommunitySelection === OTHER_GATED_COMMUNITY_VALUE
-        ? (data.gatedCommunityOther || '').trim()
-        : (data.gatedCommunitySelection || '').trim();
+    const resolvedGatedCommunityName = gatedCommunitySelections
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(', ');
 
     const payload: Parameters<typeof caosApi.createLead>[0] = {
       name: data.name.trim(),
@@ -528,6 +590,8 @@ export default function AddLeadPage() {
       phone: normalizedPhone || undefined,
       landline: normalizedLandline || undefined,
       city: data.city?.trim() || undefined,
+      state: data.state?.trim() || undefined,
+      locality: data.locality?.trim() || undefined,
       address: data.address?.trim() || undefined,
       pincode: data.pincode?.trim() || undefined,
       workingDays: data.workingDays?.trim() || undefined,
@@ -555,16 +619,21 @@ export default function AddLeadPage() {
         </p>
       </div>
 
-      <Card className="max-w-2xl">
+      <Card className="max-w-3xl border-gray-200/80 shadow-sm">
         <CardHeader className="px-4 sm:px-6">
           <CardTitle className="text-lg sm:text-xl">Add New Lead</CardTitle>
           <CardDescription className="text-xs sm:text-sm">
             Enter the basic information to create a new lead in the pipeline
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-4 sm:px-6">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+        <CardContent className="space-y-5 bg-gray-50/40 px-4 sm:space-y-6 sm:px-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 sm:space-y-6">
+            <FormSection
+              title="Contact details"
+              description="Name and at least one phone number are required."
+              icon={User}
+            >
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name *</Label>
                 <Input
@@ -617,24 +686,8 @@ export default function AddLeadPage() {
                   <p className="text-sm text-red-600">{errors.landline.message}</p>
                 )}
               </div>
-            </div>
 
-            {(errors.phone?.message?.includes('At least one contact number') || 
-              (!watch('phone')?.trim() && !watch('landline')?.trim() && (errors.phone || errors.landline))) && (
-              <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
-                At least one contact number (Mobile or Landline) is required
-              </div>
-            )}
-
-            {duplicateWarning && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{duplicateWarning}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="email">Email (Optional)</Label>
                 <Input
                   id="email"
@@ -647,121 +700,116 @@ export default function AddLeadPage() {
                   <p className="text-sm text-red-600">{errors.email.message}</p>
                 )}
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input
+            {(errors.phone?.message?.includes('At least one contact number') || 
+              (!watch('phone')?.trim() && !watch('landline')?.trim() && (errors.phone || errors.landline))) && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                At least one contact number (Mobile or Landline) is required
+              </div>
+            )}
+
+            {duplicateWarning && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{duplicateWarning}</AlertDescription>
+              </Alert>
+            )}
+            </FormSection>
+
+            <FormSection
+              title="Location"
+              description="Search and pick city and locality. Use Local Area for full address or landmark details."
+              icon={MapPin}
+            >
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                <GooglePlaceAutocomplete
                   id="city"
-                  {...register('city')}
-                  placeholder="Delhi"
-                  className={errors.city ? 'border-red-500' : ''}
+                  label="City"
+                  mode="city"
+                  value={watch('city') || ''}
+                  onValueChange={(value) => {
+                    setValue('city', value, { shouldValidate: true });
+                    if (!value.trim()) {
+                      setCitySelection(null);
+                      setValue('state', '', { shouldValidate: false });
+                      setValue('locality', '', { shouldValidate: false });
+                    } else if (citySelection && value.trim() !== citySelection.cityName) {
+                      setCitySelection(null);
+                      setValue('state', '', { shouldValidate: false });
+                      setValue('locality', '', { shouldValidate: false });
+                    }
+                  }}
+                  onCitySelected={(meta) => {
+                    setCitySelection(meta);
+                    setValue('city', meta.cityName, { shouldValidate: true });
+                    setValue('state', meta.stateName || '', { shouldValidate: false });
+                    setValue('locality', '', { shouldValidate: false });
+                  }}
+                  onClear={() => {
+                    setCitySelection(null);
+                    setValue('state', '', { shouldValidate: false });
+                    setValue('locality', '', { shouldValidate: false });
+                  }}
+                  helperText="Select city name, for example: Hyderabad."
+                  error={errors.city?.message}
                 />
-                {errors.city && (
-                  <p className="text-sm text-red-600">{errors.city.message}</p>
-                )}
-              </div>
-            </div>
 
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="address">Local Area</Label>
-                <Input
-                  id="address"
-                  {...register('address')}
-                  placeholder="Andheri West"
-                  className={errors.address ? 'border-red-500' : ''}
+                <GooglePlaceAutocomplete
+                  id="locality"
+                  label="Locality"
+                  mode="locality"
+                  value={watch('locality') || ''}
+                  onValueChange={(value) => setValue('locality', value, { shouldValidate: true })}
+                  citySelection={citySelection}
+                  onClear={() => setValue('locality', '', { shouldValidate: true })}
+                  helperText="Select locality name, for example: Madhapur."
+                  error={errors.locality?.message}
                 />
-                {errors.address && (
-                  <p className="text-sm text-red-600">{errors.address.message}</p>
-                )}
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="pincode">Pincode</Label>
-                <Input
-                  id="pincode"
-                  {...register('pincode')}
-                  placeholder="400053"
-                  maxLength={6}
-                  className={errors.pincode ? 'border-red-500' : ''}
-                />
-                {errors.pincode && (
-                  <p className="text-sm text-red-600">{errors.pincode.message}</p>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-sm font-medium text-gray-700">
+                    Local Area
+                  </Label>
+                  <Input
+                    id="address"
+                    {...register('address')}
+                    placeholder="Street, landmark, or area details"
+                    className={errors.address ? 'border-red-500' : ''}
+                  />
+                  <p className="text-xs text-gray-500">Full address or area details (optional)</p>
+                  {errors.address && (
+                    <p className="text-xs text-red-600">{errors.address.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pincode" className="text-sm font-medium text-gray-700">
+                    Pincode
+                  </Label>
+                  <Input
+                    id="pincode"
+                    {...register('pincode')}
+                    placeholder="400053"
+                    maxLength={6}
+                    className={errors.pincode ? 'border-red-500' : ''}
+                  />
+                  {errors.pincode && (
+                    <p className="text-xs text-red-600">{errors.pincode.message}</p>
+                  )}
+                </div>
               </div>
-            </div>
+            </FormSection>
 
             {/* Gated Community */}
             <div className="space-y-3">
-              <Label htmlFor="gatedCommunitySelection">Gated Community</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={gatedCommunitySelectionValue || undefined}
-                  onValueChange={(value) => {
-                    setValue('gatedCommunitySelection', value, { shouldValidate: true });
-                    if (value !== OTHER_GATED_COMMUNITY_VALUE) {
-                      setValue('gatedCommunityOther', '', { shouldValidate: false });
-                    }
-                    void trigger('gatedCommunityOther');
-                  }}
-                >
-                  <SelectTrigger id="gatedCommunitySelection" className="flex-1 bg-white">
-                    <SelectValue
-                      placeholder={
-                        gatedCommunityNamesQuery.isLoading
-                          ? 'Loading gated communities...'
-                          : 'Select gated community'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {gatedCommunityOptions.map((name) => (
-                      <SelectItem
-                        key={name}
-                        value={name}
-                        className="hover:bg-gray-100 cursor-pointer"
-                      >
-                        {name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem
-                      value={OTHER_GATED_COMMUNITY_VALUE}
-                      className="hover:bg-gray-100 cursor-pointer"
-                    >
-                      Other (Specify Below)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {gatedCommunitySelectionValue && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setValue('gatedCommunitySelection', '', { shouldValidate: false });
-                      setValue('gatedCommunityOther', '', { shouldValidate: false });
-                    }}
-                    className="shrink-0"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              {gatedCommunitySelectionValue === OTHER_GATED_COMMUNITY_VALUE && (
-                <div className="space-y-1">
-                  <Input
-                    id="gatedCommunityOther"
-                    {...register('gatedCommunityOther', {
-                      onChange: () => trigger('gatedCommunityOther'),
-                    })}
-                    placeholder="Enter custom gated community name"
-                    className={errors.gatedCommunityOther ? 'border-red-500' : ''}
-                  />
-                  {errors.gatedCommunityOther && (
-                    <p className="text-xs text-red-600">{errors.gatedCommunityOther.message}</p>
-                  )}
-                </div>
-              )}
+              <Label>Gated Community</Label>
+              <GatedCommunityMultiSelect
+                selected={gatedCommunitySelections}
+                options={gatedCommunityOptions}
+                onChange={setGatedCommunitySelections}
+                isLoading={gatedCommunityNamesQuery.isLoading}
+              />
             </div>
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">

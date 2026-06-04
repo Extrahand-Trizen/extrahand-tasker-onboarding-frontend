@@ -70,10 +70,11 @@ export default function RegisteredCandidatesPage() {
 
   const scopedOwnerId = role === 'lead_access_manager'
     ? (qualifierId !== 'all' ? qualifierId : undefined)
-    : role === 'qualifier'
+    : role === 'qualifier' || role === 'onboarder'
       ? currentUserId
       : undefined;
-  const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
+  /** Onboarder: same scope as performance (picked, added, or status updates), not only current claims. */
+  const scopedPickedBy = undefined;
 
   const { data, isLoading } = useQuery({
     queryKey: ['registered-candidates', role, currentUserId, registrationView, page, searchCity, searchSkill, qualifierId],
@@ -83,7 +84,7 @@ export default function RegisteredCandidatesPage() {
         city: searchCity || undefined,
         primarySkill: searchSkill || undefined,
         ownerBy: scopedOwnerId,
-        pickedBy: scopedPickedBy,
+        pickedBy: scopedPickedBy || undefined,
         page,
         limit,
       }),
