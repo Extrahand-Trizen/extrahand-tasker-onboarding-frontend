@@ -433,20 +433,34 @@ function LeadDetailContent() {
 
   const populateEditFormFromLead = () => {
     if (!lead) return;
+    const existingNames = (lead.gatedCommunityName || '')
+      .split(',')
+      .map((n) => n.trim())
+      .filter(Boolean);
     setEditFormData({
       name: lead.name || '',
       email: lead.email || '',
       city: lead.city || '',
       state: lead.state || '',
+      locality: lead.locality || '',
       address: lead.address || '',
       pincode: (lead as { pincode?: string }).pincode || '',
       isGatedCommunity: !!lead.isGatedCommunity || !!lead.gatedCommunityName,
-      gatedCommunityName: lead.gatedCommunityName || '',
+      gatedCommunityNames: existingNames,
       primaryCategory: lead.primaryCategory || (lead as { primarySkill?: string }).primarySkill || '',
       secondaryCategory: lead.secondaryCategory || (lead as { secondarySkill?: string }).secondarySkill || '',
       source: lead.source || '',
       sourceDetails: lead.sourceDetails || '',
     });
+    setEditCitySelection(
+      lead.city
+        ? {
+            cityName: lead.city,
+            stateName: lead.state || undefined,
+            placeId: '',
+          }
+        : null,
+    );
   };
 
   const openEditModal = () => {
@@ -456,35 +470,7 @@ function LeadDetailContent() {
   // Initialize edit form data when lead loads or edit modal opens
   useEffect(() => {
     if (lead && showEditModal) {
-      // Parse existing gatedCommunityName (may be comma-separated from multi-select)
-      const existingNames = (lead.gatedCommunityName || '')
-        .split(',')
-        .map((n) => n.trim())
-        .filter(Boolean);
-      setEditFormData({
-        name: lead.name || '',
-        email: lead.email || '',
-        city: lead.city || '',
-        state: lead.state || '',
-        locality: lead.locality || '',
-        address: lead.address || '',
-        pincode: (lead as any).pincode || '',
-        isGatedCommunity: !!lead.isGatedCommunity || !!lead.gatedCommunityName,
-        gatedCommunityNames: existingNames,
-        primaryCategory: lead.primaryCategory || (lead as any).primarySkill || '',
-        secondaryCategory: lead.secondaryCategory || (lead as any).secondarySkill || '',
-        source: lead.source || '',
-        sourceDetails: lead.sourceDetails || '',
-      });
-      setEditCitySelection(
-        lead.city
-          ? {
-              cityName: lead.city,
-              stateName: lead.state || undefined,
-              placeId: '',
-            }
-          : null,
-      );
+      populateEditFormFromLead();
     }
   }, [lead, showEditModal]);
 
@@ -695,7 +681,6 @@ function LeadDetailContent() {
               variant="outline"
               onClick={openEditModal}
               size="sm"
-              onClick={() => setShowEditModal(true)}
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit Lead
