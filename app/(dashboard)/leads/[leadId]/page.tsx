@@ -944,6 +944,10 @@ function LeadDetailContent() {
                 </div>
                 );
               })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Status History / Timeline — includes bulk-upload leads after stage moves */}
       <Card className={leadDetailCardClass}>
         <CardHeader className="border-b border-gray-100 bg-gray-50/50 pb-3">
