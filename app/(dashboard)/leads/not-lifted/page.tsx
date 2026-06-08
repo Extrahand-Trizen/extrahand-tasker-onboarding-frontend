@@ -143,7 +143,7 @@ export default function NotLiftedCandidatesPage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
@@ -203,6 +203,28 @@ export default function NotLiftedCandidatesPage() {
                 </Select>
               </div>
             )}
+            <div>
+              <Label htmlFor="attempts-filter" className="text-sm font-medium text-gray-700">Attempts</Label>
+              <Select
+                value={attemptsFilter}
+                onValueChange={(value) => {
+                  setAttemptsFilter(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger id="attempts-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="max_reached">Max Reached</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -232,6 +254,7 @@ export default function NotLiftedCandidatesPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Moved By</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Attempts</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -267,6 +290,9 @@ export default function NotLiftedCandidatesPage() {
                               {format(new Date(moved.changedAt), 'MMM dd, yyyy p')}
                             </div>
                           )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 font-semibold">
+                          {lead.attempts === 'max_reached' ? 'Max Reached' : lead.attempts || '—'}
                         </td>
                         <td className="px-4 py-3">
                           <Link href={`/leads/${lead.leadId}`}>
@@ -314,6 +340,12 @@ export default function NotLiftedCandidatesPage() {
                           <span className="text-gray-500">Moved By:</span>{' '}
                           <span className="text-gray-900">
                             {moved?.changedByName || moved?.changedBy || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Attempts:</span>{' '}
+                          <span className="text-gray-900 font-semibold">
+                            {lead.attempts === 'max_reached' ? 'Max Reached' : lead.attempts || '—'}
                           </span>
                         </div>
                         {moved?.changedAt && (

@@ -315,6 +315,7 @@ export interface SearchLeadsParams {
   locality?: string;
   /** Exact local area filter (lead.address values from existing leads) */
   localArea?: string;
+  attempts?: string;
 }
 
 export interface SearchLeadsResponse {
@@ -543,6 +544,7 @@ export const caosApi = {
     pickedBy?: string;
     dueType?: 'all' | 'callback' | 'onboarding';
     bucket?: 'all' | 'today' | 'overdue' | 'upcoming' | 'range';
+    attempts?: string;
     page?: number;
     limit?: number;
   } = {}): Promise<FollowUpQueueResponse> {
@@ -1008,6 +1010,7 @@ export const caosApi = {
       statusReasonText?: string;
       callbackAt?: string;
       expectedOnboardingAt?: string;
+      attempts?: string;
     }
   ): Promise<{ success: boolean; data: Lead; message: string }> {
     const token = await getAdminToken();
@@ -1580,7 +1583,7 @@ export const caosApi = {
     };
   },
 
-  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string }): Promise<{
+  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string; attempts?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];

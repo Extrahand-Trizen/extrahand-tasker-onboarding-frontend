@@ -43,6 +43,7 @@ export default function CallbackQueuePage() {
   const [endDate, setEndDate] = useState('');
   const [dueType, setDueType] = useState<'all' | 'callback' | 'onboarding'>('all');
   const [bucket, setBucket] = useState<'all' | 'today' | 'overdue' | 'upcoming' | 'range'>('all');
+  const [attemptsFilter, setAttemptsFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
 
@@ -69,7 +70,7 @@ export default function CallbackQueuePage() {
   const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['follow-up-queue', page, searchCity, searchSkill, addedByFilter, currentUserId, startDate, endDate, dueType, bucket],
+    queryKey: ['follow-up-queue', page, searchCity, searchSkill, addedByFilter, currentUserId, startDate, endDate, dueType, bucket, attemptsFilter],
     queryFn: () =>
       caosApi.getFollowUpQueue({
         city: searchCity || undefined,
@@ -80,6 +81,7 @@ export default function CallbackQueuePage() {
         endDate: endDate || undefined,
         dueType,
         bucket,
+        attempts: attemptsFilter !== 'all' ? attemptsFilter : undefined,
         page,
         limit,
       }),
@@ -172,7 +174,7 @@ export default function CallbackQueuePage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-8 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-9 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
@@ -292,6 +294,25 @@ export default function CallbackQueuePage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="attempts-filter" className="text-sm font-medium text-gray-700">Attempts</Label>
+              <Select value={attemptsFilter} onValueChange={(value) => {
+                setAttemptsFilter(value);
+                setPage(1);
+              }}>
+                <SelectTrigger id="attempts-filter" className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="max_reached">Max Reached</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-end">
               <Button
                 variant="outline"
@@ -303,6 +324,7 @@ export default function CallbackQueuePage() {
                   setEndDate('');
                   setDueType('all');
                   setBucket('all');
+                  setAttemptsFilter('all');
                   setPage(1);
                 }}
                 className="w-full"
