@@ -54,6 +54,7 @@ export default function NotLiftedCandidatesPage() {
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [qualifierId, setQualifierId] = useState<string>('all');
+  const [attemptsFilter, setAttemptsFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const limit = 20;
   const currentUserId =
@@ -86,13 +87,14 @@ export default function NotLiftedCandidatesPage() {
   const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['not-lifted-candidates', role, currentUserId, page, searchCity, searchSkill, qualifierId],
+    queryKey: ['not-lifted-candidates', role, currentUserId, page, searchCity, searchSkill, qualifierId, attemptsFilter],
     queryFn: () =>
       caosApi.getNotLiftedCandidates({
         city: searchCity,
         primarySkill: searchSkill,
         ownerBy: scopedOwnerId,
         pickedBy: scopedPickedBy,
+        attempts: attemptsFilter !== 'all' ? attemptsFilter : undefined,
         page,
         limit,
       }),
