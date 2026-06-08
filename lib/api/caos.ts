@@ -224,6 +224,7 @@ export interface Lead {
   expectedOnboardingAt?: string;
   statusReasonCode?: string;
   statusReasonText?: string;
+  attempts?: string;
   activationData?: {
     activatedAt: string;
     firebaseUid: string;
