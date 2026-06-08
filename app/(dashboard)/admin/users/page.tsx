@@ -48,7 +48,7 @@ type SortDir = 'asc' | 'desc';
 
 export default function UserManagementPage() {
   const qc = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('active');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);

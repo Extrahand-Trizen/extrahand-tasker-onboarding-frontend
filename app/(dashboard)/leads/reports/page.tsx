@@ -200,6 +200,9 @@ export default function LeadReportsPage() {
         category: downloadCategory !== 'all' ? downloadCategory : undefined,
         exportLayout: isQualifier ? 'qualifier' : 'standard',
         gatedCommunityName: gatedCommunityFilter !== 'all' ? gatedCommunityFilter : undefined,
+        city: cityFilter !== 'all' ? cityFilter : undefined,
+        locality: localityFilter !== 'all' ? localityFilter : undefined,
+        localArea: localAreaFilter !== 'all' ? localAreaFilter : undefined,
       });
       triggerDownload(report.blob, report.filename);
     } finally {

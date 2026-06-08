@@ -168,6 +168,7 @@ export interface Lead {
     changedByName?: string;
     changedAt: string;
     notes?: string;
+    fieldChanges?: Array<{ field: string; previous?: unknown; current?: unknown }>;
     statusReasonCode?: string;
     statusReasonText?: string;
     callbackAt?: string;
