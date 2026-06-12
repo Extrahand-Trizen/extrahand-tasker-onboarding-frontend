@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
@@ -33,11 +34,20 @@ function getRegistrationLabel(lead: Lead): { label: string; className: string } 
 export default function RegisteredCandidatesPage() {
   const router = useRouter();
   const { role, user, loading: authLoading } = useJWTAuth();
-  const [searchCity, setSearchCity] = useState('');
-  const [searchSkill, setSearchSkill] = useState('');
-  const [registrationView, setRegistrationView] = useState<RegistrationView>('registered');
-  const [qualifierId, setQualifierId] = useState<string>('all');
-  const [page, setPage] = useState(1);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('lastLeadsPath', '/leads/registered');
+    }
+  }, []);
+
+  const [searchCity, setSearchCity] = useSessionStorage('registered-searchCity', '');
+  const [searchSkill, setSearchSkill] = useSessionStorage('registered-searchSkill', '');
+  const [registrationView, setRegistrationView] = useSessionStorage<RegistrationView>('registered-registrationView', 'registered');
+  const [qualifierId, setQualifierId] = useSessionStorage<string>('registered-qualifierId', 'all');
+  const [page, setPage] = useSessionStorage('registered-page', 1);
   const limit = 20;
 
   const currentUserId =
@@ -65,7 +75,7 @@ export default function RegisteredCandidatesPage() {
   const creatorsQuery = useQuery({
     queryKey: ['lead-creators'],
     queryFn: () => caosApi.getLeadCreators(),
-    enabled: canAccess && role === 'lead_access_manager',
+    enabled: mounted && canAccess && role === 'lead_access_manager',
   });
 
   const scopedOwnerId = role === 'lead_access_manager'
@@ -88,10 +98,10 @@ export default function RegisteredCandidatesPage() {
         page,
         limit,
       }),
-    enabled: canAccess && !!currentUserId,
+    enabled: mounted && canAccess && !!currentUserId,
   });
 
-  if (authLoading) {
+  if (!mounted || authLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />

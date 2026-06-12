@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
@@ -64,12 +65,21 @@ export default function InterestedCandidatesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { role, user, loading: authLoading } = useJWTAuth();
-  const [searchCity, setSearchCity] = useState('');
-  const [searchSkill, setSearchSkill] = useState('');
-  const [searchPhone, setSearchPhone] = useState('');
-  const [registrationFilter, setRegistrationFilter] = useState<'all' | 'not_registered' | 'registered' | 'registered_verified'>('all');
-  const [qualifierId, setQualifierId] = useState<string>('all');
-  const [page, setPage] = useState(1);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('lastLeadsPath', '/leads/interested');
+    }
+  }, []);
+
+  const [searchCity, setSearchCity] = useSessionStorage('interested-searchCity', '');
+  const [searchSkill, setSearchSkill] = useSessionStorage('interested-searchSkill', '');
+  const [searchPhone, setSearchPhone] = useSessionStorage('interested-searchPhone', '');
+  const [registrationFilter, setRegistrationFilter] = useSessionStorage<'all' | 'not_registered' | 'registered' | 'registered_verified'>('interested-registrationFilter', 'all');
+  const [qualifierId, setQualifierId] = useSessionStorage<string>('interested-qualifierId', 'all');
+  const [page, setPage] = useSessionStorage('interested-page', 1);
   const limit = 20;
 
   const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
@@ -90,7 +100,7 @@ export default function InterestedCandidatesPage() {
   const creatorsQuery = useQuery({
     queryKey: ['qualifiers'],
     queryFn: () => caosApi.getQualifiers(),
-    enabled: canAccess && isManagerView,
+    enabled: mounted && canAccess && isManagerView,
   });
 
   const scopedOwnerId = isManagerView
@@ -112,11 +122,11 @@ export default function InterestedCandidatesPage() {
       ownerBy: scopedOwnerId,
       pickedBy: scopedPickedBy,
     }),
-    enabled: canAccess && !!currentUserId,
+    enabled: mounted && canAccess && !!currentUserId,
   });
 
   // Show loading while checking auth
-  if (authLoading) {
+  if (!mounted || authLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />

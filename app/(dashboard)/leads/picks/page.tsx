@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { caosApi, type LeadStatus } from '@/lib/api/caos';
@@ -40,10 +41,19 @@ export default function MyPicksPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { role, user, loading: authLoading } = useJWTAuth();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('lastLeadsPath', '/leads/picks');
+    }
+  }, []);
+
+  const [search, setSearch] = useSessionStorage('picks-search', '');
+  const [statusFilter, setStatusFilter] = useSessionStorage<LeadStatus | 'all'>('picks-statusFilter', 'all');
+  const [page, setPage] = useSessionStorage('picks-page', 1);
+  const [limit, setLimit] = useSessionStorage('picks-limit', 20);
   const [transferLeadId, setTransferLeadId] = useState<string | null>(null);
   const [targetQualifier, setTargetQualifier] = useState<string>('');
 
@@ -63,7 +73,7 @@ export default function MyPicksPage() {
   const onboardersQuery = useQuery({
     queryKey: ['onboarders'],
     queryFn: () => caosApi.getOnboarders(),
-    enabled: !authLoading && (role === 'onboarder' || role === 'lead_access_manager'),
+    enabled: mounted && !authLoading && (role === 'onboarder' || role === 'lead_access_manager'),
   });
 
   const onboarders = useMemo(
@@ -81,7 +91,7 @@ export default function MyPicksPage() {
         page,
         limit,
       }),
-    enabled: !authLoading && !!currentUserId && (role === 'onboarder' || role === 'lead_access_manager'),
+    enabled: mounted && !authLoading && !!currentUserId && (role === 'onboarder' || role === 'lead_access_manager'),
   });
 
   const leads = data?.data || [];
@@ -94,7 +104,7 @@ export default function MyPicksPage() {
         transferPendingTo: currentUserId || undefined,
         limit: 100,
       }),
-    enabled: !authLoading && !!currentUserId && (role === 'onboarder' || role === 'lead_access_manager'),
+    enabled: mounted && !authLoading && !!currentUserId && (role === 'onboarder' || role === 'lead_access_manager'),
   });
 
   const pendingTransfers = pendingTransfersQuery.data?.data || [];
@@ -149,7 +159,7 @@ export default function MyPicksPage() {
     },
   });
 
-  if (authLoading || (role !== 'onboarder' && role !== 'lead_access_manager')) {
+  if (!mounted || authLoading || (role !== 'onboarder' && role !== 'lead_access_manager')) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { caosApi, type LeadStatus, type LeadSource } from '@/lib/api/caos';
@@ -40,16 +41,25 @@ export default function AllLeadsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { role, loading: authLoading } = useJWTAuth();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
-  const [addedByFilter, setAddedByFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [cityFilter, setCityFilter] = useState<string>('all');
-  const [localityFilter, setLocalityFilter] = useState<string>('all');
-  const [localAreaFilter, setLocalAreaFilter] = useState<string>('all');
-  const [claimFilter, setClaimFilter] = useState<'unclaimed' | 'claimed' | 'all'>('unclaimed');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('lastLeadsPath', '/leads/all');
+    }
+  }, []);
+
+  const [search, setSearch] = useSessionStorage('all-leads-search', '');
+  const [statusFilter, setStatusFilter] = useSessionStorage<LeadStatus | 'all'>('all-leads-statusFilter', 'all');
+  const [addedByFilter, setAddedByFilter] = useSessionStorage<string>('all-leads-addedByFilter', 'all');
+  const [categoryFilter, setCategoryFilter] = useSessionStorage<string>('all-leads-categoryFilter', 'all');
+  const [cityFilter, setCityFilter] = useSessionStorage<string>('all-leads-cityFilter', 'all');
+  const [localityFilter, setLocalityFilter] = useSessionStorage<string>('all-leads-localityFilter', 'all');
+  const [localAreaFilter, setLocalAreaFilter] = useSessionStorage<string>('all-leads-localAreaFilter', 'all');
+  const [claimFilter, setClaimFilter] = useSessionStorage<'unclaimed' | 'claimed' | 'all'>('all-leads-claimFilter', 'unclaimed');
+  const [page, setPage] = useSessionStorage('all-leads-page', 1);
+  const [limit, setLimit] = useSessionStorage('all-leads-limit', 20);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -64,7 +74,7 @@ export default function AllLeadsPage() {
   const { data: creatorsData } = useQuery({
     queryKey: ['lead-creators'],
     queryFn: () => caosApi.getLeadCreators(),
-    enabled: !authLoading && canViewAllLeads,
+    enabled: mounted && !authLoading && canViewAllLeads,
   });
 
   const leadCreators = creatorsData?.data || [];
@@ -72,7 +82,7 @@ export default function AllLeadsPage() {
   const locationFiltersQuery = useQuery({
     queryKey: ['lead-location-filter-options'],
     queryFn: () => caosApi.getLeadLocationFilterOptions(),
-    enabled: !authLoading && canViewAllLeads,
+    enabled: mounted && !authLoading && canViewAllLeads,
     staleTime: 5 * 60 * 1000,
   });
   const cityOptions = locationFiltersQuery.data?.data?.cities || [];
@@ -97,7 +107,7 @@ export default function AllLeadsPage() {
         page,
         limit,
       }),
-    enabled: !authLoading && canViewAllLeads,
+    enabled: mounted && !authLoading && canViewAllLeads,
   });
 
   const leads = data?.data || [];
@@ -178,7 +188,7 @@ export default function AllLeadsPage() {
   const canDelete = role === 'lead_access_manager';
   const canPick = role === 'onboarder';
 
-  if (authLoading) {
+  if (!mounted || authLoading) {
     return (
       <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
         <div className="text-center py-12">

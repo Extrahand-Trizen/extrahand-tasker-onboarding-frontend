@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useRouter } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
@@ -60,12 +61,21 @@ export default function CallbackQueuePage() {
       router.replace('/dashboard');
     }
   }, [authLoading, canAccess, router]);
-  const [searchCity, setSearchCity] = useState('');
-  const [searchSkill, setSearchSkill] = useState('');
-  const [addedByFilter, setAddedByFilter] = useState('all');
-  const [datePreset, setDatePreset] = useState<DatePreset>('today');
-  const [startDate, setStartDate] = useState(getDateRangeFromPreset('today').from);
-  const [endDate, setEndDate] = useState(getDateRangeFromPreset('today').to);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('lastLeadsPath', '/leads/callbacks');
+    }
+  }, []);
+
+  const [searchCity, setSearchCity] = useSessionStorage('callback-queue-searchCity', '');
+  const [searchSkill, setSearchSkill] = useSessionStorage('callback-queue-searchSkill', '');
+  const [addedByFilter, setAddedByFilter] = useSessionStorage('callback-queue-addedByFilter', 'all');
+  const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('callback-queue-datePreset', 'today');
+  const [startDate, setStartDate] = useSessionStorage('callback-queue-startDate', getDateRangeFromPreset('today').from);
+  const [endDate, setEndDate] = useSessionStorage('callback-queue-endDate', getDateRangeFromPreset('today').to);
 
   const handleDatePresetChange = (preset: DatePreset) => {
     setDatePreset(preset);
@@ -81,10 +91,10 @@ export default function CallbackQueuePage() {
     setEndDate(range.to);
     setPage(1);
   };
-  const [dueType, setDueType] = useState<'all' | 'callback' | 'onboarding'>('all');
-  const [bucket, setBucket] = useState<'all' | 'today' | 'overdue' | 'upcoming' | 'range'>('all');
-  const [attemptsFilter, setAttemptsFilter] = useState<string>('all');
-  const [page, setPage] = useState(1);
+  const [dueType, setDueType] = useSessionStorage<'all' | 'callback' | 'onboarding'>('callback-queue-dueType', 'all');
+  const [bucket, setBucket] = useSessionStorage<'all' | 'today' | 'overdue' | 'upcoming' | 'range'>('callback-queue-bucket', 'all');
+  const [attemptsFilter, setAttemptsFilter] = useSessionStorage<string>('callback-queue-attemptsFilter', 'all');
+  const [page, setPage] = useSessionStorage('callback-queue-page', 1);
   const limit = 20;
 
   const currentUserId =
@@ -125,7 +135,7 @@ export default function CallbackQueuePage() {
         page,
         limit,
       }),
-    enabled: isReady,
+    enabled: mounted && isReady,
     placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: 2,
@@ -137,13 +147,13 @@ export default function CallbackQueuePage() {
         ownerBy: role === 'qualifier' || isManagerView ? scopedOwnerId : undefined,
         pickedBy: scopedPickedBy,
       }),
-    enabled: isReady,
+    enabled: mounted && isReady,
       placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: 2,
   });
 
-  if (authLoading || !canAccess || isLoading) {
+  if (!mounted || authLoading || !canAccess || isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />

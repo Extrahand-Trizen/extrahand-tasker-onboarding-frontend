@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { caosApi, type LeadStatus, type LeadSource } from '@/lib/api/caos';
@@ -41,10 +42,19 @@ export default function LeadsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, loading: authLoading, role } = useJWTAuth();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('lastLeadsPath', '/leads');
+    }
+  }, []);
+
+  const [search, setSearch] = useSessionStorage('my-leads-search', '');
+  const [statusFilter, setStatusFilter] = useSessionStorage<LeadStatus | 'all'>('my-leads-statusFilter', 'all');
+  const [page, setPage] = useSessionStorage('my-leads-page', 1);
+  const [limit, setLimit] = useSessionStorage('my-leads-limit', 20);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -65,7 +75,7 @@ export default function LeadsPage() {
         page,
         limit,
       }),
-    enabled: !authLoading && !!currentUserId,
+    enabled: mounted && !authLoading && !!currentUserId,
   });
 
   const leads = data?.data || [];
@@ -145,6 +155,14 @@ export default function LeadsPage() {
   const canPick = role === 'onboarder';
 
 
+
+  if (!mounted || authLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-500 border-r-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">

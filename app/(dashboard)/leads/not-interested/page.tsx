@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
@@ -51,10 +52,19 @@ function getLatestStatusTransition(
 export default function NotInterestedCandidatesPage() {
   const router = useRouter();
   const { role, user, loading: authLoading } = useJWTAuth();
-  const [searchCity, setSearchCity] = useState('');
-  const [searchSkill, setSearchSkill] = useState('');
-  const [qualifierId, setQualifierId] = useState<string>('all');
-  const [page, setPage] = useState(1);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('lastLeadsPath', '/leads/not-interested');
+    }
+  }, []);
+
+  const [searchCity, setSearchCity] = useSessionStorage('not-interested-searchCity', '');
+  const [searchSkill, setSearchSkill] = useSessionStorage('not-interested-searchSkill', '');
+  const [qualifierId, setQualifierId] = useSessionStorage<string>('not-interested-qualifierId', 'all');
+  const [page, setPage] = useSessionStorage('not-interested-page', 1);
   const limit = 20;
   const currentUserId =
     user?.userId ||
@@ -75,7 +85,7 @@ export default function NotInterestedCandidatesPage() {
   const creatorsQuery = useQuery({
     queryKey: ['qualifiers'],
     queryFn: () => caosApi.getQualifiers(),
-    enabled: canAccess && isManagerView,
+    enabled: mounted && canAccess && isManagerView,
   });
 
   const scopedOwnerId = isManagerView
@@ -96,10 +106,10 @@ export default function NotInterestedCandidatesPage() {
         page,
         limit,
       }),
-    enabled: canAccess && !!currentUserId,
+    enabled: mounted && canAccess && !!currentUserId,
   });
 
-  if (authLoading) {
+  if (!mounted || authLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />

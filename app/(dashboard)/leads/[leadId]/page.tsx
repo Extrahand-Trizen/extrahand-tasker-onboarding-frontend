@@ -281,6 +281,17 @@ function LeadDetailContent() {
   const currentUserId = user?.userId || (user as any)?.uid;
   const identityIds = getUserIdentityIds(user);
   const fromVerification = searchParams?.get('from') === 'verification';
+  const [backUrl, setBackUrl] = useState('/leads');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const lastPath = sessionStorage.getItem('lastLeadsPath');
+      if (lastPath) {
+        setBackUrl(lastPath);
+      }
+    }
+  }, []);
+
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus>('contacted_not_interested');
   const [statusNotes, setStatusNotes] = useState('');
@@ -638,7 +649,7 @@ function LeadDetailContent() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">Helper not found</p>
-        <Link href="/leads">
+        <Link href={backUrl}>
           <Button variant="outline" className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Leads List
@@ -662,7 +673,7 @@ function LeadDetailContent() {
               </Button>
             </Link>
           ) : (
-            <Link href="/leads">
+            <Link href={backUrl}>
               <Button variant="ghost" size="sm" className="-ml-2 shrink-0 text-gray-600 hover:text-gray-900">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
