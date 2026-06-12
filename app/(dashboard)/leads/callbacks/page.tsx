@@ -15,6 +15,8 @@ import Link from 'next/link';
 import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { cn } from '@/lib/utils';
+
 
 const statusColors: Record<string, string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -26,6 +28,28 @@ const statusColors: Record<string, string> = {
   approved: 'bg-green-100 text-green-800',
   inactive: 'bg-gray-100 text-gray-500',
 };
+
+type DatePreset = 'today' | 'last_7_days' | 'all_time' | 'custom';
+
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRangeFromPreset(preset: Exclude<DatePreset, 'custom' | 'all_time'>): { from: string; to: string } {
+  const today = new Date();
+  const to = formatDateInputValue(today);
+
+  if (preset === 'today') {
+    return { from: to, to };
+  }
+
+  const fromDate = new Date(today);
+  fromDate.setDate(fromDate.getDate() - 6);
+  return { from: formatDateInputValue(fromDate), to };
+}
 
 export default function CallbackQueuePage() {
   const { role, user, loading: authLoading } = useJWTAuth();
@@ -39,8 +63,24 @@ export default function CallbackQueuePage() {
   const [searchCity, setSearchCity] = useState('');
   const [searchSkill, setSearchSkill] = useState('');
   const [addedByFilter, setAddedByFilter] = useState('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [datePreset, setDatePreset] = useState<DatePreset>('today');
+  const [startDate, setStartDate] = useState(getDateRangeFromPreset('today').from);
+  const [endDate, setEndDate] = useState(getDateRangeFromPreset('today').to);
+
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset === 'custom') return;
+    if (preset === 'all_time') {
+      setStartDate('');
+      setEndDate('');
+      setPage(1);
+      return;
+    }
+    const range = getDateRangeFromPreset(preset);
+    setStartDate(range.from);
+    setEndDate(range.to);
+    setPage(1);
+  };
   const [dueType, setDueType] = useState<'all' | 'callback' | 'onboarding'>('all');
   const [bucket, setBucket] = useState<'all' | 'today' | 'overdue' | 'upcoming' | 'range'>('all');
   const [attemptsFilter, setAttemptsFilter] = useState<string>('all');
@@ -174,7 +214,12 @@ export default function CallbackQueuePage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-9 gap-3 sm:gap-4">
+          <div
+            className={cn(
+              'grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4',
+              isManagerView ? 'lg:grid-cols-5 xl:grid-cols-10' : 'lg:grid-cols-3 xl:grid-cols-9'
+            )}
+          >
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
@@ -211,12 +256,28 @@ export default function CallbackQueuePage() {
               </Select>
             </div>
             <div>
+              <Label htmlFor="date-range-preset" className="text-sm font-medium text-gray-700">Date Range</Label>
+              <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
+                <SelectTrigger id="date-range-preset" className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last_7_days">Last Week (7 days)</SelectItem>
+                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="start-date" className="text-sm font-medium text-gray-700">From</Label>
               <Input
                 id="start-date"
                 type="date"
                 value={startDate}
+                disabled={datePreset === 'all_time'}
                 onChange={(e) => {
+                  setDatePreset('custom');
                   setStartDate(e.target.value);
                   setPage(1);
                 }}
@@ -229,7 +290,9 @@ export default function CallbackQueuePage() {
                 id="end-date"
                 type="date"
                 value={endDate}
+                disabled={datePreset === 'all_time'}
                 onChange={(e) => {
+                  setDatePreset('custom');
                   setEndDate(e.target.value);
                   setPage(1);
                 }}
@@ -320,8 +383,9 @@ export default function CallbackQueuePage() {
                   setSearchCity('');
                   setSearchSkill('');
                   setAddedByFilter('all');
-                  setStartDate('');
-                  setEndDate('');
+                  setDatePreset('today');
+                  setStartDate(getDateRangeFromPreset('today').from);
+                  setEndDate(getDateRangeFromPreset('today').to);
                   setDueType('all');
                   setBucket('all');
                   setAttemptsFilter('all');
