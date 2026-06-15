@@ -190,31 +190,94 @@ export default function CallbackQueuePage() {
       </div>
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-5">
-        <Card className="border-gray-200 shadow-sm">
+        <Card
+          className={cn(
+            "shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.02]",
+            dueType === 'all' && bucket === 'all'
+              ? "border-blue-600 bg-blue-50/30 ring-2 ring-blue-600/20"
+              : "border-gray-200"
+          )}
+          onClick={() => {
+            setDueType('all');
+            setBucket('all');
+            setDatePreset('all_time');
+            setStartDate('');
+            setEndDate('');
+            setPage(1);
+          }}
+        >
           <CardContent className="pt-5">
             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Total Follow-ups</p>
             <p className="mt-2 text-2xl font-bold text-gray-900">{followUpStats?.totalFollowUps ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-red-200 shadow-sm">
+        <Card
+          className={cn(
+            "shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.02]",
+            dueType === 'callback' && bucket === 'overdue'
+              ? "border-red-600 bg-red-50/30 ring-2 ring-red-600/20"
+              : "border-red-200"
+          )}
+          onClick={() => {
+            setDueType('callback');
+            setBucket('overdue');
+            setPage(1);
+          }}
+        >
           <CardContent className="pt-5">
             <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Callback Overdue</p>
             <p className="mt-2 text-2xl font-bold text-red-700">{followUpStats?.callbackOverdue ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-amber-200 shadow-sm">
+        <Card
+          className={cn(
+            "shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.02]",
+            dueType === 'callback' && bucket === 'today'
+              ? "border-amber-600 bg-amber-50/30 ring-2 ring-amber-600/20"
+              : "border-amber-200"
+          )}
+          onClick={() => {
+            setDueType('callback');
+            setBucket('today');
+            setPage(1);
+          }}
+        >
           <CardContent className="pt-5">
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Callback Due Today</p>
             <p className="mt-2 text-2xl font-bold text-amber-700">{followUpStats?.callbackDueToday ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-red-200 shadow-sm">
+        <Card
+          className={cn(
+            "shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.02]",
+            dueType === 'onboarding' && bucket === 'overdue'
+              ? "border-red-600 bg-red-50/30 ring-2 ring-red-600/20"
+              : "border-red-200"
+          )}
+          onClick={() => {
+            setDueType('onboarding');
+            setBucket('overdue');
+            setPage(1);
+          }}
+        >
           <CardContent className="pt-5">
             <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Onboarding Overdue</p>
             <p className="mt-2 text-2xl font-bold text-red-700">{followUpStats?.onboardingOverdue ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-amber-200 shadow-sm">
+        <Card
+          className={cn(
+            "shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-[1.02]",
+            dueType === 'onboarding' && bucket === 'today'
+              ? "border-amber-600 bg-amber-50/30 ring-2 ring-amber-600/20"
+              : "border-amber-200"
+          )}
+          onClick={() => {
+            setDueType('onboarding');
+            setBucket('today');
+            setPage(1);
+          }}
+        >
           <CardContent className="pt-5">
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Onboarding Due Today</p>
             <p className="mt-2 text-2xl font-bold text-amber-700">{followUpStats?.onboardingDueToday ?? 0}</p>
