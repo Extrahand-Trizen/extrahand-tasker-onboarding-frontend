@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,12 +23,6 @@ export default function PerformancePage() {
     (searchParams.get('tab') as 'all' | 'qualifier' | 'onboarder') || 'all'
   );
   const [searchQuery, setSearchQuery] = useSessionStorage('performance-search', '');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('last-performance-url', window.location.pathname + window.location.search);
-    }
-  }, [searchParams]);
 
 
   const { data: response, isLoading } = useQuery({

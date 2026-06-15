@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,12 +52,6 @@ export default function PerformanceUserDetailsPage() {
   const hasAccess = isManagerView || isSelf;
 
   const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('performance-detail-datePreset', 'all_time');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('last-performance-url', window.location.pathname + window.location.search);
-    }
-  }, [userId, searchParams]);
 
   // Derive from/to/allTime from the selected preset
   const { from, to, allTime } = useMemo(() => {
@@ -318,15 +312,47 @@ export default function PerformanceUserDetailsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Follow-ups</p>
+                  <p className="text-sm font-medium text-gray-500">Total Follow-ups</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-gray-900">
+                    <span className="text-3xl font-bold text-gray-900">
                       {followUps.total.toLocaleString()}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-gray-400">
-                    Follow-ups — {dateRangeLabel}
-                  </p>
+                </CardContent>
+              </Card>
+
+              <Card
+                className={cn(
+                  'bg-white border-gray-200 shadow-sm',
+                  followUps.overdue > 0 ? 'border-rose-200 bg-rose-50/20' : '',
+                )}
+              >
+                <CardContent className="p-6">
+                  <p className="text-sm font-medium text-gray-500">Overdue Follow-ups</p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span
+                      className={cn(
+                        'text-3xl font-bold',
+                        followUps.overdue > 0 ? 'text-rose-600' : 'text-gray-900',
+                      )}
+                    >
+                      {followUps.overdue.toLocaleString()}
+                    </span>
+                  </div>
+                  {followUps.overdue > 0 && (
+                    <p className="mt-1 text-xs font-medium text-rose-600">Needs attention</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <p className="text-sm font-medium text-gray-500">Follow-ups Due Today</p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900">
+                      {followUps.dueToday.toLocaleString()}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             </div>

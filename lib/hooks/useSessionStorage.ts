@@ -3,18 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
-  const [state, setState] = useState<T>(initialValue);
-
-  useEffect(() => {
+  const [state, setState] = useState<T>(() => {
     try {
-      const item = sessionStorage.getItem(key);
-      if (item !== null) {
-        setState(JSON.parse(item));
+      if (typeof window !== 'undefined') {
+        const item = sessionStorage.getItem(key);
+        return item !== null ? JSON.parse(item) : initialValue;
       }
     } catch (error) {
       console.warn('Error reading sessionStorage key:', key, error);
     }
-  }, [key]);
+    return initialValue;
+  });
 
   const setSessionState = useCallback((value: T | ((val: T) => T)) => {
     try {
