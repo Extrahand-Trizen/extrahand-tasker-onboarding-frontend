@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { Loader2, ArrowRight, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -17,10 +18,17 @@ export default function PerformancePage() {
   const searchParams = useSearchParams();
   const isManagerView = role === 'lead_access_manager';
 
-  const [activeTab, setActiveTab] = useState<'all' | 'qualifier' | 'onboarder'>(
+  const [activeTab, setActiveTab] = useSessionStorage<'all' | 'qualifier' | 'onboarder'>(
+    'performance-activeTab',
     (searchParams.get('tab') as 'all' | 'qualifier' | 'onboarder') || 'all'
   );
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useSessionStorage('performance-search', '');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('last-performance-url', window.location.pathname + window.location.search);
+    }
+  }, [searchParams]);
 
 
   const { data: response, isLoading } = useQuery({
@@ -194,7 +202,7 @@ export default function PerformancePage() {
 
         <Card className="bg-white border-gray-200 shadow-sm">
           <CardContent className="p-6">
-            <p className="text-sm font-medium text-gray-500">Total Leads</p>
+            <p className="text-sm font-medium text-gray-500">Leads Added</p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-bold text-gray-900">{computedKpis.totalLeads.toLocaleString()}</span>
             </div>
@@ -279,12 +287,12 @@ export default function PerformancePage() {
                       <p className="font-semibold text-gray-900">
                         {user.currentClaims || 0} <span className="text-xs text-gray-400 font-normal">/ {user.totalLeads || 0}</span>
                       </p>
-                      <p className="text-xs text-gray-400">Current / Total Leads</p>
+                      <p className="text-xs text-gray-400">Claims / Leads Added</p>
                     </>
                   ) : (
                     <>
                       <p className="font-semibold text-gray-900">{user.totalLeads || 0}</p>
-                      <p className="text-xs text-gray-400">Total Leads</p>
+                      <p className="text-xs text-gray-400">Leads Added</p>
                     </>
                   )}
                 </div>

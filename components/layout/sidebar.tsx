@@ -23,6 +23,7 @@ const navigation: Array<{
   { name: 'Contacted & Not Lifted', href: '/leads/not-lifted', icon: PhoneOff, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Contacted & Not Interested', href: '/leads/not-interested', icon: UserX, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Follow-up Queue', href: '/leads/callbacks', icon: PhoneCall, roles: ['onboarder', 'lead_access_manager'] },
+  { name: 'My Performance', href: '/leads/performance/mine', icon: BarChart3, roles: ['qualifier', 'onboarder'] },
   { name: 'Registered Candidates', href: '/leads/registered', icon: UserCheck, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Reports', href: '/leads/reports', icon: FileSpreadsheet, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Performance', href: '/leads/performance', icon: BarChart3, roles: ['lead_access_manager'] },
@@ -46,7 +47,13 @@ interface SidebarProps {
 
 export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { role } = useJWTAuth();
+  const { role, user } = useJWTAuth();
+  const currentUserId =
+    user?.userId ||
+    (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
+      ? user.uid
+      : undefined);
+
   const [adminSectionOpen, setAdminSectionOpen] = useState(
     pathname?.startsWith('/admin') ||
       pathname === '/admin-management' ||
@@ -124,6 +131,10 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
             name = 'All Leads';
             href = '/leads/all';
             Icon = UsersRound;
+          }
+
+          if (item.href === '/leads/performance/mine') {
+            href = `/leads/performance/${currentUserId || 'mine'}`;
           }
 
           // More precise active state checking to avoid highlighting parent routes when on child routes

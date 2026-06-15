@@ -170,7 +170,7 @@ export default function DashboardPage() {
       : [
           ...(role === "onboarder"
             ? [{
-                title: "Current / Total Leads",
+                title: "Current / Leads Added",
                 value: null,
                 displayValue: onboarderCurrentTotalLabel,
                 icon: Users,

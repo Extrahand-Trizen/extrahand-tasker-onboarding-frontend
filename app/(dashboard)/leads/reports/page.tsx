@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { PRIMARY_CATEGORY_OPTIONS, primaryCategoryLabel } from '@/lib/leadLabels';
 import { Loader2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -64,20 +65,20 @@ export default function LeadReportsPage() {
       ? user.uid
       : undefined);
 
-  const [datePreset, setDatePreset] = useState<DatePreset>('last_7_days');
-  const [fromDate, setFromDate] = useState(getDateRangeFromPreset('last_7_days').from);
-  const [toDate, setToDate] = useState(getDateRangeFromPreset('last_7_days').to);
-  const [claimsScope, setClaimsScope] = useState<'current' | 'total'>('current');
-  const [qualifierId, setQualifierId] = useState<string>('all');
-  const [template, setTemplate] = useState<ExportTemplate>('eod');
-  const [reportCategory, setReportCategory] = useState<StatusReportCategory>('touched_leads');
-  const [downloadCategory, setDownloadCategory] = useState<string>('all');
-  const [includeNotes, setIncludeNotes] = useState(false);
+  const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('reports-datePreset', 'last_7_days');
+  const [fromDate, setFromDate] = useSessionStorage('reports-fromDate', getDateRangeFromPreset('last_7_days').from);
+  const [toDate, setToDate] = useSessionStorage('reports-toDate', getDateRangeFromPreset('last_7_days').to);
+  const [claimsScope, setClaimsScope] = useSessionStorage<'current' | 'total'>('reports-claimsScope', 'current');
+  const [qualifierId, setQualifierId] = useSessionStorage<string>('reports-qualifierId', 'all');
+  const [template, setTemplate] = useSessionStorage<ExportTemplate>('reports-template', 'eod');
+  const [reportCategory, setReportCategory] = useSessionStorage<StatusReportCategory>('reports-reportCategory', 'touched_leads');
+  const [downloadCategory, setDownloadCategory] = useSessionStorage<string>('reports-downloadCategory', 'all');
+  const [includeNotes, setIncludeNotes] = useSessionStorage('reports-includeNotes', false);
   const [downloading, setDownloading] = useState(false);
-  const [gatedCommunityFilter, setGatedCommunityFilter] = useState<string>('all');
-  const [cityFilter, setCityFilter] = useState<string>('all');
-  const [localityFilter, setLocalityFilter] = useState<string>('all');
-  const [localAreaFilter, setLocalAreaFilter] = useState<string>('all');
+  const [gatedCommunityFilter, setGatedCommunityFilter] = useSessionStorage<string>('reports-gatedCommunityFilter', 'all');
+  const [cityFilter, setCityFilter] = useSessionStorage<string>('reports-cityFilter', 'all');
+  const [localityFilter, setLocalityFilter] = useSessionStorage<string>('reports-localityFilter', 'all');
+  const [localAreaFilter, setLocalAreaFilter] = useSessionStorage<string>('reports-localAreaFilter', 'all');
 
   useEffect(() => {
     if (role === 'onboarder' || role === 'lead_access_manager') {

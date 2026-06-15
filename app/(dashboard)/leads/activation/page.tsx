@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { caosApi, type Lead } from '@/lib/api/caos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,9 +41,9 @@ export default function ActivationQueuePage() {
   const queryClient = useQueryClient();
   const { role, loading: authLoading } = useJWTAuth();
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
-  const [searchCity, setSearchCity] = useState('');
-  const [searchSkill, setSearchSkill] = useState('');
-  const [page, setPage] = useState(1);
+  const [searchCity, setSearchCity] = useSessionStorage('activation-searchCity', '');
+  const [searchSkill, setSearchSkill] = useSessionStorage('activation-searchSkill', '');
+  const [page, setPage] = useSessionStorage('activation-page', 1);
   const [showBulkActivateModal, setShowBulkActivateModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
 

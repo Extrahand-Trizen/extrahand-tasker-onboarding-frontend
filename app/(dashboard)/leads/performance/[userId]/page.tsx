@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { Loader2, ArrowLeft, PencilLine } from 'lucide-react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -35,13 +36,28 @@ function getDateRangeFromPreset(preset: 'today' | 'last_7_days'): { from: string
 }
 
 export default function PerformanceUserDetailsPage() {
-  const { role, loading } = useJWTAuth();
+  const { role, user: currentUser, loading } = useJWTAuth();
   const params = useParams();
   const searchParams = useSearchParams();
   const userId = params?.userId as string;
-  const isManagerView = role === 'lead_access_manager';
 
-  const [datePreset, setDatePreset] = useState<DatePreset>('all_time');
+  const currentUserId =
+    currentUser?.userId ||
+    (currentUser && typeof currentUser === "object" && "uid" in currentUser && typeof currentUser.uid === "string"
+      ? currentUser.uid
+      : undefined);
+
+  const isManagerView = role === 'lead_access_manager';
+  const isSelf = !!currentUserId && userId === currentUserId;
+  const hasAccess = isManagerView || isSelf;
+
+  const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('performance-detail-datePreset', 'all_time');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('last-performance-url', window.location.pathname + window.location.search);
+    }
+  }, [userId, searchParams]);
 
   // Derive from/to/allTime from the selected preset
   const { from, to, allTime } = useMemo(() => {
@@ -55,7 +71,7 @@ export default function PerformanceUserDetailsPage() {
   const { data: response, isLoading } = useQuery({
     queryKey: ['performance-details', userId, datePreset],
     queryFn: () => caosApi.getPerformanceDetails({ userId, from, to, allTime }),
-    enabled: isManagerView && !!userId,
+    enabled: hasAccess && !!userId,
   });
 
   if (loading) {
@@ -66,7 +82,7 @@ export default function PerformanceUserDetailsPage() {
     );
   }
 
-  if (!isManagerView) {
+  if (!hasAccess) {
     return (
       <div className="flex h-[50vh] items-center justify-center text-gray-500">
         You do not have permission to view this page.
@@ -87,12 +103,14 @@ export default function PerformanceUserDetailsPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
         <p className="text-gray-500">User performance details not found.</p>
-        <Link
-          href={`/leads/performance?tab=${searchParams.get('tab') || 'all'}`}
-          className="text-amber-600 hover:underline inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Performance
-        </Link>
+        {isManagerView && (
+          <Link
+            href={`/leads/performance?tab=${searchParams.get('tab') || 'all'}`}
+            className="text-amber-600 hover:underline inline-flex items-center gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Performance
+          </Link>
+        )}
       </div>
     );
   }
@@ -147,14 +165,16 @@ export default function PerformanceUserDetailsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8 px-4 sm:px-0 pb-12">
       {/* Back link */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-        <Link
-          href={`/leads/performance?tab=${searchParams.get('tab') || 'all'}`}
-          className="hover:text-amber-600 hover:underline inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Team
-        </Link>
-      </div>
+      {isManagerView && (
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+          <Link
+            href={`/leads/performance?tab=${searchParams.get('tab') || 'all'}`}
+            className="hover:text-amber-600 hover:underline inline-flex items-center gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Team
+          </Link>
+        </div>
+      )}
 
       {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -211,11 +231,11 @@ export default function PerformanceUserDetailsPage() {
           </h2>
 
           {isQualifier ? (
-            /* Qualifier: single Total Leads card + Edited Leads card */
+            /* Qualifier: single Leads Added card + Edited Leads card */
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Total Leads</p>
+                  <p className="text-sm font-medium text-gray-500">Leads Added</p>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="text-4xl font-bold text-gray-900">
                       {totalLeadsCount.toLocaleString()}
@@ -243,11 +263,11 @@ export default function PerformanceUserDetailsPage() {
               </Card>
             </div>
           ) : (
-            /* Onboarder: Current Claims + Total Leads + Edited Leads */
+            /* Onboarder: Claims + Leads Added + Edited Leads */
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Current Claims</p>
+                  <p className="text-sm font-medium text-gray-500">Claims</p>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="text-4xl font-bold text-gray-900">
                       {(data.currentClaims || 0).toLocaleString()}
@@ -259,7 +279,7 @@ export default function PerformanceUserDetailsPage() {
 
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Total Leads</p>
+                  <p className="text-sm font-medium text-gray-500">Leads Added</p>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="text-4xl font-bold text-gray-900">
                       {totalLeadsCount.toLocaleString()}
@@ -298,47 +318,15 @@ export default function PerformanceUserDetailsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="bg-white border-gray-200 shadow-sm">
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Total Follow-ups</p>
+                  <p className="text-sm font-medium text-gray-500">Follow-ups</p>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900">
+                    <span className="text-4xl font-bold text-gray-900">
                       {followUps.total.toLocaleString()}
                     </span>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className={cn(
-                  'bg-white border-gray-200 shadow-sm',
-                  followUps.overdue > 0 ? 'border-rose-200 bg-rose-50/20' : '',
-                )}
-              >
-                <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Overdue Follow-ups</p>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span
-                      className={cn(
-                        'text-3xl font-bold',
-                        followUps.overdue > 0 ? 'text-rose-600' : 'text-gray-900',
-                      )}
-                    >
-                      {followUps.overdue.toLocaleString()}
-                    </span>
-                  </div>
-                  {followUps.overdue > 0 && (
-                    <p className="mt-1 text-xs font-medium text-rose-600">Needs attention</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white border-gray-200 shadow-sm">
-                <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Follow-ups Due Today</p>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900">
-                      {followUps.dueToday.toLocaleString()}
-                    </span>
-                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Follow-ups — {dateRangeLabel}
+                  </p>
                 </CardContent>
               </Card>
             </div>
