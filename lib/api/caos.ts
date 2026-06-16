@@ -392,6 +392,8 @@ export interface StatusAnalyticsResponse {
     statusCounts: Array<{ status: string; count: number }>;
     qualifierBreakdown: Array<{ qualifierId: string; qualifierName: string; touchedLeads: number }>;
     categoryBreakdown?: Array<{ category: string; count: number }>;
+    onboardedCategoryBreakdown?: Array<{ category: string; count: number }>;
+    interestedCategoryBreakdown?: Array<{ category: string; count: number }>;
   };
 }
 
@@ -399,7 +401,8 @@ export type StatusReportCategory =
   | 'touched_leads'
   | 'interested'
   | 'callback_scheduled'
-  | 'callback_overdue';
+  | 'callback_overdue'
+  | 'onboarded';
 
 export interface DuplicateCheckResponse {
   success: boolean;

@@ -22,6 +22,7 @@ const REPORT_CATEGORY_OPTIONS: Array<{ label: string; value: StatusReportCategor
   { label: 'Interested', value: 'interested' },
   { label: 'Callback Scheduled', value: 'callback_scheduled' },
   { label: 'Callback Overdue', value: 'callback_overdue' },
+  { label: 'Onboarded', value: 'onboarded' },
 ];
 
 function formatDateInputValue(date: Date): string {
@@ -179,6 +180,28 @@ export default function LeadReportsPage() {
         count: item.count,
       }));
   }, [analyticsQuery.data?.data?.categoryBreakdown]);
+
+  const onboardedCategoryBreakdownList = useMemo(() => {
+    const rawBreakdown = analyticsQuery.data?.data?.onboardedCategoryBreakdown || [];
+    return rawBreakdown
+      .filter((item) => item.count > 0)
+      .map((item) => ({
+        categoryKey: item.category,
+        categoryName: primaryCategoryLabel(item.category),
+        count: item.count,
+      }));
+  }, [analyticsQuery.data?.data?.onboardedCategoryBreakdown]);
+
+  const interestedCategoryBreakdownList = useMemo(() => {
+    const rawBreakdown = analyticsQuery.data?.data?.interestedCategoryBreakdown || [];
+    return rawBreakdown
+      .filter((item) => item.count > 0)
+      .map((item) => ({
+        categoryKey: item.category,
+        categoryName: primaryCategoryLabel(item.category),
+        count: item.count,
+      }));
+  }, [analyticsQuery.data?.data?.interestedCategoryBreakdown]);
 
   const handleDownload = async (format: 'csv' | 'xlsx') => {
     setDownloading(true);
@@ -459,6 +482,32 @@ export default function LeadReportsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {!isQualifier && (
+              <div>
+                <Label>Category</Label>
+                <Select value={downloadCategory} onValueChange={setDownloadCategory}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {PRIMARY_CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!isQualifier && (
+              <div className="flex flex-col justify-end gap-1.5">
+                <Button onClick={() => handleDownload('csv')} disabled={downloading}>
+                  {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                  Download
+                </Button>
+              </div>
+            )}
           </div>
           {isQualifier && (
             <p className="mt-4 text-xs text-gray-500">
@@ -512,53 +561,55 @@ export default function LeadReportsPage() {
         </Card>
       )}
 
-      {!isQualifier && (
+      {onboardedCategoryBreakdownList.length > 0 && (
         <Card className="border-gray-200 shadow-sm">
           <CardHeader>
-            <CardTitle>Download Report</CardTitle>
+            <CardTitle>Onboarded Category Breakdown</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-xl">
-              <div>
-                <Label>Category</Label>
-                <Select value={downloadCategory} onValueChange={setDownloadCategory}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All categories</SelectItem>
-                    {PRIMARY_CATEGORY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <CardContent>
+            {analyticsQuery.isLoading ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
               </div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => handleDownload('csv')} disabled={downloading}>
-                {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-                Download CSV
-              </Button>
-              <Button variant="outline" onClick={() => handleDownload('xlsx')} disabled={downloading}>
-                {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-                Download XLSX
-              </Button>
-            </div>
-            {!isQualifier && (
-              <p className="text-xs text-gray-500">
-                Download uses the Lead Category filter above. Choose &quot;Leads Added&quot; to match the Leads Added card count, or pick Interested / Callback / etc. to match those cards.
-              </p>
-            )}
-            {isQualifier && (
-              <p className="text-xs text-gray-500">
-                Export includes leads you added in the selected date range with name, phone, category, contact status, and registration status.
-              </p>
+            ) : (
+              <div className="space-y-2">
+                {onboardedCategoryBreakdownList.map((row) => (
+                  <div key={row.categoryKey} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                    <span className="text-sm font-medium text-gray-800">{row.categoryName}</span>
+                    <span className="text-sm font-semibold text-gray-900">{row.count}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
       )}
+
+      {interestedCategoryBreakdownList.length > 0 && (
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle>Interested Category Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analyticsQuery.isLoading ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {interestedCategoryBreakdownList.map((row) => (
+                  <div key={row.categoryKey} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                    <span className="text-sm font-medium text-gray-800">{row.categoryName}</span>
+                    <span className="text-sm font-semibold text-gray-900">{row.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+
 
       {isManagerView && (
         <Card className="border-gray-200 shadow-sm">
