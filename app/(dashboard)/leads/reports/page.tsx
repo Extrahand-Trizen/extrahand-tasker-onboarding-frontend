@@ -22,7 +22,8 @@ const REPORT_CATEGORY_OPTIONS: Array<{ label: string; value: StatusReportCategor
   { label: 'Interested', value: 'interested' },
   { label: 'Callback Scheduled', value: 'callback_scheduled' },
   { label: 'Callback Overdue', value: 'callback_overdue' },
-  { label: 'Onboarded', value: 'onboarded' },
+  { label: 'Registered', value: 'onboarded' },
+  { label: 'Verified', value: 'verified' },
 ];
 
 function formatDateInputValue(date: Date): string {
@@ -160,7 +161,8 @@ export default function LeadReportsPage() {
       { label: 'Not Interested', value: data?.notInterested ?? 0 },
       { label: 'Callback Scheduled', value: data?.callbackScheduled ?? 0 },
       { label: 'Callback Overdue', value: data?.callbackOverdue ?? 0 },
-      { label: 'Onboarded', value: data?.onboarded ?? 0 },
+      { label: 'Registered', value: data?.onboarded ?? 0 },
+      { label: 'Verified', value: data?.verified ?? 0 },
     ];
 
     if (isManagerView) {
@@ -191,6 +193,17 @@ export default function LeadReportsPage() {
         count: item.count,
       }));
   }, [analyticsQuery.data?.data?.onboardedCategoryBreakdown]);
+
+  const verifiedCategoryBreakdownList = useMemo(() => {
+    const rawBreakdown = analyticsQuery.data?.data?.verifiedCategoryBreakdown || [];
+    return rawBreakdown
+      .filter((item) => item.count > 0)
+      .map((item) => ({
+        categoryKey: item.category,
+        categoryName: primaryCategoryLabel(item.category),
+        count: item.count,
+      }));
+  }, [analyticsQuery.data?.data?.verifiedCategoryBreakdown]);
 
   const interestedCategoryBreakdownList = useMemo(() => {
     const rawBreakdown = analyticsQuery.data?.data?.interestedCategoryBreakdown || [];
@@ -564,7 +577,7 @@ export default function LeadReportsPage() {
       {onboardedCategoryBreakdownList.length > 0 && (
         <Card className="border-gray-200 shadow-sm">
           <CardHeader>
-            <CardTitle>Onboarded Category Breakdown</CardTitle>
+            <CardTitle>Registered Category Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             {analyticsQuery.isLoading ? (
@@ -574,6 +587,30 @@ export default function LeadReportsPage() {
             ) : (
               <div className="space-y-2">
                 {onboardedCategoryBreakdownList.map((row) => (
+                  <div key={row.categoryKey} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                    <span className="text-sm font-medium text-gray-800">{row.categoryName}</span>
+                    <span className="text-sm font-semibold text-gray-900">{row.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {verifiedCategoryBreakdownList.length > 0 && (
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle>Verified Category Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analyticsQuery.isLoading ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {verifiedCategoryBreakdownList.map((row) => (
                   <div key={row.categoryKey} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
                     <span className="text-sm font-medium text-gray-800">{row.categoryName}</span>
                     <span className="text-sm font-semibold text-gray-900">{row.count}</span>

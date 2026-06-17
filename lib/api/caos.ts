@@ -389,10 +389,12 @@ export interface StatusAnalyticsResponse {
     callbackScheduled: number;
     callbackOverdue: number;
     onboarded: number;
+    verified: number;
     statusCounts: Array<{ status: string; count: number }>;
     qualifierBreakdown: Array<{ qualifierId: string; qualifierName: string; touchedLeads: number }>;
     categoryBreakdown?: Array<{ category: string; count: number }>;
     onboardedCategoryBreakdown?: Array<{ category: string; count: number }>;
+    verifiedCategoryBreakdown?: Array<{ category: string; count: number }>;
     interestedCategoryBreakdown?: Array<{ category: string; count: number }>;
   };
 }
@@ -402,7 +404,8 @@ export type StatusReportCategory =
   | 'interested'
   | 'callback_scheduled'
   | 'callback_overdue'
-  | 'onboarded';
+  | 'onboarded'
+  | 'verified';
 
 export interface DuplicateCheckResponse {
   success: boolean;
