@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { caosApi, type Lead } from '@/lib/api/caos';
@@ -49,6 +49,26 @@ function getLatestStatusTransition(
   };
 }
 
+type DatePreset = 'today' | 'last_7_days' | 'all_time';
+
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRangeFromPreset(preset: Exclude<DatePreset, 'all_time'>): { from: string; to: string } {
+  const today = new Date();
+  const to = formatDateInputValue(today);
+  if (preset === 'today') {
+    return { from: to, to };
+  }
+  const fromDate = new Date(today);
+  fromDate.setDate(fromDate.getDate() - 6);
+  return { from: formatDateInputValue(fromDate), to };
+}
+
 export default function NotInterestedCandidatesPage() {
   const router = useRouter();
   const { role, user, loading: authLoading } = useJWTAuth();
@@ -64,8 +84,33 @@ export default function NotInterestedCandidatesPage() {
   const [searchCity, setSearchCity] = useSessionStorage('not-interested-searchCity', '');
   const [searchSkill, setSearchSkill] = useSessionStorage('not-interested-searchSkill', '');
   const [qualifierId, setQualifierId] = useSessionStorage<string>('not-interested-qualifierId', 'all');
+  const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('not-interested-datePreset', 'all_time');
+  const [startDate, setStartDate] = useSessionStorage('not-interested-startDate', '');
+  const [endDate, setEndDate] = useSessionStorage('not-interested-endDate', '');
   const [page, setPage] = useSessionStorage('not-interested-page', 1);
+  // Performance-page alignment flags (set by performance/[userId] when navigating here)
+  const [strictOwner, setStrictOwner] = useSessionStorage<boolean>('not-interested-strictOwner', false);
+  const [ownerDateMode, setOwnerDateMode] = useSessionStorage<'owner' | ''>('not-interested-ownerDateMode', '');
   const limit = 20;
+
+  const [debouncedCity, setDebouncedCity] = useState(searchCity);
+  const cityDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    cityDebounceRef.current = setTimeout(() => {
+      setDebouncedCity(searchCity);
+    }, 350);
+    return () => {
+      if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    };
+  }, [searchCity]);
+
+  const setSearchCityDebounced = (value: string) => {
+    setSearchCity(value);
+    setPage(1);
+  };
+
   const currentUserId =
     user?.userId ||
     (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
@@ -83,30 +128,58 @@ export default function NotInterestedCandidatesPage() {
   }, [authLoading, canAccess, router]);
 
   const creatorsQuery = useQuery({
-    queryKey: ['qualifiers'],
-    queryFn: () => caosApi.getQualifiers(),
+    queryKey: ['onboarders'],
+    queryFn: () => caosApi.getOnboarders(),
     enabled: mounted && canAccess && isManagerView,
   });
 
-  const scopedOwnerId = isManagerView
-    ? (qualifierId !== 'all' ? qualifierId : undefined)
-    : role === 'qualifier'
-      ? currentUserId
-      : undefined;
-  const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset === 'all_time') {
+      setStartDate('');
+      setEndDate('');
+      setPage(1);
+      return;
+    }
+    const range = getDateRangeFromPreset(preset);
+    setStartDate(range.from);
+    setEndDate(range.to);
+    setPage(1);
+  };
+
+  // When navigated from the performance page, qualifierId holds the target userId and
+  // strictOwner=true is set. Use that directly regardless of the viewer's role.
+  const isPerformanceLinked = strictOwner && qualifierId !== 'all';
+
+  const scopedOwnerId = isPerformanceLinked
+    ? qualifierId
+    : isManagerView && qualifierId !== 'all'
+      ? qualifierId
+      : role === 'qualifier'
+        ? currentUserId
+        : undefined;
+
+  const scopedPickedBy = !isPerformanceLinked && role === 'onboarder' ? currentUserId : undefined;
+  const resolvedStatusChangedBy = undefined;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['not-interested-candidates', role, currentUserId, page, searchCity, searchSkill, qualifierId],
+    queryKey: ['not-interested-candidates', role, currentUserId, page, debouncedCity, searchSkill, qualifierId, startDate, endDate, strictOwner, ownerDateMode],
     queryFn: () =>
       caosApi.getNotInterestedCandidates({
-        city: searchCity,
+        city: debouncedCity,
         primarySkill: searchSkill,
         ownerBy: scopedOwnerId,
         pickedBy: scopedPickedBy,
+        statusChangedBy: resolvedStatusChangedBy,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        strictOwner: !isPerformanceLinked ? (strictOwner || undefined) : undefined,
+        ownerDateMode: !isPerformanceLinked && ownerDateMode === 'owner' ? 'owner' : undefined,
         page,
         limit,
       }),
     enabled: mounted && canAccess && !!currentUserId,
+    placeholderData: keepPreviousData,
   });
 
   if (!mounted || authLoading) {
@@ -153,16 +226,13 @@ export default function NotInterestedCandidatesPage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
                 id="city-filter"
                 value={searchCity}
-                onChange={(e) => {
-                  setSearchCity(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearchCityDebounced(e.target.value)}
                 placeholder="Filter by city..."
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
@@ -189,9 +259,22 @@ export default function NotInterestedCandidatesPage() {
                 </SelectContent>
               </Select>
             </div>
-            {isManagerView && (
+            <div>
+              <Label htmlFor="date-preset" className="text-sm font-medium text-gray-700">Date Range</Label>
+              <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
+                <SelectTrigger id="date-preset" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                  <SelectItem value="all_time">All time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(isManagerView || isPerformanceLinked) && (
               <div>
-                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Onboarder</Label>
                 <Select
                   value={qualifierId}
                   onValueChange={(value) => {
@@ -203,7 +286,7 @@ export default function NotInterestedCandidatesPage() {
                     <SelectValue placeholder="All qualifiers" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All qualifiers</SelectItem>
+                    <SelectItem value="all">All onboarders</SelectItem>
                     {(creatorsQuery.data?.data || []).map((qualifier) => (
                       <SelectItem key={qualifier.userId} value={qualifier.userId}>
                         {qualifier.name || qualifier.email || qualifier.userId}
@@ -213,6 +296,25 @@ export default function NotInterestedCandidatesPage() {
                 </Select>
               </div>
             )}
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchCity('');
+                  setSearchSkill('');
+                  setQualifierId('all');
+                  setDatePreset('all_time');
+                  setStartDate('');
+                  setEndDate('');
+                  setStrictOwner(false);
+                  setOwnerDateMode('');
+                  setPage(1);
+                }}
+                className="w-full"
+              >
+                Clear Filters
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

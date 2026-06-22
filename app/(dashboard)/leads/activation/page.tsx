@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
@@ -44,6 +44,23 @@ export default function ActivationQueuePage() {
   const [searchCity, setSearchCity] = useSessionStorage('activation-searchCity', '');
   const [searchSkill, setSearchSkill] = useSessionStorage('activation-searchSkill', '');
   const [page, setPage] = useSessionStorage('activation-page', 1);
+  const [debouncedCity, setDebouncedCity] = useState(searchCity);
+  const cityDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    cityDebounceRef.current = setTimeout(() => {
+      setDebouncedCity(searchCity);
+    }, 350);
+    return () => {
+      if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    };
+  }, [searchCity]);
+
+  const setSearchCityDebounced = (value: string) => {
+    setSearchCity(value);
+    setPage(1);
+  };
   const [showBulkActivateModal, setShowBulkActivateModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
 
@@ -66,8 +83,8 @@ export default function ActivationQueuePage() {
   }, [authLoading, canAccess, router]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['activation-queue', page, searchCity, searchSkill],
-    queryFn: () => caosApi.getActivationQueue({ city: searchCity, primarySkill: searchSkill, page, limit: 20 }),
+    queryKey: ['activation-queue', page, debouncedCity, searchSkill],
+    queryFn: () => caosApi.getActivationQueue({ city: debouncedCity, primarySkill: searchSkill, page, limit: 20 }),
   });
 
   const activateMutation = useMutation({
@@ -202,10 +219,7 @@ export default function ActivationQueuePage() {
               <Input
                 id="city-filter"
                 value={searchCity}
-                onChange={(e) => {
-                  setSearchCity(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearchCityDebounced(e.target.value)}
                 placeholder="Filter by city..."
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />

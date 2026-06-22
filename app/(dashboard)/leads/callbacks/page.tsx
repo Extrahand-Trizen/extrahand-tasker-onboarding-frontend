@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useRouter } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -97,6 +97,24 @@ export default function CallbackQueuePage() {
   const [page, setPage] = useSessionStorage('callback-queue-page', 1);
   const limit = 20;
 
+  const [debouncedCity, setDebouncedCity] = useState(searchCity);
+  const cityDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    cityDebounceRef.current = setTimeout(() => {
+      setDebouncedCity(searchCity);
+    }, 350);
+    return () => {
+      if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    };
+  }, [searchCity]);
+
+  const setSearchCityDebounced = (value: string) => {
+    setSearchCity(value);
+    setPage(1);
+  };
+
   const currentUserId =
     user?.userId ||
     (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
@@ -120,10 +138,10 @@ export default function CallbackQueuePage() {
   const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['follow-up-queue', page, searchCity, searchSkill, addedByFilter, currentUserId, startDate, endDate, dueType, bucket, attemptsFilter],
+    queryKey: ['follow-up-queue', page, debouncedCity, searchSkill, addedByFilter, currentUserId, startDate, endDate, dueType, bucket, attemptsFilter],
     queryFn: () =>
       caosApi.getFollowUpQueue({
-        city: searchCity || undefined,
+        city: debouncedCity || undefined,
         primarySkill: searchSkill || undefined,
         ownerBy: role === 'qualifier' || isManagerView ? scopedOwnerId : undefined,
         pickedBy: scopedPickedBy,
@@ -298,10 +316,7 @@ export default function CallbackQueuePage() {
               <Input
                 id="city-filter"
                 value={searchCity}
-                onChange={(e) => {
-                  setSearchCity(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearchCityDebounced(e.target.value)}
                 placeholder="Filter by city..."
                 className="mt-1.5"
               />
@@ -374,7 +389,7 @@ export default function CallbackQueuePage() {
             </div>
             {isManagerView && (
               <div>
-                <Label htmlFor="added-by-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Label htmlFor="added-by-filter" className="text-sm font-medium text-gray-700">Onboarder</Label>
                 <Select
                   value={addedByFilter}
                   onValueChange={(value) => {

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { caosApi, type Lead } from '@/lib/api/caos';
@@ -17,6 +17,26 @@ import { Loader2, Heart, ShieldAlert, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
+
+type DatePreset = 'today' | 'last_7_days' | 'all_time';
+
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRangeFromPreset(preset: Exclude<DatePreset, 'all_time'>): { from: string; to: string } {
+  const today = new Date();
+  const to = formatDateInputValue(today);
+  if (preset === 'today') {
+    return { from: to, to };
+  }
+  const fromDate = new Date(today);
+  fromDate.setDate(fromDate.getDate() - 6);
+  return { from: formatDateInputValue(fromDate), to };
+}
 
 const statusColors: Record<Lead['status'], string> = {
   lead_added: 'bg-gray-100 text-gray-800',
@@ -79,8 +99,33 @@ export default function InterestedCandidatesPage() {
   const [searchPhone, setSearchPhone] = useSessionStorage('interested-searchPhone', '');
   const [registrationFilter, setRegistrationFilter] = useSessionStorage<'all' | 'not_registered' | 'registered' | 'registered_verified'>('interested-registrationFilter', 'all');
   const [qualifierId, setQualifierId] = useSessionStorage<string>('interested-qualifierId', 'all');
+  const [statusChangedBy, setStatusChangedBy] = useSessionStorage<string>('interested-statusChangedBy', '');
+  const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('interested-datePreset', 'all_time');
+  const [startDate, setStartDate] = useSessionStorage('interested-startDate', '');
+  const [endDate, setEndDate] = useSessionStorage('interested-endDate', '');
   const [page, setPage] = useSessionStorage('interested-page', 1);
+  // Performance-page alignment flags (set by performance/[userId] when navigating here)
+  const [strictOwner, setStrictOwner] = useSessionStorage<boolean>('interested-strictOwner', false);
+  const [ownerDateMode, setOwnerDateMode] = useSessionStorage<'owner' | ''>('interested-ownerDateMode', '');
   const limit = 20;
+
+  const [debouncedCity, setDebouncedCity] = useState(searchCity);
+  const cityDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    cityDebounceRef.current = setTimeout(() => {
+      setDebouncedCity(searchCity);
+    }, 350);
+    return () => {
+      if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    };
+  }, [searchCity]);
+
+  const setSearchCityDebounced = (value: string) => {
+    setSearchCity(value);
+    setPage(1);
+  };
 
   const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
   const isManagerView = role === 'lead_access_manager';
@@ -98,22 +143,44 @@ export default function InterestedCandidatesPage() {
   }, [authLoading, canAccess, router]);
 
   const creatorsQuery = useQuery({
-    queryKey: ['qualifiers'],
-    queryFn: () => caosApi.getQualifiers(),
+    queryKey: ['onboarders'],
+    queryFn: () => caosApi.getOnboarders(),
     enabled: mounted && canAccess && isManagerView,
   });
 
-  const scopedOwnerId = isManagerView
-    ? (qualifierId !== 'all' ? qualifierId : undefined)
-    : role === 'qualifier'
-      ? currentUserId
-      : undefined;
-  const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset === 'all_time') {
+      setStartDate('');
+      setEndDate('');
+      setPage(1);
+      return;
+    }
+    const range = getDateRangeFromPreset(preset);
+    setStartDate(range.from);
+    setEndDate(range.to);
+    setPage(1);
+  };
+
+  // When navigated from the performance page, qualifierId holds the target userId and
+  // strictOwner=true is set. In that case we use qualifierId as ownerBy regardless of role,
+  // and clear statusChangedBy (which used a different filter that mismatches performance counts).
+  const isPerformanceLinked = strictOwner && qualifierId !== 'all';
+
+  const scopedOwnerId = isPerformanceLinked
+    ? qualifierId
+    : isManagerView && qualifierId !== 'all'
+      ? qualifierId
+      : role === 'qualifier'
+        ? currentUserId
+        : undefined;
+  const scopedPickedBy = !isPerformanceLinked && role === 'onboarder' ? currentUserId : undefined;
+  const resolvedStatusChangedBy = !isPerformanceLinked ? (statusChangedBy || undefined) : undefined;
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['interested-candidates', role, user?.userId, page, searchCity, searchSkill, searchPhone, registrationFilter, qualifierId],
+    queryKey: ['interested-candidates', role, user?.userId, page, debouncedCity, searchSkill, searchPhone, registrationFilter, qualifierId, statusChangedBy, startDate, endDate, strictOwner, ownerDateMode],
     queryFn: () => caosApi.getInterestedCandidates({
-      city: searchCity,
+      city: debouncedCity,
       primarySkill: searchSkill,
       search: searchPhone,
       page,
@@ -121,8 +188,14 @@ export default function InterestedCandidatesPage() {
       registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
       ownerBy: scopedOwnerId,
       pickedBy: scopedPickedBy,
+      statusChangedBy: resolvedStatusChangedBy,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      strictOwner: !isPerformanceLinked ? (strictOwner || undefined) : undefined,
+      ownerDateMode: !isPerformanceLinked && ownerDateMode === 'owner' ? 'owner' : undefined,
     }),
     enabled: mounted && canAccess && !!currentUserId,
+    placeholderData: keepPreviousData,
   });
 
   // Show loading while checking auth
@@ -172,16 +245,13 @@ export default function InterestedCandidatesPage() {
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="city-filter" className="text-sm font-medium text-gray-700">City</Label>
               <Input
                 id="city-filter"
                 value={searchCity}
-                onChange={(e) => {
-                  setSearchCity(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearchCityDebounced(e.target.value)}
                 placeholder="Filter by city..."
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
@@ -228,13 +298,27 @@ export default function InterestedCandidatesPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="date-preset" className="text-sm font-medium text-gray-700">Date Range</Label>
+              <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
+                <SelectTrigger id="date-preset" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                  <SelectItem value="all_time">All time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             {isManagerView && (
               <div>
-                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Onboarder</Label>
                 <Select
                   value={qualifierId}
                   onValueChange={(value) => {
                     setQualifierId(value);
+                    setStatusChangedBy('');
                     setPage(1);
                   }}
                 >
@@ -242,7 +326,7 @@ export default function InterestedCandidatesPage() {
                     <SelectValue placeholder="All qualifiers" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All qualifiers</SelectItem>
+                    <SelectItem value="all">All onboarders</SelectItem>
                     {(creatorsQuery.data?.data || []).map((qualifier) => (
                       <SelectItem key={qualifier.userId} value={qualifier.userId}>
                         {qualifier.name || qualifier.email || qualifier.userId}
@@ -261,6 +345,13 @@ export default function InterestedCandidatesPage() {
                   setSearchPhone('');
                   setRegistrationFilter('all');
                   setQualifierId('all');
+                  setStatusChangedBy('');
+                  setDatePreset('all_time');
+                  setStartDate('');
+                  setEndDate('');
+                  // Reset performance-page alignment flags
+                  setStrictOwner(false);
+                  setOwnerDateMode('');
                   setPage(1);
                 }}
                 className="w-full"

@@ -233,6 +233,8 @@ export interface Lead {
   conversionData?: {
     platformUid?: string;
     isAadhaarVerified?: boolean;
+    registeredAt?: string;
+    registeredVerifiedAt?: string;
     lastCheckedAt?: string;
   };
   creationMethod?: CreationMethod;
@@ -317,6 +319,16 @@ export interface SearchLeadsParams {
   /** Exact local area filter (lead.address values from existing leads) */
   localArea?: string;
   attempts?: string;
+  /**
+   * When true, owner scope is limited to pickedBy/addedBy only (no statusHistory).
+   * Pass this when linking from the Performance page to get matching counts.
+   */
+  strictOwner?: boolean;
+  /**
+   * When 'owner', date filter applies to pickedAt OR createdAt instead of just createdAt.
+   * Pass this when linking from the Performance page to get matching counts.
+   */
+  ownerDateMode?: 'owner';
 }
 
 export interface SearchLeadsResponse {
@@ -1493,7 +1505,24 @@ export const caosApi = {
    * Get interested candidates queue
    * registrationStatus: not_registered | registered | registered_verified
    */
-  async getInterestedCandidates(params?: { city?: string; primarySkill?: string; search?: string; page?: number; limit?: number; registrationStatus?: 'not_registered' | 'registered' | 'registered_verified'; addedBy?: string; ownerBy?: string; pickedBy?: string }): Promise<{
+  async getInterestedCandidates(params?: {
+    city?: string;
+    primarySkill?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    registrationStatus?: 'not_registered' | 'registered' | 'registered_verified';
+    addedBy?: string;
+    ownerBy?: string;
+    pickedBy?: string;
+    statusChangedBy?: string;
+    startDate?: string;
+    endDate?: string;
+    /** When true, owner scope is limited to pickedBy/addedBy (matches performance page). */
+    strictOwner?: boolean;
+    /** When 'owner', date filter uses pickedAt OR createdAt (matches performance page). */
+    ownerDateMode?: 'owner';
+  }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1543,7 +1572,22 @@ export const caosApi = {
   /**
    * Get contacted & not interested candidates queue
    */
-  async getNotInterestedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string }): Promise<{
+  async getNotInterestedCandidates(params?: {
+    city?: string;
+    primarySkill?: string;
+    page?: number;
+    limit?: number;
+    addedBy?: string;
+    ownerBy?: string;
+    pickedBy?: string;
+    statusChangedBy?: string;
+    startDate?: string;
+    endDate?: string;
+    /** When true, owner scope is limited to pickedBy/addedBy (matches performance page). */
+    strictOwner?: boolean;
+    /** When 'owner', date filter uses pickedAt OR createdAt (matches performance page). */
+    ownerDateMode?: 'owner';
+  }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1590,7 +1634,7 @@ export const caosApi = {
     };
   },
 
-  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string; attempts?: string }): Promise<{
+  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string; statusChangedBy?: string; attempts?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];

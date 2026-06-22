@@ -1,12 +1,13 @@
 'use client';
 
+import { AuthProvider } from '@/lib/context/AuthContext';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { caosApi } from '@/lib/api/caos';
-import { Sidebar } from '@/components/layout/sidebar';
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/header';
 import { useInactivityTimeout } from '@/lib/hooks/useInactivityTimeout';
 import {
@@ -19,11 +20,23 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
+const Sidebar = dynamic(() => import('@/components/layout/sidebar').then(m => ({ default: m.Sidebar })), {
+  ssr: false,
+});
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <AuthProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </AuthProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading, logout, user } = useJWTAuth();
   const router = useRouter();
   const [showWarn, setShowWarn] = useState(false);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,25 @@ import { PRIMARY_CATEGORY_OPTIONS, primaryCategoryLabel } from '@/lib/leadLabels
 import { format } from 'date-fns';
 
 type RegistrationView = 'registered' | 'registered_verified';
+type DatePreset = 'today' | 'last_7_days' | 'all_time';
+
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRangeFromPreset(preset: Exclude<DatePreset, 'all_time'>): { from: string; to: string } {
+  const today = new Date();
+  const to = formatDateInputValue(today);
+  if (preset === 'today') {
+    return { from: to, to };
+  }
+  const fromDate = new Date(today);
+  fromDate.setDate(fromDate.getDate() - 6);
+  return { from: formatDateInputValue(fromDate), to };
+}
 
 function getRegistrationLabel(lead: Lead): { label: string; className: string } {
   const conversion = lead.conversionData;
@@ -47,8 +66,32 @@ export default function RegisteredCandidatesPage() {
   const [searchSkill, setSearchSkill] = useSessionStorage('registered-searchSkill', '');
   const [registrationView, setRegistrationView] = useSessionStorage<RegistrationView>('registered-registrationView', 'registered');
   const [qualifierId, setQualifierId] = useSessionStorage<string>('registered-qualifierId', 'all');
+  const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('registered-datePreset', 'all_time');
+  const [startDate, setStartDate] = useSessionStorage('registered-startDate', '');
+  const [endDate, setEndDate] = useSessionStorage('registered-endDate', '');
   const [page, setPage] = useSessionStorage('registered-page', 1);
+  // Performance-page alignment flags (set by performance/[userId] when navigating here)
+  const [strictOwner, setStrictOwner] = useSessionStorage<boolean>('registered-strictOwner', false);
+  const [ownerDateMode, setOwnerDateMode] = useSessionStorage<'owner' | ''>('registered-ownerDateMode', '');
   const limit = 20;
+
+  const [debouncedCity, setDebouncedCity] = useState(searchCity);
+  const cityDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    cityDebounceRef.current = setTimeout(() => {
+      setDebouncedCity(searchCity);
+    }, 350);
+    return () => {
+      if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    };
+  }, [searchCity]);
+
+  const setSearchCityDebounced = (value: string) => {
+    setSearchCity(value);
+    setPage(1);
+  };
 
   const currentUserId =
     user?.userId ||
@@ -73,30 +116,57 @@ export default function RegisteredCandidatesPage() {
   }, [authLoading, canAccess, router]);
 
   const creatorsQuery = useQuery({
-    queryKey: ['lead-creators'],
-    queryFn: () => caosApi.getLeadCreators(),
+    queryKey: ['onboarders'],
+    queryFn: () => caosApi.getOnboarders(),
     enabled: mounted && canAccess && role === 'lead_access_manager',
   });
 
-  const scopedOwnerId = role === 'lead_access_manager'
-    ? (qualifierId !== 'all' ? qualifierId : undefined)
-    : role === 'qualifier' || role === 'onboarder'
-      ? currentUserId
-      : undefined;
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset === 'all_time') {
+      setStartDate('');
+      setEndDate('');
+      setPage(1);
+      return;
+    }
+    const range = getDateRangeFromPreset(preset);
+    setStartDate(range.from);
+    setEndDate(range.to);
+    setPage(1);
+  };
+
+  // When navigated from the performance page, qualifierId holds the target userId and
+  // strictOwner=true is set. Use that directly regardless of the viewer's role.
+  const isPerformanceLinked = strictOwner && qualifierId !== 'all';
+
+  const scopedOwnerId = isPerformanceLinked
+    ? qualifierId
+    : role === 'lead_access_manager'
+      ? (qualifierId !== 'all' ? qualifierId : undefined)
+      : role === 'qualifier' || role === 'onboarder'
+        ? currentUserId
+        : undefined;
   /** Onboarder: same scope as performance (picked, added, or status updates), not only current claims. */
   const scopedPickedBy = undefined;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['registered-candidates', role, currentUserId, registrationView, page, searchCity, searchSkill, qualifierId],
+    queryKey: ['registered-candidates', role, currentUserId, registrationView, page, debouncedCity, searchSkill, qualifierId, startDate, endDate, strictOwner, ownerDateMode],
     queryFn: () =>
       caosApi.searchLeads({
         registrationStatus: registrationView,
-        city: searchCity || undefined,
+        city: debouncedCity || undefined,
         primarySkill: searchSkill || undefined,
         ownerBy: scopedOwnerId,
         pickedBy: scopedPickedBy || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
         page,
         limit,
+        // Performance detail uses non-strict scope (includes statusHistory.changedBy),
+        // so when navigated from performance, we must NOT pass strictOwner=true.
+        // (strictOwner session flag means "performance-linked", not "use strict scope".)
+        strictOwner: !isPerformanceLinked ? (strictOwner || undefined) : undefined,
+        ownerDateMode: ownerDateMode === 'owner' ? 'owner' : undefined,
       }),
     enabled: mounted && canAccess && !!currentUserId,
   });
@@ -144,7 +214,7 @@ export default function RegisteredCandidatesPage() {
 
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-4 sm:pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="registration-view" className="text-sm font-medium text-gray-700">Type</Label>
               <Select
@@ -168,10 +238,7 @@ export default function RegisteredCandidatesPage() {
               <Input
                 id="city-filter"
                 value={searchCity}
-                onChange={(e) => {
-                  setSearchCity(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearchCityDebounced(e.target.value)}
                 placeholder="Filter by city..."
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
@@ -198,9 +265,22 @@ export default function RegisteredCandidatesPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="date-preset" className="text-sm font-medium text-gray-700">Date Range</Label>
+              <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
+                <SelectTrigger id="date-preset" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                  <SelectItem value="all_time">All time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             { (role === 'onboarder' || role === 'lead_access_manager') && (
               <div>
-                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Onboarder</Label>
                 <Select
                   value={qualifierId}
                   onValueChange={(value) => {
@@ -212,10 +292,10 @@ export default function RegisteredCandidatesPage() {
                     <SelectValue placeholder="All qualifiers" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All qualifiers</SelectItem>
-                    {(creatorsQuery.data?.data || []).map((creator) => (
-                      <SelectItem key={creator.userId} value={creator.userId}>
-                        {creator.name}
+                    <SelectItem value="all">All onboarders</SelectItem>
+                    {(creatorsQuery.data?.data || []).map((onboarder) => (
+                      <SelectItem key={onboarder.userId} value={onboarder.userId}>
+                        {onboarder.name || onboarder.email || onboarder.userId}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -230,6 +310,12 @@ export default function RegisteredCandidatesPage() {
                   setSearchSkill('');
                   setRegistrationView('registered');
                   setQualifierId('all');
+                  setDatePreset('all_time');
+                  setStartDate('');
+                  setEndDate('');
+                  // Reset performance-page alignment flags
+                  setStrictOwner(false);
+                  setOwnerDateMode('');
                   setPage(1);
                 }}
                 className="w-full"
@@ -283,7 +369,13 @@ export default function RegisteredCandidatesPage() {
                           <td className="px-4 py-3">
                             <div className="font-medium text-gray-900">{lead.name}</div>
                             <div className="text-xs text-gray-500 mt-0.5">
-                              {lead.createdAt ? format(new Date(lead.createdAt), 'MMM dd, yyyy') : '-'}
+                              {registrationView === 'registered_verified'
+                                ? (lead.conversionData?.registeredVerifiedAt
+                                  ? format(new Date(lead.conversionData.registeredVerifiedAt), 'MMM dd, yyyy')
+                                  : '-')
+                                : (lead.conversionData?.registeredAt
+                                  ? format(new Date(lead.conversionData.registeredAt), 'MMM dd, yyyy')
+                                  : '-')}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">

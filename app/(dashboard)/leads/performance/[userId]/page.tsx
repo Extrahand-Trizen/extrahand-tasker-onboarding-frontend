@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { caosApi } from '@/lib/api/caos';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
-import { Loader2, ArrowLeft, PencilLine } from 'lucide-react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { Loader2, ArrowLeft, PencilLine, ExternalLink } from 'lucide-react';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -51,6 +51,8 @@ export default function PerformanceUserDetailsPage() {
   const isSelf = !!currentUserId && userId === currentUserId;
   const hasAccess = isManagerView || isSelf;
 
+  const router = useRouter();
+
   const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('performance-detail-datePreset', 'all_time');
 
   // Derive from/to/allTime from the selected preset
@@ -61,6 +63,53 @@ export default function PerformanceUserDetailsPage() {
     const range = getDateRangeFromPreset(datePreset);
     return { from: range.from, to: range.to, allTime: false };
   }, [datePreset]);
+
+  const navigateToOutcomePage = useCallback((page: string, sessionKey: string) => {
+    // Use ownerBy (qualifierId) to match performance page ownership logic exactly
+    sessionStorage.setItem(`${sessionKey}-qualifierId`, JSON.stringify(userId));
+    sessionStorage.removeItem(`${sessionKey}-searchCity`);
+    sessionStorage.removeItem(`${sessionKey}-searchSkill`);
+    // Clear statusChangedBy — we use ownership (ownerBy) to match performance counts
+    sessionStorage.removeItem(`${sessionKey}-statusChangedBy`);
+    // Signal that we came from the performance page (destination uses qualifierId
+    // and non-strict owner scope to match getPerformanceDetails logic)
+    sessionStorage.setItem(`${sessionKey}-strictOwner`, JSON.stringify(true));
+    // Apply the same date filter from the performance page
+    sessionStorage.setItem(`${sessionKey}-datePreset`, JSON.stringify(datePreset));
+    if (datePreset === 'all_time') {
+      sessionStorage.setItem(`${sessionKey}-startDate`, JSON.stringify(''));
+      sessionStorage.setItem(`${sessionKey}-endDate`, JSON.stringify(''));
+    } else {
+      const range = getDateRangeFromPreset(datePreset);
+      sessionStorage.setItem(`${sessionKey}-startDate`, JSON.stringify(range.from));
+      sessionStorage.setItem(`${sessionKey}-endDate`, JSON.stringify(range.to));
+    }
+    sessionStorage.setItem(`${sessionKey}-page`, JSON.stringify(1));
+    router.push(`/leads/${page}`);
+  }, [userId, datePreset, router]);
+
+  const navigateToRegisteredPage = useCallback(
+    (registrationView: 'registered' | 'registered_verified') => {
+      sessionStorage.setItem('registered-qualifierId', JSON.stringify(userId));
+      sessionStorage.removeItem('registered-searchCity');
+      sessionStorage.removeItem('registered-searchSkill');
+      sessionStorage.setItem('registered-registrationView', JSON.stringify(registrationView));
+      sessionStorage.setItem('registered-strictOwner', JSON.stringify(true));
+      sessionStorage.removeItem('registered-ownerDateMode');
+      sessionStorage.setItem('registered-datePreset', JSON.stringify(datePreset));
+      if (datePreset === 'all_time') {
+        sessionStorage.setItem('registered-startDate', JSON.stringify(''));
+        sessionStorage.setItem('registered-endDate', JSON.stringify(''));
+      } else {
+        const range = getDateRangeFromPreset(datePreset);
+        sessionStorage.setItem('registered-startDate', JSON.stringify(range.from));
+        sessionStorage.setItem('registered-endDate', JSON.stringify(range.to));
+      }
+      sessionStorage.setItem('registered-page', JSON.stringify(1));
+      router.push('/leads/registered');
+    },
+    [userId, datePreset, router]
+  );
 
   const { data: response, isLoading } = useQuery({
     queryKey: ['performance-details', userId, datePreset],
@@ -331,9 +380,15 @@ export default function PerformanceUserDetailsPage() {
               OUTCOMES
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Card className="bg-white border-gray-200 shadow-sm">
+              <Card
+                className="bg-white border-gray-200 shadow-sm cursor-pointer hover:shadow-md hover:border-emerald-200 transition-all group"
+                onClick={() => navigateToOutcomePage('interested', 'interested')}
+              >
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Interested</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-500">Interested</p>
+                    <ExternalLink className="h-3.5 w-3.5 text-gray-300 group-hover:text-emerald-500 transition-colors" />
+                  </div>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-emerald-600">
                       {outcomes.interested.toLocaleString()}
@@ -342,9 +397,15 @@ export default function PerformanceUserDetailsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-gray-200 shadow-sm">
+              <Card
+                className="bg-white border-gray-200 shadow-sm cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group"
+                onClick={() => navigateToOutcomePage('not-interested', 'not-interested')}
+              >
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Not Interested</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-500">Not Interested</p>
+                    <ExternalLink className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                  </div>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-gray-900">
                       {outcomes.notInterested.toLocaleString()}
@@ -364,9 +425,15 @@ export default function PerformanceUserDetailsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-emerald-50/10 border-emerald-200 shadow-sm">
+              <Card
+                className="bg-emerald-50/10 border-emerald-200 shadow-sm cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all group"
+                onClick={() => navigateToRegisteredPage('registered')}
+              >
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Registered</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-500">Registered</p>
+                    <ExternalLink className="h-3.5 w-3.5 text-gray-300 group-hover:text-emerald-600 transition-colors" />
+                  </div>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-emerald-600">
                       {(outcomes.registered ?? 0).toLocaleString()}
@@ -378,9 +445,15 @@ export default function PerformanceUserDetailsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-gray-200 shadow-sm">
+              <Card
+                className="bg-white border-gray-200 shadow-sm cursor-pointer hover:shadow-md hover:border-amber-200 transition-all group"
+                onClick={() => navigateToRegisteredPage('registered_verified')}
+              >
                 <CardContent className="p-6">
-                  <p className="text-sm font-medium text-gray-500">Registered &amp; Verified</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-500">Registered &amp; Verified</p>
+                    <ExternalLink className="h-3.5 w-3.5 text-gray-300 group-hover:text-amber-500 transition-colors" />
+                  </div>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-amber-600">
                       {(outcomes.verified ?? 0).toLocaleString()}

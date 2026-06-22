@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { caosApi, type Lead } from '@/lib/api/caos';
@@ -67,6 +67,25 @@ export default function NotLiftedCandidatesPage() {
   const [attemptsFilter, setAttemptsFilter] = useSessionStorage<string>('not-lifted-attemptsFilter', 'all');
   const [page, setPage] = useSessionStorage('not-lifted-page', 1);
   const limit = 20;
+
+  const [debouncedCity, setDebouncedCity] = useState(searchCity);
+  const cityDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    cityDebounceRef.current = setTimeout(() => {
+      setDebouncedCity(searchCity);
+    }, 350);
+    return () => {
+      if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    };
+  }, [searchCity]);
+
+  const setSearchCityDebounced = (value: string) => {
+    setSearchCity(value);
+    setPage(1);
+  };
+
   const currentUserId =
     user?.userId ||
     (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
@@ -90,25 +109,28 @@ export default function NotLiftedCandidatesPage() {
   });
 
   const scopedOwnerId = isManagerView
-    ? (qualifierId !== 'all' ? qualifierId : undefined)
+    ? undefined  // manager uses statusChangedBy instead
     : role === 'qualifier'
       ? currentUserId
       : undefined;
   const scopedPickedBy = role === 'onboarder' ? currentUserId : undefined;
+  const resolvedStatusChangedBy = isManagerView && qualifierId !== 'all' ? qualifierId : undefined;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['not-lifted-candidates', role, currentUserId, page, searchCity, searchSkill, qualifierId, attemptsFilter],
+    queryKey: ['not-lifted-candidates', role, currentUserId, page, debouncedCity, searchSkill, qualifierId, attemptsFilter],
     queryFn: () =>
       caosApi.getNotLiftedCandidates({
-        city: searchCity,
+        city: debouncedCity,
         primarySkill: searchSkill,
         ownerBy: scopedOwnerId,
         pickedBy: scopedPickedBy,
+        statusChangedBy: resolvedStatusChangedBy,
         attempts: attemptsFilter !== 'all' ? attemptsFilter : undefined,
         page,
         limit,
       }),
     enabled: mounted && canAccess && !!currentUserId,
+    placeholderData: keepPreviousData,
   });
 
   if (!mounted || authLoading) {
@@ -161,10 +183,7 @@ export default function NotLiftedCandidatesPage() {
               <Input
                 id="city-filter"
                 value={searchCity}
-                onChange={(e) => {
-                  setSearchCity(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearchCityDebounced(e.target.value)}
                 placeholder="Filter by city..."
                 className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
               />
@@ -193,7 +212,7 @@ export default function NotLiftedCandidatesPage() {
             </div>
             {isManagerView && (
               <div>
-                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Qualifier</Label>
+                <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Onboarder</Label>
                 <Select
                   value={qualifierId}
                   onValueChange={(value) => {
@@ -205,7 +224,7 @@ export default function NotLiftedCandidatesPage() {
                     <SelectValue placeholder="All qualifiers" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All qualifiers</SelectItem>
+                    <SelectItem value="all">All onboarders</SelectItem>
                     {(creatorsQuery.data?.data || []).map((qualifier) => (
                       <SelectItem key={qualifier.userId} value={qualifier.userId}>
                         {qualifier.name || qualifier.email || qualifier.userId}
