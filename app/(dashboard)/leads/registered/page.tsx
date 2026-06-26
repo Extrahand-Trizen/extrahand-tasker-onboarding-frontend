@@ -19,7 +19,7 @@ import { PRIMARY_CATEGORY_OPTIONS, primaryCategoryLabel } from '@/lib/leadLabels
 import { format } from 'date-fns';
 
 type RegistrationView = 'registered' | 'registered_verified';
-type DatePreset = 'today' | 'last_7_days' | 'all_time';
+type DatePreset = 'today' | 'last_7_days' | 'particular_date' | 'all_time';
 
 function formatDateInputValue(date: Date): string {
   const year = date.getFullYear();
@@ -28,7 +28,7 @@ function formatDateInputValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function getDateRangeFromPreset(preset: Exclude<DatePreset, 'all_time'>): { from: string; to: string } {
+function getDateRangeFromPreset(preset: Exclude<DatePreset, 'all_time' | 'particular_date'>): { from: string; to: string } {
   const today = new Date();
   const to = formatDateInputValue(today);
   if (preset === 'today') {
@@ -67,6 +67,7 @@ export default function RegisteredCandidatesPage() {
   const [registrationView, setRegistrationView] = useSessionStorage<RegistrationView>('registered-registrationView', 'registered');
   const [qualifierId, setQualifierId] = useSessionStorage<string>('registered-qualifierId', 'all');
   const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('registered-datePreset', 'all_time');
+  const [particularDate, setParticularDate] = useSessionStorage('registered-particularDate', formatDateInputValue(new Date()));
   const [startDate, setStartDate] = useSessionStorage('registered-startDate', '');
   const [endDate, setEndDate] = useSessionStorage('registered-endDate', '');
   const [page, setPage] = useSessionStorage('registered-page', 1);
@@ -129,9 +130,22 @@ export default function RegisteredCandidatesPage() {
       setPage(1);
       return;
     }
+    if (preset === 'particular_date') {
+      setStartDate(particularDate);
+      setEndDate(particularDate);
+      setPage(1);
+      return;
+    }
     const range = getDateRangeFromPreset(preset);
     setStartDate(range.from);
     setEndDate(range.to);
+    setPage(1);
+  };
+
+  const handleParticularDateChange = (val: string) => {
+    setParticularDate(val);
+    setStartDate(val);
+    setEndDate(val);
     setPage(1);
   };
 
@@ -265,18 +279,30 @@ export default function RegisteredCandidatesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className={datePreset === 'particular_date' ? 'col-span-1 sm:col-span-2' : 'col-span-1'}>
               <Label htmlFor="date-preset" className="text-sm font-medium text-gray-700">Date Range</Label>
-              <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
-                <SelectTrigger id="date-preset" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
-                  <SelectItem value="all_time">All time</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col sm:flex-row gap-2 mt-1.5">
+                <Select value={datePreset} onValueChange={(value) => handleDatePresetChange(value as DatePreset)}>
+                  <SelectTrigger id="date-preset" className="border-gray-300 focus:border-amber-500 focus:ring-amber-500 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                    <SelectItem value="particular_date">Particular Date</SelectItem>
+                    <SelectItem value="all_time">All time</SelectItem>
+                  </SelectContent>
+                </Select>
+                {datePreset === 'particular_date' && (
+                  <Input
+                    id="particular-date"
+                    type="date"
+                    value={particularDate}
+                    onChange={(e) => handleParticularDateChange(e.target.value)}
+                    className="border-gray-300 focus:border-amber-500 focus:ring-amber-500 w-full"
+                  />
+                )}
+              </div>
             </div>
             { (role === 'onboarder' || role === 'lead_access_manager') && (
               <div>
@@ -313,6 +339,7 @@ export default function RegisteredCandidatesPage() {
                   setDatePreset('all_time');
                   setStartDate('');
                   setEndDate('');
+                  setParticularDate(formatDateInputValue(new Date()));
                   // Reset performance-page alignment flags
                   setStrictOwner(false);
                   setOwnerDateMode('');
