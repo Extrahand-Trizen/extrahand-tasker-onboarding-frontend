@@ -445,6 +445,20 @@ export interface DashboardMetricsResponse {
   };
 }
 
+export interface DashboardSummaryResponse {
+  success: boolean;
+  data: {
+    total: number;
+    myLeadsAdded?: number;
+    approved: number;
+    interested: number;
+    notInterested: number;
+    notRegistered?: number;
+    registered?: number;
+    registeredVerified?: number;
+  };
+}
+
 export const caosApi = {
   /**
    * Create a new lead
@@ -634,6 +648,26 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to fetch dashboard metrics' }));
       throw new Error(error.error || error.message || 'Failed to fetch dashboard metrics');
+    }
+
+    return response.json();
+  },
+
+  async getDashboardSummary(): Promise<DashboardSummaryResponse> {
+    const token = await getAdminToken();
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/leads/dashboard-summary`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch dashboard summary' }));
+      throw new Error(error.error || error.message || 'Failed to fetch dashboard summary');
     }
 
     return response.json();

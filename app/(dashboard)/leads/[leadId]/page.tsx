@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, Suspense, type ComponentType, type ReactNode } from 'react';
+import { useDocumentVisible } from '@/lib/hooks/useDocumentVisible';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { SkillsSection } from '@/components/leads/SkillsSection';
@@ -114,36 +115,28 @@ function ConversionStatusCard({
     !!conversionDataSnapshot?.platformUid ||
     !!lead?.activationData?.firebaseUid ||
     ['invited', 'activated', 'suspended'].includes(lead?.accountStatus || 'not_created');
-  const isVerified = !!conversionDataSnapshot?.isAadhaarVerified || lead?.verificationStatus?.aadhaar?.status === 'verified';
+  const isVerifiedFromLead =
+    !!conversionDataSnapshot?.isAadhaarVerified ||
+    lead?.verificationStatus?.aadhaar?.status === 'verified';
+
+  const isPageVisible = useDocumentVisible();
 
   const autoRefreshQuery = useQuery({
-    queryKey: ['lead', leadId, 'conversion-status-auto', conversionDataSnapshot?.lastCheckedAt, isRegisteredOnPlatform, isVerified],
+    queryKey: ['lead', leadId, 'conversion-status-auto'],
     queryFn: () => caosApi.getConversionStatus(leadId),
-    enabled: hasPhone && isRegisteredOnPlatform && !isVerified,
-    refetchInterval: 30000,
-    refetchIntervalInBackground: true,
+    enabled: hasPhone && isRegisteredOnPlatform && !isVerifiedFromLead,
+    refetchInterval: (query) => {
+      if (!isPageVisible) return false;
+      if (!hasPhone || !isRegisteredOnPlatform || isVerifiedFromLead) return false;
+      if (query.state.data?.data?.isAadhaarVerified) return false;
+      return 120_000;
+    },
+    refetchIntervalInBackground: false,
     retry: 1,
   });
 
-  useEffect(() => {
-    if (!autoRefreshQuery.dataUpdatedAt) {
-      return;
-    }
-
-    queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
-
-    if (autoRefreshQuery.data?.data?.isAadhaarVerified) {
-      queryClient.invalidateQueries({ queryKey: ['lead', leadId, 'verified-certificates'] });
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-      queryClient.invalidateQueries({ queryKey: ['interested-candidates'] });
-      queryClient.invalidateQueries({ queryKey: ['registered-candidates'] });
-    }
-  }, [
-    autoRefreshQuery.data,
-    autoRefreshQuery.dataUpdatedAt,
-    leadId,
-    queryClient,
-  ]);
+  const polledStatus = autoRefreshQuery.data?.data;
+  const isVerified = !!polledStatus?.isAadhaarVerified || isVerifiedFromLead;
 
   const checkMutation = useMutation({
     mutationFn: () => caosApi.getConversionStatus(leadId),
@@ -192,6 +185,11 @@ function ConversionStatusCard({
         {conversionDataSnapshot?.lastCheckedAt && (
           <p className="text-xs text-gray-500">
             Last checked: {new Date(conversionDataSnapshot.lastCheckedAt).toLocaleString()}
+          </p>
+        )}
+        {isVerified && polledStatus?.isAadhaarVerified && !conversionDataSnapshot?.isAadhaarVerified && (
+          <p className="text-xs text-green-700">
+            Aadhaar verified on platform. Use &quot;Check status&quot; or reload the page to refresh lead details.
           </p>
         )}
         {hasPhone && (

@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, primaryCategoryLabel } from '@/lib/leadLabels';
 import { format } from 'date-fns';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
+import { useDocumentVisible } from '@/lib/hooks/useDocumentVisible';
 import { cn } from '@/lib/utils';
 
 
@@ -124,6 +125,9 @@ export default function CallbackQueuePage() {
   const isManagerView = role === 'lead_access_manager';
   const isOnboarder = role === 'onboarder';
   const isReady = isManagerView || (isQualifier ? !!currentUserId : isOnboarder ? !!currentUserId : true);
+  const isPageVisible = useDocumentVisible();
+  // Poll only while this page is mounted and the tab is visible (stops when user navigates away).
+  const followUpPollMs = isPageVisible ? 120_000 : false;
 
   const { data: creatorsData } = useQuery({
     queryKey: ['qualifiers'],
@@ -155,7 +159,8 @@ export default function CallbackQueuePage() {
       }),
     enabled: mounted && isReady,
     placeholderData: keepPreviousData,
-    refetchInterval: 60_000,
+    refetchInterval: followUpPollMs,
+    refetchIntervalInBackground: false,
     retry: 2,
   });
   const { data: statsData, isError: statsError, error: statsErrorObj } = useQuery({
@@ -167,7 +172,8 @@ export default function CallbackQueuePage() {
       }),
     enabled: mounted && isReady,
       placeholderData: keepPreviousData,
-    refetchInterval: 60_000,
+    refetchInterval: followUpPollMs,
+    refetchIntervalInBackground: false,
     retry: 2,
   });
 

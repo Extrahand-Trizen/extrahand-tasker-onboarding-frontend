@@ -1,10 +1,11 @@
 "use client";
 
-import { keepPreviousData, useQuery, useQueries } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { caosApi } from "@/lib/api/caos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CheckCircle, Heart, UserX, UserCheck, ShieldCheck, UserMinus, PhoneCall, AlertTriangle, CalendarClock } from "lucide-react";
+import { Users, Heart, UserX, UserCheck, ShieldCheck, UserMinus, PhoneCall, AlertTriangle, CalendarClock } from "lucide-react";
 import { useJWTAuth } from "@/lib/hooks/useJWTAuth";
+import { useDocumentVisible } from "@/lib/hooks/useDocumentVisible";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -16,37 +17,17 @@ export default function DashboardPage() {
       : undefined);
   const isQualifier = role === "qualifier";
   const isReady = !!role && (!isQualifier || !!currentUserId);
+  const isPageVisible = useDocumentVisible();
+  // Poll only while this page is mounted and the tab is visible (stops when user navigates away).
+  const followUpStatsPollMs = isPageVisible ? 120_000 : false;
 
-  const { data: leadsData, isLoading } = useQuery({
-    queryKey: ["leads", "dashboard", role, currentUserId],
-    queryFn: () =>
-      caosApi.searchLeads({
-        limit: 500,
-        addedBy: isQualifier ? currentUserId : undefined,
-        pickedBy: role === "onboarder" ? currentUserId : undefined,
-      }),
+  const { data: summaryData, isLoading: summaryLoading } = useQuery({
+    queryKey: ["leads", "dashboard-summary", role, currentUserId],
+    queryFn: () => caosApi.getDashboardSummary(),
     enabled: isReady,
+    staleTime: 60_000,
   });
 
-  const { data: myLeadsData } = useQuery({
-    queryKey: ["leads", "dashboard", "my-leads", currentUserId],
-    queryFn: () =>
-      caosApi.searchLeads({
-        limit: 1,
-        addedBy: currentUserId,
-      }),
-    enabled: role === "onboarder" && !!currentUserId,
-  });
-
-  const { data: approvedData } = useQuery({
-    queryKey: ["leads", "dashboard", "approved", role, currentUserId],
-    queryFn: () => caosApi.searchLeads({
-      status: "approved",
-      limit: 1,
-      pickedBy: role === "onboarder" ? currentUserId : undefined,
-    }),
-    enabled: !!role && role !== "qualifier",
-  });
   const { data: followUpStatsData, isError: followUpStatsError } = useQuery({
     queryKey: ["leads", "dashboard", "callback-stats", role, currentUserId],
     queryFn: () => caosApi.getFollowUpQueueStats({
@@ -55,106 +36,25 @@ export default function DashboardPage() {
     }),
     enabled: isReady,
     placeholderData: keepPreviousData,
-    refetchInterval: 60_000,
+    refetchInterval: followUpStatsPollMs,
+    refetchIntervalInBackground: false,
     retry: 2,
   });
 
   const isOnboarderOrManager = role === "onboarder" || role === "lead_access_manager";
-  const canViewRegistrationMetrics = isOnboarderOrManager || (isQualifier && !!currentUserId);
-  /** Onboarder: owner scope for not-registered / verified cards (broader). */
-  const registrationScopeOwner =
-    role === "onboarder" && currentUserId
-      ? { ownerBy: currentUserId }
-      : {
-          addedBy: isQualifier ? currentUserId : undefined,
-          pickedBy: role === "onboarder" ? currentUserId : undefined,
-        };
-  /** Registered card only: claimed (pickedBy) + registered on platform, not Aadhaar-verified. */
-  const registrationScopeRegisteredCard =
-    role === "onboarder" && currentUserId
-      ? { pickedBy: currentUserId }
-      : registrationScopeOwner;
-
-  // Registration metrics are shown for onboarder/manager and qualifier.
-  const countQueries = useQueries({
-    queries: [
-      {
-        queryKey: ["leads", "counts", "interested", role, currentUserId],
-        queryFn: () =>
-          caosApi.searchLeads({
-            status: "contacted_interested",
-            page: 1,
-            limit: 1,
-            addedBy: isQualifier ? currentUserId : undefined,
-            pickedBy: role === "onboarder" ? currentUserId : undefined,
-          }),
-        staleTime: 60_000,
-        enabled: isReady,
-      },
-      {
-        queryKey: ["leads", "counts", "not-interested", role, currentUserId],
-        queryFn: () =>
-          caosApi.searchLeads({
-            status: "contacted_not_interested",
-            page: 1,
-            limit: 1,
-            addedBy: isQualifier ? currentUserId : undefined,
-            pickedBy: role === "onboarder" ? currentUserId : undefined,
-          }),
-        staleTime: 60_000,
-        enabled: isReady,
-      },
-      {
-        queryKey: ["leads", "counts", "not-registered", role, currentUserId],
-        queryFn: () =>
-          caosApi.searchLeads({
-            registrationStatus: "not_registered",
-            ...registrationScopeOwner,
-            page: 1,
-            limit: 1,
-          }),
-        staleTime: 60_000,
-        enabled: canViewRegistrationMetrics,
-      },
-      {
-        queryKey: ["leads", "counts", "registered", role, currentUserId],
-        queryFn: () =>
-          caosApi.searchLeads({
-            registrationStatus: "registered",
-            ...registrationScopeRegisteredCard,
-            page: 1,
-            limit: 1,
-          }),
-        staleTime: 60_000,
-        enabled: canViewRegistrationMetrics,
-      },
-      {
-        queryKey: ["leads", "counts", "registered-verified", role, currentUserId],
-        queryFn: () =>
-          caosApi.searchLeads({
-            registrationStatus: "registered_verified",
-            ...registrationScopeOwner,
-            page: 1,
-            limit: 1,
-          }),
-        staleTime: 60_000,
-        enabled: canViewRegistrationMetrics,
-      },
-    ],
-  });
+  const summary = summaryData?.data;
 
   const stats = {
-    total: leadsData?.pagination?.total ?? 0,
-    approved: approvedData?.pagination?.total ?? 0,
+    total: summary?.total ?? 0,
+    approved: summary?.approved ?? 0,
   };
 
-  const myLeadsTotal = myLeadsData?.pagination?.total ?? 0;
-
-  const interestedTotal = countQueries[0]?.data?.pagination?.total ?? 0;
-  const notInterestedTotal = countQueries[1]?.data?.pagination?.total ?? 0;
-  const notRegisteredTotal = countQueries[2]?.data?.pagination?.total ?? 0;
-  const registeredTotal = countQueries[3]?.data?.pagination?.total ?? 0;
-  const registeredVerifiedTotal = countQueries[4]?.data?.pagination?.total ?? 0;
+  const myLeadsTotal = summary?.myLeadsAdded ?? 0;
+  const interestedTotal = summary?.interested ?? 0;
+  const notInterestedTotal = summary?.notInterested ?? 0;
+  const notRegisteredTotal = summary?.notRegistered ?? 0;
+  const registeredTotal = summary?.registered ?? 0;
+  const registeredVerifiedTotal = summary?.registeredVerified ?? 0;
   const followUpStats = followUpStatsData?.data;
   const followUpAvailable = !!followUpStats && !followUpStatsError;
   const onboarderCurrentTotalLabel = `${stats.total} / ${myLeadsTotal}`;
@@ -238,7 +138,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {authLoading || !isReady || isLoading ? (
+      {authLoading || !isReady || summaryLoading ? (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {[1, 2, 3, 4, 5].map((i) => (
             <Card key={i} className="animate-pulse border-gray-200">

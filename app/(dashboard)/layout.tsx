@@ -69,7 +69,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       return caosApi.getTransferNotifications(since);
     },
     enabled: !!currentUserId && !loading && isAuthenticated,
-    refetchInterval: 30_000,
+    refetchInterval: 120_000, // 2 min — was 30s; reduces steady backend load
   });
 
   useEffect(() => {
