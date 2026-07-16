@@ -400,6 +400,22 @@ export default function NotLiftedCandidatesPage() {
                   </Card>
                 );})}
               </div>
+
+              {total > limit && (
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total} candidates
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+                      Previous
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page * limit >= total}>
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
