@@ -14,11 +14,17 @@ jobs:
     timeout-minutes: 45
 
     env:
-      # MinIO upload (repository Secrets — never hardcode)
-      MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
-      MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
-      MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
-      MINIO_BUCKET: ${{ secrets.MINIO_BUCKET }}
+      # MinIO upload — support both CI names and local script names
+      MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT || secrets.MINIO_SERVER_URL }}
+      MINIO_SERVER_URL: ${{ secrets.MINIO_SERVER_URL || secrets.MINIO_ENDPOINT }}
+      MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY || secrets.MINIO_ROOT_USER }}
+      MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER || secrets.MINIO_ACCESS_KEY }}
+      MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY || secrets.MINIO_ROOT_PASSWORD }}
+      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD || secrets.MINIO_SECRET_KEY }}
+      MINIO_BUCKET: ${{ secrets.MINIO_BUCKET || secrets.MINIO_BUCKET_NAME || 'frontend-builds' }}
+      MINIO_BUCKET_NAME: ${{ secrets.MINIO_BUCKET_NAME || secrets.MINIO_BUCKET || 'frontend-builds' }}
+      MINIO_REGION_NAME: ${{ secrets.MINIO_REGION_NAME }}
+      MINIO_BROWSER_REDIRECT_URL: ${{ secrets.MINIO_BROWSER_REDIRECT_URL }}
       APP_FOLDER: ${{ secrets.APP_FOLDER }}
       # Backend URLs baked into Next.js static export at build time.
       # Prefer GitHub Variables; Secrets also work. Do not commit .env for CI.
