@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "upload:build": "node scripts/upload-tasker-onboarding-build-to-minio.mjs",
+    "upload:build:dry": "node scripts/upload-tasker-onboarding-build-to-minio.mjs --dry-run"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -38,8 +40,10 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
+    "minio": "^8.0.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

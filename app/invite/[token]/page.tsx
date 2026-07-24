@@ -190,7 +190,7 @@ export default function InviteAcceptPage() {
         <CardHeader className="text-center border-b bg-gradient-to-r from-amber-50 to-orange-50">
           <div className="flex justify-center mb-4">
             <Image
-              src="/logo.png"
+              src="./logo.png"
               alt="ExtraHand Logo"
               width={64}
               height={64}

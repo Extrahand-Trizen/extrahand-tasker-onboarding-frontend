@@ -91,7 +91,7 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
       <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6 bg-linear-to-r from-amber-50 to-yellow-50">
         <div className="flex items-center gap-3">
           <Image
-            src="/logo.png"
+            src="./logo.png"
             alt="ExtraHand Logo"
             width={40}
             height={40}
