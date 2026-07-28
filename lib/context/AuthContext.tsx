@@ -25,7 +25,13 @@ interface AuthContextValue extends AuthState {
   getAccessToken: () => Promise<string | null>;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+function getApiBaseUrl(): string {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+  if (!apiBaseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL or NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+  }
+  return apiBaseUrl;
+}
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -45,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
@@ -81,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!refreshToken) return false;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken })
@@ -92,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       localStorage.setItem('accessToken', data.data.accessToken);
 
-      const userRes = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      const userRes = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
         headers: { 'Authorization': `Bearer ${data.data.accessToken}` }
       });
 
@@ -117,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('refreshToken');
 
     if (accessToken && refreshToken) {
-      fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+      fetch(`${getApiBaseUrl()}/api/v1/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -137,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) return null;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

@@ -46,6 +46,28 @@ const STATUSES = ['active', 'suspended', 'inactive'] as const;
 type SortField = 'email' | 'name' | 'createdAt' | 'lastLoginAt' | 'role' | 'status';
 type SortDir = 'asc' | 'desc';
 
+type DeleteStep =
+  | 'idle'
+  | 'checking'
+  | 'transfer_needed'
+  | 'transferring'
+  | 'no_transfer'
+  | 'deleting'
+  | 'error';
+
+interface DeleteSummary {
+  role: string;
+  leadsAddedCount: number;
+  leadsPickedCount: number;
+  contactedCount: number;
+  interestedCount: number;
+  followupsCount: number;
+  totalAssignments: number;
+  hasAssignments: boolean;
+  remainingActiveAdmins: Array<{ userId: string; name: string; email: string }>;
+  canDelete: boolean;
+}
+
 export default function UserManagementPage() {
   const qc = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string>('active');
@@ -63,10 +85,18 @@ export default function UserManagementPage() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const quickActionsRef = useRef<HTMLDivElement>(null);
 
+  // ── Delete flow ──────────────────────────────────────────────────────────
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
+  const [deleteStep, setDeleteStep] = useState<DeleteStep>('idle');
+  const [deleteSummary, setDeleteSummary] = useState<DeleteSummary | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Close quick actions menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (quickActionsRef.current && !quickActionsRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.quick-actions-container')) {
         setShowQuickActions(null);
       }
     };
@@ -187,6 +217,84 @@ export default function UserManagementPage() {
     },
     onError: (e: any) => toast.error(e.message || 'Failed to revoke sessions'),
   });
+
+  // useEffect: fetch assignments summary whenever the delete dialog opens
+  useEffect(() => {
+    if (!deleteDialogOpen || !deleteUser) return;
+    console.log('[Delete Flow useEffect] Dialog opened for user:', deleteUser);
+    setDeleteStep('checking');
+    setDeleteSummary(null);
+    setDeleteError(null);
+
+    userManagementApi.getAssignmentsSummary(deleteUser.userId)
+      .then((res) => {
+        console.log('[Delete Flow useEffect] Received summary data:', res.data);
+        setDeleteSummary(res.data);
+        setDeleteStep(res.data.hasAssignments ? 'transfer_needed' : 'no_transfer');
+      })
+      .catch((err: any) => {
+        console.error('[Delete Flow useEffect] Error fetching summary:', err);
+        setDeleteError(err.message || 'Failed to check assignments. Please try again.');
+        setDeleteStep('error');
+      });
+  }, [deleteDialogOpen, deleteUser]);
+
+  const handleDeleteClick = (user: AdminUser) => {
+    console.log('[handleDeleteClick invoked] Target user:', user);
+    setShowQuickActions(null);
+    setDeleteUser(user);
+    setDeleteStep('idle');
+    setDeleteSummary(null);
+    setDeleteError(null);
+    setDeleteDialogOpen(true); // open dialog immediately — data loads inside via useEffect
+  };
+
+  const handleTransferAndProceed = async () => {
+    if (!deleteUser) return;
+    console.log('[handleTransferAndProceed invoked] Target user:', deleteUser);
+    setDeleteStep('transferring');
+    try {
+      const res = await userManagementApi.transferAndDelete(deleteUser.userId);
+      console.log('[handleTransferAndProceed success] Result:', res);
+      toast.success('All assignments transferred and account deleted successfully');
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      setDeleteDialogOpen(false);
+      setDeleteUser(null);
+    } catch (err: any) {
+      console.error('[handleTransferAndProceed error]:', err);
+      toast.error(err.message || 'Failed to transfer and delete user');
+      setDeleteStep('transfer_needed');
+    }
+  };
+
+  const handleFinalDelete = async () => {
+    if (!deleteUser) return;
+    console.log('[handleFinalDelete invoked] Target user:', deleteUser);
+    setDeleteStep('deleting');
+    try {
+      const res = await userManagementApi.delete(deleteUser.userId);
+      console.log('[handleFinalDelete success] Result:', res);
+      toast.success('User account deleted successfully');
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      setDeleteDialogOpen(false);
+      setDeleteUser(null);
+    } catch (err: any) {
+      console.error('[handleFinalDelete error]:', err);
+      toast.error(err.message || 'Failed to delete user');
+      setDeleteStep('no_transfer');
+    }
+  };
+
+  const closeDeleteDialog = () => {
+    if (deleteStep === 'transferring' || deleteStep === 'deleting') return; // block close while busy
+    console.log('[closeDeleteDialog invoked]');
+    setDeleteDialogOpen(false);
+    setDeleteUser(null);
+    setDeleteStep('idle');
+    setDeleteSummary(null);
+    setDeleteError(null);
+  };
+
 
   const handleViewDetails = (user: AdminUser) => {
     setSelectedUser(user);
@@ -518,11 +626,14 @@ export default function UserManagementPage() {
                               >
                                 View
                               </Button>
-                              <div className="relative" ref={quickActionsRef}>
+                              <div className="relative quick-actions-container">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => setShowQuickActions(showQuickActions === user.userId ? null : user.userId)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowQuickActions(showQuickActions === user.userId ? null : user.userId);
+                                  }}
                                 >
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
@@ -555,6 +666,22 @@ export default function UserManagementPage() {
                                         onClick={() => handleQuickAction('resetPassword', user)}
                                       >
                                         Reset Password
+                                      </button>
+                                      <hr className="my-1 border-gray-200" />
+                                      <button
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-700 font-medium"
+                                        onMouseDown={(e) => {
+                                          e.stopPropagation();
+                                          console.log('[Delete User Button clicked onMouseDown]', user);
+                                          handleDeleteClick(user);
+                                        }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('[Delete User Button clicked onClick]', user);
+                                          handleDeleteClick(user);
+                                        }}
+                                      >
+                                        🗑 Delete User
                                       </button>
                                     </div>
                                   </div>
@@ -831,6 +958,234 @@ export default function UserManagementPage() {
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Flow Dialog ─────────────────────────────────────── */}
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteDialog();
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          {/* Step: Checking */}
+          {deleteStep === 'checking' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Checking assignments…</DialogTitle>
+                <DialogDescription>
+                  Looking up leads and followups assigned to{' '}
+                  <strong>{deleteUser?.name || deleteUser?.email}</strong>.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center py-8">
+                <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            </>
+          )}
+
+          {/* Step: Has assignments – show summary + transfer button */}
+          {deleteStep === 'transfer_needed' && deleteSummary && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-red-500" />
+                  Transfer & Delete — {deleteUser?.name || deleteUser?.email}
+                </DialogTitle>
+                <DialogDescription>
+                  This user has active assignments. They must be redistributed equally before deleting.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                {/* Role */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-600">Role:</span>
+                  <span className="capitalize text-sm font-semibold">{deleteSummary.role}</span>
+                </div>
+
+                {/* Counts */}
+                <div className="grid grid-cols-2 gap-3">
+                  {deleteSummary.leadsAddedCount > 0 && (
+                    <div className="bg-blue-50 rounded-lg p-3">
+                      <p className="text-xs text-blue-600 font-medium">Leads Added</p>
+                      <p className="text-2xl font-bold text-blue-700">{deleteSummary.leadsAddedCount}</p>
+                    </div>
+                  )}
+                  {deleteSummary.leadsPickedCount > 0 && (
+                    <div className="bg-purple-50 rounded-lg p-3">
+                      <p className="text-xs text-purple-600 font-medium">Leads Picked</p>
+                      <p className="text-2xl font-bold text-purple-700">{deleteSummary.leadsPickedCount}</p>
+                    </div>
+                  )}
+                  {deleteSummary.contactedCount > 0 && (
+                    <div className="bg-yellow-50 rounded-lg p-3">
+                      <p className="text-xs text-yellow-600 font-medium">Contacted</p>
+                      <p className="text-2xl font-bold text-yellow-700">{deleteSummary.contactedCount}</p>
+                    </div>
+                  )}
+                  {deleteSummary.interestedCount > 0 && (
+                    <div className="bg-green-50 rounded-lg p-3">
+                      <p className="text-xs text-green-600 font-medium">Interested</p>
+                      <p className="text-2xl font-bold text-green-700">{deleteSummary.interestedCount}</p>
+                    </div>
+                  )}
+                  {deleteSummary.followupsCount > 0 && (
+                    <div className="bg-orange-50 rounded-lg p-3">
+                      <p className="text-xs text-orange-600 font-medium">Follow-ups</p>
+                      <p className="text-2xl font-bold text-orange-700">{deleteSummary.followupsCount}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recipients */}
+                {deleteSummary.remainingActiveAdmins.length > 0 ? (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Will be redistributed equally to:</p>
+                    <div className="space-y-1">
+                      {deleteSummary.remainingActiveAdmins.map((admin) => (
+                        <div key={admin.userId} className="flex items-center gap-2 text-sm">
+                          <User className="h-3.5 w-3.5 text-gray-400" />
+                          <span className="font-medium">{admin.name}</span>
+                          <span className="text-gray-400 text-xs">({admin.email})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-sm text-red-700 font-medium">
+                      ⚠ No active users in the target pool to transfer assignments to. Deletion is blocked.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={closeDeleteDialog}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleTransferAndProceed}
+                  disabled={deleteSummary.remainingActiveAdmins.length === 0}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Transfer & Delete Account
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step: Transferring */}
+          {deleteStep === 'transferring' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Transferring &amp; deleting…</DialogTitle>
+                <DialogDescription>
+                  Redistributing all leads and deleting the account. Please wait.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center py-8">
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+            </>
+          )}
+
+          {/* Step: No assignments – simple confirm */}
+          {deleteStep === 'no_transfer' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-700">
+                  <Trash2 className="h-5 w-5" />
+                  Delete Account
+                </DialogTitle>
+                <DialogDescription>
+                  <strong>{deleteUser?.name || deleteUser?.email}</strong> has no active assignments.
+                  Are you sure you want to permanently delete this account?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-2">
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
+                  ⚠ This action is irreversible. The account and all session data will be permanently removed.
+                </p>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={closeDeleteDialog}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleFinalDelete}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Yes, Delete Account
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step: Deleting */}
+          {deleteStep === 'deleting' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Deleting account…</DialogTitle>
+                <DialogDescription>Permanently removing the account. Please wait.</DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center py-8">
+                <RefreshCw className="h-8 w-8 animate-spin text-red-500" />
+              </div>
+            </>
+          )}
+
+          {/* Step: Error – API check failed, stay open and show details */}
+          {deleteStep === 'error' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-700">
+                  <Trash2 className="h-5 w-5" />
+                  Unable to Check Assignments
+                </DialogTitle>
+                <DialogDescription>
+                  Something went wrong while fetching assignment data for{' '}
+                  <strong>{deleteUser?.name || deleteUser?.email}</strong>.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-2 space-y-3">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-700 font-medium">Error details:</p>
+                  <p className="text-sm text-red-600 mt-1">{deleteError}</p>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Please ensure you are logged in with a <strong>lead_access_manager</strong> account and the backend server is running.
+                </p>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={closeDeleteDialog}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (deleteUser) {
+                      setDeleteStep('checking');
+                      setDeleteError(null);
+                      userManagementApi.getAssignmentsSummary(deleteUser.userId)
+                        .then((res) => {
+                          setDeleteSummary(res.data);
+                          setDeleteStep(res.data.hasAssignments ? 'transfer_needed' : 'no_transfer');
+                        })
+                        .catch((err: any) => {
+                          setDeleteError(err.message || 'Failed to check assignments. Please try again.');
+                          setDeleteStep('error');
+                        });
+                    }
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

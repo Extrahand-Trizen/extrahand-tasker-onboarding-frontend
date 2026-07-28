@@ -1,7 +1,6 @@
+import { fetchWithAuth } from './auth-helper';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
-if (!API_BASE_URL) {
-  throw new Error('NEXT_PUBLIC_API_URL or NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
-}
 
 export interface AdminUser {
   userId: string;
@@ -264,5 +263,91 @@ export const userManagementApi = {
     }
 
     return response.json();
+  },
+
+  /**
+   * Delete a user
+   */
+  async delete(userId: string): Promise<{ success: boolean; message: string }> {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete user');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get assignments summary
+   */
+  async getAssignmentsSummary(userId: string): Promise<{
+    success: boolean;
+    data: {
+      role: string;
+      leadsAddedCount: number;
+      leadsPickedCount: number;
+      contactedCount: number;
+      interestedCount: number;
+      followupsCount: number;
+      totalAssignments: number;
+      hasAssignments: boolean;
+      remainingActiveAdmins: Array<{ userId: string; name: string; email: string }>;
+      canDelete: boolean;
+    };
+  }> {
+    console.log('[userManagementApi] Fetching assignments summary for userId:', userId);
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/v1/admin/users/${userId}/assignments-summary`);
+
+    if (!response.ok) {
+      let errMsg = `Request failed (${response.status})`;
+      try {
+        const err = await response.json();
+        errMsg = err.error || err.message || errMsg;
+      } catch (_) {}
+      console.error('[userManagementApi] getAssignmentsSummary failed:', errMsg);
+      throw new Error(errMsg);
+    }
+
+    const data = await response.json();
+    console.log('[userManagementApi] getAssignmentsSummary success:', data);
+    return data;
+  },
+
+  /**
+   * Transfer assignments and delete user
+   */
+  async transferAndDelete(userId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      transferredAddedCount: number;
+      transferredPickedCount: number;
+      redistributedTo: Array<{ userId: string; name: string; email: string }>;
+    };
+  }> {
+    console.log('[userManagementApi] Calling transferAndDelete for userId:', userId);
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/v1/admin/users/${userId}/transfer-and-delete`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      let errMsg = `Request failed (${response.status})`;
+      try {
+        const err = await response.json();
+        errMsg = err.error || err.message || errMsg;
+      } catch (_) {}
+      console.error('[userManagementApi] transferAndDelete failed:', errMsg);
+      throw new Error(errMsg);
+    }
+
+    const data = await response.json();
+    console.log('[userManagementApi] transferAndDelete success:', data);
+    return data;
   },
 };

@@ -14,9 +14,12 @@ interface User {
   profilePhoto?: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
-if (!API_BASE_URL) {
-  throw new Error('NEXT_PUBLIC_API_URL or NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+function getApiBaseUrl(): string {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_ADMIN_SERVICE_URL;
+  if (!apiBaseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL or NEXT_PUBLIC_ADMIN_SERVICE_URL environment variable is required');
+  }
+  return apiBaseUrl;
 }
 
 export function useJWTAuth() {
@@ -41,7 +44,7 @@ function useStandaloneAuth() {
       const accessToken = localStorage.getItem('accessToken');
       if (accessToken) {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+          const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
           });
 
@@ -79,7 +82,7 @@ function useStandaloneAuth() {
     if (!refreshToken) return false;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken })
@@ -89,7 +92,7 @@ function useStandaloneAuth() {
         const data = await response.json();
         localStorage.setItem('accessToken', data.data.accessToken);
 
-        const userResponse = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+        const userResponse = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
           headers: { 'Authorization': `Bearer ${data.data.accessToken}` }
         });
 
@@ -115,7 +118,7 @@ function useStandaloneAuth() {
     localStorage.removeItem('refreshToken');
 
     if (accessToken && refreshToken) {
-      fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+      fetch(`${getApiBaseUrl()}/api/v1/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -132,7 +135,7 @@ function useStandaloneAuth() {
     let token = localStorage.getItem('accessToken');
     if (token) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
