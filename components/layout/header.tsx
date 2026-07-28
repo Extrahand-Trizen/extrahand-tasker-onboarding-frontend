@@ -27,7 +27,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         )}
         {/* <div className="flex items-center gap-2 sm:gap-3">
           <Image
-            src="/logo.png"
+            src="./logo.png"
             alt="ExtraHand Logo"
             width={32}
             height={32}

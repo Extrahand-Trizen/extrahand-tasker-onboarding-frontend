@@ -75,7 +75,7 @@ export default function LoginPage() {
         <CardHeader className="text-center pb-4">
           <div className="flex justify-center mb-4">
             <Image
-              src="/logo.png"
+              src="./logo.png"
               alt="ExtraHand Logo"
               width={48}
               height={48}
