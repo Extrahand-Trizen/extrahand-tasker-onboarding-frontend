@@ -9,8 +9,12 @@ const nextConfig: NextConfig = {
       ? undefined
       : "export",
   trailingSlash: true,
-  // Relative asset URLs are needed only for MinIO subfolder exports.
-  assetPrefix: process.env.NODE_ENV === "development" ? undefined : "./",
+  // Relative URLs are needed only for MinIO subfolder exports. Standalone
+  // Docker builds serve Next assets from the root /_next path.
+  assetPrefix:
+    process.env.NEXT_OUTPUT === "standalone" || process.env.NODE_ENV === "development"
+      ? undefined
+      : "./",
   images: {
     unoptimized: true,
   },
