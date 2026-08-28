@@ -62,6 +62,7 @@
     
     ENV NEXT_TELEMETRY_DISABLED=1 \
         NEXT_PRIVATE_BUILD_WORKER=1
+    ENV NEXT_OUTPUT=standalone
     
     COPY --from=deps /app/node_modules ./node_modules
     
