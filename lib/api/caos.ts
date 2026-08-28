@@ -302,6 +302,7 @@ export interface SearchLeadsParams {
   source?: LeadSource;
   addedBy?: string;
   pickedBy?: string;
+  pickedByAny?: string[];
   transferPendingTo?: string;
   ownerBy?: string;
   search?: string;
@@ -493,7 +494,11 @@ export const caosApi = {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-        queryParams.append(key, String(value));
+        if (Array.isArray(value)) {
+          value.forEach((item) => queryParams.append(key, String(item)));
+        } else {
+          queryParams.append(key, String(value));
+        }
       }
     });
 

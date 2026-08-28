@@ -65,6 +65,10 @@ export default function MyPicksPage() {
             ? user.uid
             : undefined)
       : undefined;
+  const currentUserIdentities = Array.from(new Set([
+    currentUserId,
+    user && typeof user === 'object' && 'email' in user && typeof user.email === 'string' ? user.email : undefined,
+  ].filter((identity): identity is string => !!identity)));
 
   if (!authLoading && role !== 'onboarder' && role !== 'lead_access_manager') {
     router.replace('/dashboard');
@@ -82,12 +86,12 @@ export default function MyPicksPage() {
   );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['my-picks', { search, statusFilter, page, limit, pickedBy: currentUserId }],
+    queryKey: ['my-picks', { search, statusFilter, page, limit, pickedByAny: currentUserIdentities }],
     queryFn: () =>
       caosApi.searchLeads({
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        pickedBy: currentUserId || undefined,
+        pickedByAny: currentUserIdentities,
         page,
         limit,
       }),
