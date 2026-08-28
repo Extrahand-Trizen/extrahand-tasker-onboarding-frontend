@@ -99,6 +99,10 @@ export default function RegisteredCandidatesPage() {
     (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
       ? user.uid
       : undefined);
+  const currentUserIdentities = Array.from(new Set([
+    currentUserId,
+    user?.email,
+  ].filter((identity): identity is string => !!identity)));
 
   const canAccess =
     !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
@@ -162,6 +166,7 @@ export default function RegisteredCandidatesPage() {
         : undefined;
   /** Onboarder: same scope as performance (picked, added, or status updates), not only current claims. */
   const scopedPickedBy = undefined;
+  const scopedPickedByAny = !isPerformanceLinked && role === 'onboarder' ? currentUserIdentities : undefined;
 
   const { data, isLoading } = useQuery({
     queryKey: ['registered-candidates', role, currentUserId, registrationView, page, debouncedCity, searchSkill, qualifierId, startDate, endDate, strictOwner, ownerDateMode],
@@ -172,6 +177,7 @@ export default function RegisteredCandidatesPage() {
         primarySkill: searchSkill || undefined,
         ownerBy: scopedOwnerId,
         pickedBy: scopedPickedBy || undefined,
+        pickedByAny: scopedPickedByAny,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         page,

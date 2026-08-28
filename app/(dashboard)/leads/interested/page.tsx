@@ -134,6 +134,10 @@ export default function InterestedCandidatesPage() {
     (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
       ? user.uid
       : undefined);
+  const currentUserIdentities = Array.from(new Set([
+    currentUserId,
+    user?.email,
+  ].filter((identity): identity is string => !!identity)));
 
   useEffect(() => {
     if (!authLoading && !canAccess) {
@@ -175,6 +179,7 @@ export default function InterestedCandidatesPage() {
         ? currentUserId
         : undefined;
   const scopedPickedBy = !isPerformanceLinked && role === 'onboarder' ? currentUserId : undefined;
+  const scopedPickedByAny = !isPerformanceLinked && role === 'onboarder' ? currentUserIdentities : undefined;
   const resolvedStatusChangedBy = !isPerformanceLinked ? (statusChangedBy || undefined) : undefined;
 
   const { data, isLoading, refetch } = useQuery({
@@ -188,6 +193,7 @@ export default function InterestedCandidatesPage() {
       registrationStatus: registrationFilter === 'all' ? undefined : registrationFilter,
       ownerBy: scopedOwnerId,
       pickedBy: scopedPickedBy,
+      pickedByAny: scopedPickedByAny,
       statusChangedBy: resolvedStatusChangedBy,
       startDate: startDate || undefined,
       endDate: endDate || undefined,

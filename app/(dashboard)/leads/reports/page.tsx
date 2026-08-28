@@ -66,6 +66,10 @@ export default function LeadReportsPage() {
     (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
       ? user.uid
       : undefined);
+  const currentUserIdentities = Array.from(new Set([
+    currentUserId,
+    user?.email,
+  ].filter((identity): identity is string => !!identity)));
 
   const [datePreset, setDatePreset] = useSessionStorage<DatePreset>('reports-datePreset', 'last_7_days');
   const [fromDate, setFromDate] = useSessionStorage('reports-fromDate', getDateRangeFromPreset('last_7_days').from);
@@ -119,6 +123,7 @@ export default function LeadReportsPage() {
             ? currentUserId
             : undefined,
         pickedBy: role === 'onboarder' ? currentUserId : undefined,
+        pickedByAny: role === 'onboarder' ? currentUserIdentities : undefined,
         category: downloadCategory !== 'all' ? downloadCategory : undefined,
         gatedCommunityName: gatedCommunityFilter !== 'all' ? gatedCommunityFilter : undefined,
         city: cityFilter !== 'all' ? cityFilter : undefined,

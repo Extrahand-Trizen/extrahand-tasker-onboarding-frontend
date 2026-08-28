@@ -811,6 +811,7 @@ export const caosApi = {
     to?: string;
     qualifierId?: string;
     pickedBy?: string;
+    pickedByAny?: string[];
     category?: string;
     claimsScope?: 'current' | 'total';
     allTime?: boolean;
@@ -823,7 +824,11 @@ export const caosApi = {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-        queryParams.append(key, String(value));
+        if (Array.isArray(value)) {
+          value.forEach((item) => queryParams.append(key, String(item)));
+        } else {
+          queryParams.append(key, String(value));
+        }
       }
     });
 
@@ -1555,6 +1560,7 @@ export const caosApi = {
     addedBy?: string;
     ownerBy?: string;
     pickedBy?: string;
+    pickedByAny?: string[];
     statusChangedBy?: string;
     startDate?: string;
     endDate?: string;
@@ -1620,6 +1626,7 @@ export const caosApi = {
     addedBy?: string;
     ownerBy?: string;
     pickedBy?: string;
+    pickedByAny?: string[];
     statusChangedBy?: string;
     startDate?: string;
     endDate?: string;
@@ -1643,7 +1650,11 @@ export const caosApi = {
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, String(value));
+          if (Array.isArray(value)) {
+            value.forEach((item) => queryParams.append(key, String(item)));
+          } else {
+            queryParams.append(key, String(value));
+          }
         }
       });
     }
@@ -1674,7 +1685,7 @@ export const caosApi = {
     };
   },
 
-  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string; statusChangedBy?: string; attempts?: string }): Promise<{
+  async getNotLiftedCandidates(params?: { city?: string; primarySkill?: string; page?: number; limit?: number; addedBy?: string; ownerBy?: string; pickedBy?: string; pickedByAny?: string[]; statusChangedBy?: string; attempts?: string }): Promise<{
     success: boolean;
     data: {
       leads: Lead[];
@@ -1690,7 +1701,11 @@ export const caosApi = {
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, String(value));
+          if (Array.isArray(value)) {
+            value.forEach((item) => queryParams.append(key, String(item)));
+          } else {
+            queryParams.append(key, String(value));
+          }
         }
       });
     }
@@ -1850,7 +1865,11 @@ export const caosApi = {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-        queryParams.append(key, String(value));
+        if (Array.isArray(value)) {
+          value.forEach((item) => queryParams.append(key, String(item)));
+        } else {
+          queryParams.append(key, String(value));
+        }
       }
     });
 

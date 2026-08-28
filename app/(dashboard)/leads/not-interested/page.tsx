@@ -116,6 +116,10 @@ export default function NotInterestedCandidatesPage() {
     (user && typeof user === 'object' && 'uid' in user && typeof user.uid === 'string'
       ? user.uid
       : undefined);
+  const currentUserIdentities = Array.from(new Set([
+    currentUserId,
+    user?.email,
+  ].filter((identity): identity is string => !!identity)));
 
   const canAccess = !authLoading && (role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager');
   const isManagerView = role === 'lead_access_manager';
@@ -160,6 +164,7 @@ export default function NotInterestedCandidatesPage() {
         : undefined;
 
   const scopedPickedBy = !isPerformanceLinked && role === 'onboarder' ? currentUserId : undefined;
+  const scopedPickedByAny = !isPerformanceLinked && role === 'onboarder' ? currentUserIdentities : undefined;
   const resolvedStatusChangedBy = undefined;
 
   const { data, isLoading } = useQuery({
@@ -170,6 +175,7 @@ export default function NotInterestedCandidatesPage() {
         primarySkill: searchSkill,
         ownerBy: scopedOwnerId,
         pickedBy: scopedPickedBy,
+        pickedByAny: scopedPickedByAny,
         statusChangedBy: resolvedStatusChangedBy,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
