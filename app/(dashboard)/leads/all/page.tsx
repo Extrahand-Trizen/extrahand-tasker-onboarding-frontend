@@ -53,6 +53,7 @@ export default function AllLeadsPage() {
   const [search, setSearch] = useSessionStorage('all-leads-search', '');
   const [statusFilter, setStatusFilter] = useSessionStorage<LeadStatus | 'all'>('all-leads-statusFilter', 'all');
   const [addedByFilter, setAddedByFilter] = useSessionStorage<string>('all-leads-addedByFilter', 'all');
+  const [claimedByFilter, setClaimedByFilter] = useSessionStorage<string>('all-leads-claimedByFilter', 'all');
   const [categoryFilter, setCategoryFilter] = useSessionStorage<string>('all-leads-categoryFilter', 'all');
   const [cityFilter, setCityFilter] = useSessionStorage<string>('all-leads-cityFilter', 'all');
   const [localityFilter, setLocalityFilter] = useSessionStorage<string>('all-leads-localityFilter', 'all');
@@ -79,26 +80,39 @@ export default function AllLeadsPage() {
 
   const leadCreators = creatorsData?.data || [];
 
+  const onboardersQuery = useQuery({
+    queryKey: ['onboarders'],
+    queryFn: () => caosApi.getOnboarders(),
+    enabled: mounted && !authLoading && (role === 'lead_access_manager' || role === 'onboarder'),
+  });
+
+  const onboarders = onboardersQuery.data?.data || [];
+
   const locationFiltersQuery = useQuery({
     queryKey: ['lead-location-filter-options'],
     queryFn: () => caosApi.getLeadLocationFilterOptions(),
     enabled: mounted && !authLoading && canViewAllLeads,
     staleTime: 5 * 60 * 1000,
   });
-  const cityOptions = locationFiltersQuery.data?.data?.cities || [];
+  const cityOptions = Array.from(new Set([
+    'Hyderabad',
+    'Vijayawada',
+    ...(locationFiltersQuery.data?.data?.cities || []),
+  ])).sort((a, b) => a.localeCompare(b));
   const localityOptions = locationFiltersQuery.data?.data?.localities || [];
   const localAreaOptions = locationFiltersQuery.data?.data?.localAreas || [];
 
   const { data, isLoading, error } = useQuery({
     queryKey: [
       'all-leads',
-      { search, statusFilter, addedByFilter, categoryFilter, cityFilter, localityFilter, localAreaFilter, claimFilter, page, limit },
+      { search, statusFilter, addedByFilter, claimedByFilter, categoryFilter, cityFilter, localityFilter, localAreaFilter, claimFilter, page, limit },
     ],
     queryFn: () =>
       caosApi.searchLeads({
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         addedBy: addedByFilter !== 'all' ? addedByFilter : undefined,
+        pickedBy: claimedByFilter !== 'all' ? claimedByFilter : undefined,
         primarySkill: categoryFilter !== 'all' ? categoryFilter : undefined,
         city: cityFilter !== 'all' ? cityFilter : undefined,
         localArea: localAreaFilter !== 'all' ? localAreaFilter : undefined,
@@ -293,6 +307,30 @@ export default function AllLeadsPage() {
               </SelectContent>
             </Select>
 
+            {(role === 'lead_access_manager' || role === 'onboarder') && (
+              <Select
+                value={claimedByFilter}
+                onValueChange={(value) => {
+                  setClaimedByFilter(value);
+                  if (value !== 'all') setClaimFilter('all');
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="border-gray-300">
+                  <SelectValue placeholder="Claimed By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Claimants</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                  {onboarders.map((onboarder) => (
+                    <SelectItem key={onboarder.userId} value={onboarder.userId}>
+                      {onboarder.name || onboarder.email || onboarder.userId}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             <Select
               value={categoryFilter}
               onValueChange={(value) => {
@@ -480,6 +518,9 @@ export default function AllLeadsPage() {
                             Added by: {lead.addedByName}
                           </p>
                         )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Claimed by: {lead.pickedByName || lead.pickedBy || '—'}
+                        </p>
                         {lead.createdAt && (
                           <p className="text-xs text-gray-400 mt-1">
                             Created: {format(new Date(lead.createdAt), 'MMM dd, yyyy')}
@@ -567,6 +608,7 @@ export default function AllLeadsPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">City</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Added By</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Claimed By</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
@@ -603,6 +645,9 @@ export default function AllLeadsPage() {
                         <td className="px-4 py-3 text-sm text-gray-600">{lead.city}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {lead.addedByName || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {lead.pickedByName || lead.pickedBy || '—'}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">

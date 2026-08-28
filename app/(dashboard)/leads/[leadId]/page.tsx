@@ -296,7 +296,6 @@ function LeadDetailContent() {
   const [statusReasonCode, setStatusReasonCode] = useState('');
   const [callbackAt, setCallbackAt] = useState('');
   const [expectedOnboardingAt, setExpectedOnboardingAt] = useState('');
-  const [attempts, setAttempts] = useState('');
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -384,6 +383,9 @@ function LeadDetailContent() {
   });
 
   const lead = leadData?.data;
+  const nextAttempt = lead?.attempts === 'max_reached'
+    ? 5
+    : Number(lead?.attempts || 0) + 1;
   const gatedCommunityOptions = Array.from(
     new Set(
       (gatedCommunityNamesQuery.data?.data || [])
@@ -399,7 +401,7 @@ function LeadDetailContent() {
   const showReasonFields = filteredStatusReasonOptions.length > 0;
   const showCallbackDateField =
     (newStatus === 'contacted_interested' && statusReasonCode === 'callback_requested') ||
-    (newStatus === 'contacted_not_lifted' && attempts !== 'max_reached');
+    newStatus === 'contacted_not_lifted';
   const showExpectedOnboardingField =
     newStatus === 'contacted_interested' && statusReasonCode === 'interested_onboarding_later';
   const isBulkUpload = lead?.creationMethod === 'bulk_upload';
@@ -491,14 +493,12 @@ function LeadDetailContent() {
       statusReasonCode,
       callbackAt,
       expectedOnboardingAt,
-      attempts,
     }: {
       status: LeadStatus;
       notes?: string;
       statusReasonCode?: string;
       callbackAt?: string;
       expectedOnboardingAt?: string;
-      attempts?: string;
     }) => {
       // ✅ Double-check permission before making API call
       if (!canMoveStage) {
@@ -517,14 +517,9 @@ function LeadDetailContent() {
         throw new Error('Invalid status: Qualifier team cannot set this status');
       }
 
-      if ((statusReasonCode === 'callback_requested' || (newStatus === 'contacted_not_lifted' && attempts !== 'max_reached')) && !callbackAt) {
+      if ((statusReasonCode === 'callback_requested' || newStatus === 'contacted_not_lifted') && !callbackAt) {
         toast.error('Callback date is required.');
         throw new Error('callbackAt is required');
-      }
-
-      if (newStatus === 'contacted_not_lifted' && !attempts) {
-        toast.error('Attempts is required.');
-        throw new Error('attempts is required');
       }
 
       // No auto-transition needed since qualifier cannot set documents_submitted
@@ -533,7 +528,6 @@ function LeadDetailContent() {
         statusReasonText: undefined,
         callbackAt: showCallbackDateField ? callbackAt || undefined : undefined,
         expectedOnboardingAt: showExpectedOnboardingField ? expectedOnboardingAt || undefined : undefined,
-        attempts: status === 'contacted_not_lifted' ? attempts || undefined : undefined,
       });
     },
     onSuccess: (data, variables) => {
@@ -543,9 +537,9 @@ function LeadDetailContent() {
       setStatusReasonCode('');
       setCallbackAt('');
       setExpectedOnboardingAt('');
-      setAttempts('');
       queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['not-lifted-candidates'] });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to update status');
@@ -732,7 +726,6 @@ function LeadDetailContent() {
                   // ✅ Admin, Operations, and Qualifier can all move stages
                   if (lead) {
                     setNewStatus(lead.status);
-                    setAttempts((lead as any).attempts || '');
                   }
                   setShowStatusModal(true);
                 }}
@@ -1059,7 +1052,6 @@ function LeadDetailContent() {
               setStatusReasonCode('');
               setCallbackAt('');
               setExpectedOnboardingAt('');
-              setAttempts('');
             }
           }}
         >
@@ -1103,7 +1095,6 @@ function LeadDetailContent() {
                     setStatusReasonCode('');
                     setCallbackAt('');
                     setExpectedOnboardingAt('');
-                    setAttempts('');
                   }}
                 >
                   <SelectTrigger
@@ -1134,33 +1125,8 @@ function LeadDetailContent() {
                 </Select>
               </div>
               {newStatus === 'contacted_not_lifted' && (
-                <div className="space-y-2">
-                  <Label htmlFor="attempts-select">Attempts *</Label>
-                  <Select
-                    value={attempts}
-                    disabled={mustClaimBeforeStageChange}
-                    onValueChange={(value) => setAttempts(value)}
-                  >
-                    <SelectTrigger id="attempts-select" disabled={mustClaimBeforeStageChange}>
-                      <SelectValue placeholder="Select attempts" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="max_reached">Max Reached</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {attempts === '2' && (
-                    <p className="text-xs font-medium text-amber-600">Suggested: Call back in 1 day</p>
-                  )}
-                  {attempts === '3' && (
-                    <p className="text-xs font-medium text-amber-600">Suggested: Call back in 2 days</p>
-                  )}
-                  {attempts === '4' && (
-                    <p className="text-xs font-medium text-amber-600">Suggested: Call back in 3 days</p>
-                  )}
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-sm font-semibold text-amber-800">Attempt {nextAttempt}</p>
                 </div>
               )}
               <div className="space-y-2">
@@ -1236,7 +1202,6 @@ function LeadDetailContent() {
                       statusReasonCode,
                       callbackAt,
                       expectedOnboardingAt,
-                      attempts,
                     });
                   }}
                   disabled={updateStatusMutation.isPending || mustClaimBeforeStageChange}
@@ -1252,7 +1217,6 @@ function LeadDetailContent() {
                     setStatusReasonCode('');
                     setCallbackAt('');
                     setExpectedOnboardingAt('');
-                    setAttempts('');
                   }}
                   disabled={updateStatusMutation.isPending}
                 >

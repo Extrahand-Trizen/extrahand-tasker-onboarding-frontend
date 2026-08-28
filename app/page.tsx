@@ -31,7 +31,7 @@ export default function LandingPage() {
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <Image
-            src="./logo.png"
+            src="/logo.png"
             alt="ExtraHand Logo"
             width={40}
             height={40}
@@ -59,9 +59,9 @@ export default function LandingPage() {
               Simple tool for managing partners, verifying documents, and inviting them to the platform.
             </p>
             <div className="flex gap-3">
-              <Button size="lg" onClick={() => router.push('/login')}>
-                Login to Start
-              </Button>
+              <Link href="/login">
+                <Button size="lg">Login to Start</Button>
+              </Link>
             </div>
           </div>
         </section>

@@ -151,6 +151,7 @@ export interface Lead {
   lastTransferDecisionBy?: string;
   lastTransferDecisionByName?: string;
   lastTransferDecisionAt?: string;
+  attempts?: string;
   transferHistory?: Array<{
     fromUserId: string;
     fromUserName?: string;

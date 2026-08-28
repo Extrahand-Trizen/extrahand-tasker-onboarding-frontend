@@ -304,7 +304,7 @@ export default function RegisteredCandidatesPage() {
                 )}
               </div>
             </div>
-            { (role === 'onboarder' || role === 'lead_access_manager') && (
+            {role === 'lead_access_manager' && (
               <div>
                 <Label htmlFor="qualifier-filter" className="text-sm font-medium text-gray-700">Onboarder</Label>
                 <Select

@@ -252,7 +252,7 @@ export default function NotLiftedCandidatesPage() {
                   <SelectItem value="2">2</SelectItem>
                   <SelectItem value="3">3</SelectItem>
                   <SelectItem value="4">4</SelectItem>
-                  <SelectItem value="max_reached">Max Reached</SelectItem>
+                  <SelectItem value="more_than_4">More than 4</SelectItem>
                 </SelectContent>
               </Select>
             </div>
