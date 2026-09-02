@@ -466,7 +466,7 @@ export default function CallbackQueuePage() {
                   <SelectItem value="2">2</SelectItem>
                   <SelectItem value="3">3</SelectItem>
                   <SelectItem value="4">4</SelectItem>
-                  <SelectItem value="max_reached">Max Reached</SelectItem>
+                  <SelectItem value="more_than_4">More than 4</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -518,6 +518,7 @@ export default function CallbackQueuePage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Due At</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Attempts</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Reason</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -558,6 +559,9 @@ export default function CallbackQueuePage() {
                                 ? ((lead as { primarySkill?: string }).primarySkill || undefined)
                                 : undefined)
                           )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {lead.attempts === 'max_reached' ? 'Max Reached' : lead.attempts || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {lead.statusReasonText || lead.statusReasonCode || '-'}

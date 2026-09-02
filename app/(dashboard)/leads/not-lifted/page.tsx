@@ -291,6 +291,7 @@ export default function NotLiftedCandidatesPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Moved By</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Due At</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Attempts</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -299,6 +300,7 @@ export default function NotLiftedCandidatesPage() {
                     {leads.map((lead) => {
                       const moved = getLatestStatusTransition(lead, 'contacted_not_lifted');
                       const contact = [lead.phone, (lead as any).landline].filter(Boolean).join(', ');
+                      const followUpAt = lead.nextCallbackAt || lead.expectedOnboardingAt;
                       return (
                       <tr key={lead.leadId} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
@@ -328,6 +330,16 @@ export default function NotLiftedCandidatesPage() {
                             </div>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {followUpAt ? (
+                            <div className="space-y-1">
+                              <div>{format(new Date(followUpAt), 'MMM dd, yyyy hh:mm a')}</div>
+                              <Badge className={new Date(followUpAt) < new Date() ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}>
+                                {new Date(followUpAt) < new Date() ? 'Overdue' : 'Upcoming'}
+                              </Badge>
+                            </div>
+                          ) : '-'}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-600 font-semibold">
                           {lead.attempts === 'max_reached' ? 'Max Reached' : lead.attempts || '—'}
                         </td>
@@ -349,6 +361,7 @@ export default function NotLiftedCandidatesPage() {
                 {leads.map((lead) => {
                   const moved = getLatestStatusTransition(lead, 'contacted_not_lifted');
                   const contact = [lead.phone, (lead as any).landline].filter(Boolean).join(', ');
+                  const followUpAt = lead.nextCallbackAt || lead.expectedOnboardingAt;
                   return (
                   <Card key={lead.leadId} className="border-gray-200">
                     <CardContent className="pt-4">
@@ -384,6 +397,19 @@ export default function NotLiftedCandidatesPage() {
                           <span className="text-gray-900 font-semibold">
                             {lead.attempts === 'max_reached' ? 'Max Reached' : lead.attempts || '—'}
                           </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Due At:</span>{' '}
+                          {followUpAt ? (
+                            <span className="text-gray-900">
+                              {format(new Date(followUpAt), 'MMM dd, yyyy hh:mm a')}{' '}
+                              <Badge className={new Date(followUpAt) < new Date() ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}>
+                                {new Date(followUpAt) < new Date() ? 'Overdue' : 'Upcoming'}
+                              </Badge>
+                            </span>
+                          ) : (
+                            <span className="text-gray-900">-</span>
+                          )}
                         </div>
                         {moved?.changedAt && (
                           <div>
