@@ -63,6 +63,7 @@ export default function RegisteredCandidatesPage() {
   }, []);
 
   const [searchCity, setSearchCity] = useSessionStorage('registered-searchCity', '');
+  const [localAreaFilter, setLocalAreaFilter] = useSessionStorage<string>('registered-localAreaFilter', 'all');
   const [searchSkill, setSearchSkill] = useSessionStorage('registered-searchSkill', '');
   const [registrationView, setRegistrationView] = useSessionStorage<RegistrationView>('registered-registrationView', 'registered');
   const [qualifierId, setQualifierId] = useSessionStorage<string>('registered-qualifierId', 'all');
@@ -126,6 +127,14 @@ export default function RegisteredCandidatesPage() {
     enabled: mounted && canAccess && role === 'lead_access_manager',
   });
 
+  const locationFiltersQuery = useQuery({
+    queryKey: ['lead-location-filter-options'],
+    queryFn: () => caosApi.getLeadLocationFilterOptions(),
+    enabled: mounted && canAccess,
+    staleTime: 5 * 60 * 1000,
+  });
+  const localAreaOptions = locationFiltersQuery.data?.data?.localAreas || [];
+
   const handleDatePresetChange = (preset: DatePreset) => {
     setDatePreset(preset);
     if (preset === 'all_time') {
@@ -169,11 +178,12 @@ export default function RegisteredCandidatesPage() {
   const scopedPickedByAny = !isPerformanceLinked && role === 'onboarder' ? currentUserIdentities : undefined;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['registered-candidates', role, currentUserId, registrationView, page, debouncedCity, searchSkill, qualifierId, startDate, endDate, strictOwner, ownerDateMode],
+    queryKey: ['registered-candidates', role, currentUserId, registrationView, page, debouncedCity, localAreaFilter, searchSkill, qualifierId, startDate, endDate, strictOwner, ownerDateMode],
     queryFn: () =>
       caosApi.searchLeads({
         registrationStatus: registrationView,
         city: debouncedCity || undefined,
+        localArea: localAreaFilter !== 'all' ? localAreaFilter : undefined,
         primarySkill: searchSkill || undefined,
         ownerBy: scopedOwnerId,
         pickedBy: scopedPickedBy || undefined,
@@ -281,6 +291,26 @@ export default function RegisteredCandidatesPage() {
                     <SelectItem key={category.value} value={category.value}>
                       {category.label}
                     </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="local-area-filter" className="text-sm font-medium text-gray-700">Local Area</Label>
+              <Select
+                value={localAreaFilter}
+                onValueChange={(value) => {
+                  setLocalAreaFilter(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger id="local-area-filter" className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                  <SelectValue placeholder={locationFiltersQuery.isLoading ? 'Loading local areas...' : 'All local areas'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All local areas</SelectItem>
+                  {localAreaOptions.map((area) => (
+                    <SelectItem key={area} value={area}>{area}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
