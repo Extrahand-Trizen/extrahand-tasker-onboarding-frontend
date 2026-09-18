@@ -1583,7 +1583,13 @@ export const caosApi = {
     queryParams.append('status', 'contacted_interested');
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
+        if (Array.isArray(value)) {
+          value.forEach((item) => {
+            if (item !== undefined && item !== null && item !== '') {
+              queryParams.append(key, String(item));
+            }
+          });
+        } else if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, String(value));
         }
       });
