@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX, ShieldCheck, BarChart3, PhoneCall, FileSpreadsheet, PhoneOff, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Upload, FileText, Zap, Settings, X, ChevronDown, ChevronRight, UserPlus, UserCog, Heart, UsersRound, UserX, ShieldCheck, BarChart3, PhoneCall, FileSpreadsheet, PhoneOff, UserCheck, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { useState } from 'react';
@@ -20,6 +20,7 @@ const navigation: Array<{
   { name: 'All Leads', href: '/leads/all', icon: UsersRound, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Add Lead', href: '/leads/new', icon: FileText, roles: ['qualifier', 'onboarder', 'lead_access_manager'] },
   { name: 'Interested Candidates', href: '/leads/interested', icon: Heart, roles: ['onboarder', 'lead_access_manager'] },
+  { name: 'Website Leads', href: '/leads/website', icon: Globe, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Contacted & Not Lifted', href: '/leads/not-lifted', icon: PhoneOff, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Contacted & Not Interested', href: '/leads/not-interested', icon: UserX, roles: ['onboarder', 'lead_access_manager'] },
   { name: 'Follow-up Queue', href: '/leads/callbacks', icon: PhoneCall, roles: ['onboarder', 'lead_access_manager'] },
@@ -222,4 +223,3 @@ export function Sidebar({ isMobileOpen = false, onClose }: SidebarProps) {
     </>
   );
 }
-
