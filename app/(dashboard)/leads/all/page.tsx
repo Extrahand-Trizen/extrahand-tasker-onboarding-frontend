@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { toast } from 'sonner';
+import { SUPPORTED_CITIES } from '@/lib/places/supportedCities';
 import {
   Dialog,
   DialogContent,
@@ -94,11 +95,7 @@ export default function AllLeadsPage() {
     enabled: mounted && !authLoading && canViewAllLeads,
     staleTime: 5 * 60 * 1000,
   });
-  const cityOptions = Array.from(new Set([
-    'Hyderabad',
-    'Vijayawada',
-    ...(locationFiltersQuery.data?.data?.cities || []),
-  ])).sort((a, b) => a.localeCompare(b));
+  const cityOptions = SUPPORTED_CITIES;
   const localityOptions = locationFiltersQuery.data?.data?.localities || [];
   const localAreaOptions = locationFiltersQuery.data?.data?.localAreas || [];
 

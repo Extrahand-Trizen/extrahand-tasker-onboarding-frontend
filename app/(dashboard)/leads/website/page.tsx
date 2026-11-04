@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJWTAuth } from '@/lib/hooks/useJWTAuth';
 import { caosApi, type WebsiteLead } from '@/lib/api/caos';
+import { SUPPORTED_CITIES } from '@/lib/places/supportedCities';
 
 const PAGE_SIZE = 20;
 
@@ -149,7 +150,7 @@ export default function WebsiteLeadsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Cities</SelectItem>
-                {(leadsQuery.data?.cities || []).map((cityName) => (
+                {SUPPORTED_CITIES.map((cityName) => (
                   <SelectItem key={cityName} value={cityName}>{cityName}</SelectItem>
                 ))}
               </SelectContent>

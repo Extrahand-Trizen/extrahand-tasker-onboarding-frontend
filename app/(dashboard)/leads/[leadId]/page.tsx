@@ -29,6 +29,7 @@ import {
 } from '@/components/leads/GooglePlaceAutocomplete';
 import { GatedCommunityMultiSelect } from '@/components/leads/GatedCommunityMultiSelect';
 import { PRIMARY_CATEGORY_OPTIONS, leadStatusLabel, categoryDisplay } from '@/lib/leadLabels';
+import { getSupportedCityName } from '@/lib/places/supportedCities';
 
 const OTHER_GATED_COMMUNITY_VALUE = '__other__';
 const NO_GATED_COMMUNITY_VALUE = '__none__';
@@ -1297,7 +1298,7 @@ function LeadDetailContent() {
                     setEditCitySelection(null);
                     setEditFormData((prev) => ({ ...prev, city: '', state: '', locality: '' }));
                   }}
-                  helperText="Select city name, for example: Hyderabad."
+                  helperText="Choose one of the supported cities."
                 />
 
                 <GooglePlaceAutocomplete
@@ -1414,6 +1415,14 @@ function LeadDetailContent() {
                   onClick={() => {
                     if (!editFormData.name.trim()) {
                       toast.error('Name is required');
+                      return;
+                    }
+                    if (
+                      editFormData.city.trim() &&
+                      !getSupportedCityName(editFormData.city) &&
+                      editFormData.city !== (lead?.city || '')
+                    ) {
+                      toast.error('Choose one of the supported cities');
                       return;
                     }
                     updateLeadMutation.mutate(editFormData);
@@ -1561,4 +1570,3 @@ export default function LeadDetailPage() {
     </Suspense>
   );
 }
-

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupportedCityName } from '@/lib/places/supportedCities';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { data: unknown; timestamp: number }>();
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const suggestions = (data.predictions || []).map((prediction: {
+    const predictions = (data.predictions || []).map((prediction: {
       place_id: string;
       description: string;
       structured_formatting?: { main_text: string; secondary_text: string };
@@ -69,6 +70,11 @@ export async function GET(request: NextRequest) {
       main_text: prediction.structured_formatting?.main_text || prediction.description.split(',')[0],
       secondary_text: prediction.structured_formatting?.secondary_text || '',
     }));
+    const suggestions = mode === 'city'
+      ? predictions.filter((prediction: { main_text: string }) =>
+          getSupportedCityName(prediction.main_text),
+        )
+      : predictions;
 
     cache.set(cacheKey, { data: suggestions, timestamp: Date.now() });
     return NextResponse.json({ suggestions });

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CircleHelp, Loader2, MapPin, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSupportedCityName } from '@/lib/places/supportedCities';
 import {
   extractCityName,
   extractLocalityName,
@@ -168,7 +169,11 @@ export function GooglePlaceAutocomplete({
       const fallback = suggestionDisplayName(suggestion);
 
       if (mode === 'city') {
-        const cityName = extractCityName(details, fallback);
+        const extractedCityName = extractCityName(details, fallback);
+        const cityName =
+          getSupportedCityName(extractedCityName) ||
+          getSupportedCityName(suggestion.main_text) ||
+          extractedCityName;
         const stateName = extractStateName(details, suggestion.description);
         setInputValue(cityName);
         onValueChange(cityName);
@@ -221,7 +226,7 @@ export function GooglePlaceAutocomplete({
           }}
           placeholder={
             placeholder ||
-            (mode === 'city' ? 'e.g. Hyderabad' : isLocked ? 'Select city first' : 'e.g. Madhapur')
+            (mode === 'city' ? 'e.g. Warangal' : isLocked ? 'Select city first' : 'e.g. Madhapur')
           }
           disabled={isDisabled}
           autoComplete="off"
