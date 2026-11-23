@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Download, Search, Trash2 } from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 import { leadStatusLabel, PRIMARY_CATEGORY_OPTIONS } from '@/lib/leadLabels';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -64,7 +64,6 @@ export default function AllLeadsPage() {
   const [limit, setLimit] = useSessionStorage('all-leads-limit', 20);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
 
   // Allow qualifier, onboarder and lead_access_manager to view All Leads (delete only for lead_access_manager)
   const canViewAllLeads = role === 'qualifier' || role === 'onboarder' || role === 'lead_access_manager';
@@ -196,64 +195,6 @@ export default function AllLeadsPage() {
     bulkDeleteMutation.mutate(Array.from(selectedLeads));
   };
 
-  const handleExportCsv = async () => {
-    setIsExporting(true);
-    try {
-      const filters = {
-        search: search || undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        addedBy: addedByFilter !== 'all' ? addedByFilter : undefined,
-        pickedBy: claimedByFilter !== 'all' ? claimedByFilter : undefined,
-        primarySkill: categoryFilter !== 'all' ? categoryFilter : undefined,
-        city: cityFilter !== 'all' ? cityFilter : undefined,
-        localArea: localAreaFilter !== 'all' ? localAreaFilter : undefined,
-        unclaimed: claimFilter === 'unclaimed' ? true : undefined,
-        claimed: claimFilter === 'claimed' ? true : undefined,
-      };
-      const firstPage = await caosApi.searchLeads({ ...filters, page: 1, limit: 500 });
-      const allLeads = [...firstPage.data];
-
-      for (let exportPage = 2; exportPage <= firstPage.pagination.totalPages; exportPage += 1) {
-        const pageResult = await caosApi.searchLeads({ ...filters, page: exportPage, limit: 500 });
-        allLeads.push(...pageResult.data);
-      }
-
-      const escapeCsvValue = (value: string) => {
-        const safeValue = /^[\t\r ]*[=+\-@]/.test(value) ? `'${value}` : value;
-        return `"${safeValue.replace(/"/g, '""')}"`;
-      };
-      const rows = [
-        ['Name', 'Phone', 'City', 'Service', 'Created At'],
-        ...allLeads.map((lead) => {
-          const createdAt = lead.createdAt ? new Date(lead.createdAt) : null;
-          return [
-            lead.name || '',
-            lead.phone || lead.landline || '',
-            lead.city || '',
-            lead.primaryCategory || lead.secondaryCategory || '',
-            createdAt && !Number.isNaN(createdAt.getTime())
-              ? format(createdAt, 'dd MMM yyyy, h:mm a')
-              : lead.createdAt || '',
-          ];
-        }),
-      ];
-      const csv = `\uFEFF${rows.map((row) => row.map(escapeCsvValue).join(',')).join('\r\n')}`;
-      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `all-leads-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      toast.success(`Exported ${allLeads.length} leads`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to export leads');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   // Lead access managers can delete any lead
   const canDelete = role === 'lead_access_manager';
   const canPick = role === 'onboarder';
@@ -286,10 +227,6 @@ export default function AllLeadsPage() {
                 : 'Showing all leads (claimed and unclaimed).'}
           </p>
         </div>
-        <Button onClick={handleExportCsv} disabled={isExporting}>
-          <Download className="h-4 w-4 mr-2" />
-          {isExporting ? 'Exporting...' : 'Export CSV'}
-        </Button>
       </div>
 
       {/* Filters */}

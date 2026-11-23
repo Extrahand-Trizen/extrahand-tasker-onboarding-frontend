@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     images: [`${baseUrl}/logo.png`],
   },
   icons: {
-    icon: "/logo.png",
+    icon: "/favicon.ico?v=20261123-2",
     apple: "/logo.png",
   },
 };

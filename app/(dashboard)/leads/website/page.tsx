@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { CheckCircle2, Loader2, MapPin, RefreshCw, Search, Users } from 'lucide-react';
+import { CheckCircle2, Download, Loader2, MapPin, RefreshCw, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,6 +28,7 @@ export default function WebsiteLeadsPage() {
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
   const [page, setPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
 
   const canAccess =
     !authLoading && (role === 'onboarder' || role === 'lead_access_manager');
@@ -65,6 +66,58 @@ export default function WebsiteLeadsPage() {
   const leads = leadsQuery.data?.data || [];
   const summary = leadsQuery.data?.summary;
   const totalPages = Math.max(1, leadsQuery.data?.pagination.pages || 1);
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      const firstPage = await caosApi.getWebsiteLeads({
+        page: 1,
+        limit: 100,
+        search,
+        city,
+      });
+      const allLeads = [...firstPage.data];
+
+      for (let exportPage = 2; exportPage <= firstPage.pagination.pages; exportPage += 1) {
+        const pageResult = await caosApi.getWebsiteLeads({
+          page: exportPage,
+          limit: 100,
+          search,
+          city,
+        });
+        allLeads.push(...pageResult.data);
+      }
+
+      const escapeCsvValue = (value: string) => {
+        const safeValue = /^[\t\r ]*[=+\-@]/.test(value) ? `'${value}` : value;
+        return `"${safeValue.replace(/"/g, '""')}"`;
+      };
+      const rows = [
+        ['Name', 'Phone', 'City', 'Service', 'Created At'],
+        ...allLeads.map((lead) => [
+          lead.fullName || '',
+          lead.mobileNumber || '',
+          lead.city || '',
+          lead.serviceCategory || '',
+          formatCreatedAt(lead.createdAt),
+        ]),
+      ];
+      const csv = `\uFEFF${rows.map((row) => row.map(escapeCsvValue).join(',')).join('\r\n')}`;
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `website-leads-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${allLeads.length} website leads`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to export website leads.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (authLoading) {
     return (
@@ -123,7 +176,7 @@ export default function WebsiteLeadsPage() {
 
       <Card>
         <CardContent className="space-y-4 p-4">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
@@ -137,24 +190,35 @@ export default function WebsiteLeadsPage() {
                 }}
               />
             </div>
-            <Select
-              value={city || 'all'}
-              onValueChange={(value) => {
-                setCity(value === 'all' ? '' : value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger aria-label="Filter by city">
-                <MapPin className="mr-2 h-4 w-4 text-gray-400" />
-                <SelectValue placeholder="All Cities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Cities</SelectItem>
-                {SUPPORTED_CITIES.map((cityName) => (
-                  <SelectItem key={cityName} value={cityName}>{cityName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex min-w-0 gap-2">
+              <Select
+                value={city || 'all'}
+                onValueChange={(value) => {
+                  setCity(value === 'all' ? '' : value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="min-w-0 flex-1 sm:w-[200px] sm:flex-none" aria-label="Filter by city">
+                  <MapPin className="mr-2 h-4 w-4 text-gray-400" />
+                  <SelectValue placeholder="All Cities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Cities</SelectItem>
+                  {SUPPORTED_CITIES.map((cityName) => (
+                    <SelectItem key={cityName} value={cityName}>{cityName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                className="shrink-0"
+                variant="outline"
+                onClick={handleExportCsv}
+                disabled={isExporting}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isExporting ? 'Exporting...' : 'Export CSV'}
+              </Button>
+            </div>
           </div>
 
           {leadsQuery.isError ? (
