@@ -13,6 +13,7 @@ import { useSessionStorage } from '@/lib/hooks/useSessionStorage';
 import { PRIMARY_CATEGORY_OPTIONS, primaryCategoryLabel } from '@/lib/leadLabels';
 import { Loader2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SUPPORTED_CITIES } from '@/lib/places/supportedCities';
 
 type ExportTemplate = 'eod' | 'detailed';
 type DatePreset = 'today' | 'last_7_days' | 'all_time' | 'custom';
@@ -151,7 +152,7 @@ export default function LeadReportsPage() {
     queryFn: () => caosApi.getLeadLocationFilterOptions(),
     staleTime: 5 * 60 * 1000,
   });
-  const cityOptions = locationFiltersQuery.data?.data?.cities || [];
+  const cityOptions = SUPPORTED_CITIES;
   const localityOptions = locationFiltersQuery.data?.data?.localities || [];
   const localAreaOptions = locationFiltersQuery.data?.data?.localAreas || [];
 

@@ -344,6 +344,36 @@ export interface SearchLeadsResponse {
   };
 }
 
+export interface WebsiteLead {
+  _id: string;
+  fullName: string;
+  mobileNumber: string;
+  city: string;
+  serviceCategory: string;
+  serviceCategorySlug: string;
+  claimedBy?: string;
+  claimedByName?: string;
+  claimedAt?: string;
+  createdAt: string;
+}
+
+export interface WebsiteLeadsResponse {
+  success: boolean;
+  data: WebsiteLead[];
+  cities: string[];
+  summary: {
+    total: number;
+    claimed: number;
+    unclaimed: number;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
 export interface CallbackQueueResponse {
   success: boolean;
   data: Lead[];
@@ -514,6 +544,57 @@ export const caosApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to fetch leads' }));
       throw new Error(error.error || error.message || 'Failed to fetch leads');
+    }
+
+    return response.json();
+  },
+
+  async getWebsiteLeads(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    city?: string;
+  } = {}): Promise<WebsiteLeadsResponse> {
+    const token = await getAdminToken();
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/website-leads?${queryParams.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to fetch website leads' }));
+      throw new Error(error.error || error.message || 'Failed to fetch website leads');
+    }
+
+    return response.json();
+  },
+
+  async claimWebsiteLead(leadId: string): Promise<{ success: boolean; data: WebsiteLead }> {
+    const token = await getAdminToken();
+    const response = await fetch(
+      `${ADMIN_SERVICE_URL}/api/v1/onboarding/website-leads/${encodeURIComponent(leadId)}/claim`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to claim website lead' }));
+      throw new Error(error.error || error.message || 'Failed to claim website lead');
     }
 
     return response.json();
@@ -2092,4 +2173,3 @@ export const caosApi = {
     return response.json();
   },
 };
-

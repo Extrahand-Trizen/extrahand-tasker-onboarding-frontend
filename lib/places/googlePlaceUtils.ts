@@ -28,7 +28,7 @@ function getComponent(
   return '';
 }
 
-/** Extract city name only (e.g. Hyderabad from full Google result). */
+/** Extract city name only (e.g. Warangal from full Google result). */
 export function extractCityName(details: PlaceDetailsResult, fallbackText?: string): string {
   const fromComponents =
     getComponent(details.address_components, [

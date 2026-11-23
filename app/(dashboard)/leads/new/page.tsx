@@ -21,6 +21,7 @@ import {
   type CitySelectionMeta,
 } from '@/components/leads/GooglePlaceAutocomplete';
 import { GatedCommunityMultiSelect } from '@/components/leads/GatedCommunityMultiSelect';
+import { getSupportedCityName } from '@/lib/places/supportedCities';
 
 const OTHER_GATED_COMMUNITY_VALUE = '__other__';
 
@@ -29,7 +30,10 @@ const leadSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, 'Invalid phone number (must be exactly 10 digits)').optional().or(z.literal('')),
   landline: z.string().regex(/^[0-9]{6,15}$/, 'Invalid landline number (6-15 digits)').optional().or(z.literal('')),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  city: z.string().optional().or(z.literal('')),
+  city: z.string().refine(
+    (value) => !value || !!getSupportedCityName(value),
+    'Choose one of the supported cities',
+  ).optional(),
   state: z.string().optional().or(z.literal('')),
   locality: z.string().optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
@@ -751,7 +755,7 @@ export default function AddLeadPage() {
                     setValue('state', '', { shouldValidate: false });
                     setValue('locality', '', { shouldValidate: false });
                   }}
-                  helperText="Select city name, for example: Hyderabad."
+                  helperText="Choose one of the supported cities."
                   error={errors.city?.message}
                 />
 
