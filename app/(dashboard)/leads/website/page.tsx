@@ -305,7 +305,7 @@ export default function WebsiteLeadsPage() {
           {!leadsQuery.isError && (
             <div className="flex items-center justify-between gap-3 text-sm text-gray-600">
               <span>
-                {leadsQuery.data?.pagination.total ?? 0} enquiries
+                {leads.length} enquiries on this page
               </span>
               <div className="flex items-center gap-2">
                 <Button
